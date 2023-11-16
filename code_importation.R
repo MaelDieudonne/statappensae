@@ -12,3 +12,5 @@ list_fichier <- unzip(temp,list=TRUE)
 unzip(temp,"Capital_immobilier_csv/capitalimmobilier.csv")
 table <- read.csv2("/home/onyxia/work/statappensae/Capital_immobilier_csv/capitalimmobilier.csv", sep = ",")
 rm(temp)  
+
+##Il faut continuer le travail
