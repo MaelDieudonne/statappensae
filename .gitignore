@@ -1,5 +1,5 @@
 # Data files
-*.csv
+*.feather
 *.rda
 *.rds
 
