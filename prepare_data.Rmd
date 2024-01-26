@@ -110,7 +110,12 @@ ages <- import_feather("/diffusion/Age_csp/agesexcommunes.feather")
 ```{r}
 diplo <- import_feather("/diffusion/Diplomes/diplomescommunes.feather")
 
-# Rapporter nodip1981, bac1981 et sup1981 au nombre d'habitants.
+# Recodages
+## Conversion du nombre de (non-)diplômés en proportion
+diplo[popul, c("pop1981") := .(i.pop1981), on = "codecommune"]
+diplo[, propnodip1981 := nodip1981/pop1981]
+diplo[, propbac1981 := bac1981/pop1981]
+diplo[, propsup1981 := sup1981/pop1981]
 ```
 
 ## 4. Religiosité
@@ -122,11 +127,12 @@ diplo <- import_feather("/diffusion/Diplomes/diplomescommunes.feather")
 
 ```{r}
 religcomm <- import_feather("/diffusion/Enseignement_prive/religiositecommunes.feather")
+religdep <- import_feather("/diffusion/Enseignement_prive/religiositedepartements.feather")
 
 # Recodages
-# nclerge1791 à rapporter à la taille de la population pour avoir une idée de la présence des institutions religieuses dans la commune.
-
-religdep <- import_feather("/diffusion/Enseignement_prive/religiositedepartements.feather")
+## Ratio de nclerge1791 sur le nombre d'habitants, pour avoir une idée de la présence des institutions religieuses dans la commune.
+religcomm[popul, c("pop1791") := .(i.pop1791), on = "codecommune"]
+religcomm[, pclerge1791 := nclerge1791/pop1791]
 ```
 
 ## 5. CSP
@@ -168,9 +174,10 @@ pres1981[popul, c("pop1981", "popagglo1981") :=
              .(i.pop1981, i.popagglo1981), on = "codecommune"]
 pres1981[ages, c("age1981", "prop0141981", "prop15391981", "prop40591981", "prop60p1981") :=
              .(i.age1981, i.prop0141981, i.prop15391981, i.prop40591981, i.prop60p1981), on = "codecommune"]
-# Diplômes
-pres1981[religcomm, c("prefract1791") :=
-             .(i.prefract1791), on = "codecommune"]
+pres1981[diplo, c("propnodip1981", "propbac1981", "propsup1981") :=
+             .(i.propnodip1981, i.propbac1981, propsup1981), on = "codecommune"]
+pres1981[religcomm, c("prefract1791", "pclerge1791") :=
+             .(i.prefract1791, i.pclerge1791), on = "codecommune"]
 pres1981[religdep, c("pclerge1856", "pmessalisants1950") :=
              .(i.pclerge1856, i.pmessalisants1950), on = "dep"]
 pres1981[catsociopro, c("pagri1981", "pindp1981", "pcadr1981", "ppint1981", "pempl1981", "pouvr1981", "pchom1981") :=
