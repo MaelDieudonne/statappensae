@@ -9,10 +9,8 @@
 % Original author:
 % WikiBooks (http://en.wikibooks.org/wiki/LaTeX/Title_Creation)
 % Modified by Julien Perrin to fit ENSAE
-%----------------------------------------------------------------------------------------
-%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
-%----------------------------------------------------------------------------------------
-
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \documentclass[12pt]{article}
 \usepackage[french]{babel}
@@ -27,10 +25,6 @@
 \usepackage{listings}
 \usepackage{csquotes}
 \usepackage{biblatex}
-
-\newcommand{\deriv}{\mathrm{d}}
-
-\addbibresource{references.bib}
 
 \lstset{
     language=R,
@@ -55,38 +49,29 @@
     morekeywords={}
     }
 
-\title{Stat'app conflit politique}
-
 \setlength {\marginparwidth }{2cm} 
 
+\title{Stat'app conflit politique}
+\addbibresource{references.bib}
+
 \begin{document}
+
+
 
 \begin{titlepage}
 
 \newcommand{\HRule}{\rule{\linewidth}{0.5mm}} % Defines a new command for the horizontal lines, change thickness here
 
-\center % Center everything on the page
- 
-%----------------------------------------------------------------------------------------
-%	HEADING SECTIONS
-%----------------------------------------------------------------------------------------
+\center
 
-\textsc{\LARGE ENSAE}\\[0.5cm] % Name of your university/college
-\includegraphics[scale=1.2]{ensae_logo_dev.png}\\[1cm] % Include a department/university logo - this will require the graphicx package
-\textsc{\Large Projet de statistiques appliquées}\\[0.5cm] % Major heading such as course name
-% \textsc{\large SE331}\\[0.5cm] % Minor heading such as course title
-
-%----------------------------------------------------------------------------------------
-%	TITLE SECTION
-%----------------------------------------------------------------------------------------
+% \textsc{\LARGE ENSAE}\\[0.5cm]
+\includegraphics[scale=1.2]{ensae_logo_dev.png}\\[1cm]
+\textsc{\Large Projet de statistiques appliquées}\\[0.5cm]
 
 \HRule \\[0.4cm]
-{ \huge \bfseries Propriété immobilière et comportements électoraux}\\[0.4cm] % Title of your document
-\HRule \\[1.5cm]
- 
-%----------------------------------------------------------------------------------------
-%	AUTHOR SECTION
-%----------------------------------------------------------------------------------------
+{ \huge \bfseries Propriété immobilière et comportements électoraux}\\[0.4cm]
+\emph{\Large Note de synthèse}\\[0.1cm]
+\HRule \\[0.6cm]
 
 \begin{minipage}{0.4\textwidth}
 \begin{flushleft} \large
@@ -105,14 +90,14 @@ Gaston \textsc{Vermersch}\\
 \end{flushleft}
 \end{minipage}\\[1cm]
 
-----------------------------------------------------------------------------------------
-%	DATE SECTION
-%----------------------------------------------------------------------------------------
+ ----------------------------------------------------------------------------------------\\[0.2cm]
 
 {\large \today}\\[2cm]
 \vfill
 
 \end{titlepage}
+
+
 
 \section{Introduction}
 
