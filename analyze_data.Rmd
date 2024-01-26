@@ -1,0 +1,25 @@
+---
+title: "analyze_data"
+output: html_document
+date: "2024-01-26"
+---
+
+```{r}
+# Packages
+install.packages("feather", quiet = TRUE)
+
+# Librairies
+library(data.table)
+library(feather)
+
+# Données
+pres1981 <- read_feather("pres1981.feather")
+```
+
+```{r}
+dependent_variable <- "part"
+excluded_covariables <- c("dep", "codecommune", "plm", "abs", "nulsT2", "absT2", "codecommune2", "dep2", "part", "partT2", "GD_ratio_T1", "GD_ratio_T2", "lib_ratio_T1")
+regression_formula <- as.formula(paste(dependent_variable, "~", paste(setdiff(names(pres1981), excluded_covariables), collapse = "+")))
+model <- lm(regression_formula, data = pres1981)
+summary(model)
+```
