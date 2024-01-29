@@ -17,6 +17,28 @@ pres1981 <- read_feather("pres1981.feather")
 ```
 
 ```{r}
+# Calcul du taux national de propriétaires
+propri_tot <- data.table(year = numeric(), sum_npropri = numeric(), sum_nlogement = numeric(), prop_ratio = numeric())
+for (year in 1960:2022) {
+  col_npropri <- paste0("npropri", year)
+  col_nlogement <- paste0("nlogement", year)
+  sum_npropri <- sum(propri[[col_npropri]], na.rm = TRUE)
+  sum_nlogement <- sum(propri[[col_nlogement]], na.rm = TRUE)
+  prop_ratio <- sum_npropri / sum_nlogement
+  propri_tot <- rbind(propri_tot, data.table(year = year, sum_npropri = sum_npropri, sum_nlogement = sum_nlogement, prop_ratio = prop_ratio))
+}
+# Graph
+ggplot(propri_tot, aes(x = year, y = prop_ratio)) +
+  geom_line(color = "skyblue") +
+  geom_point(color = "skyblue") +
+  labs(title = "Taux de propriétaires, 1960-2022",
+       x = "Années",
+       y = "Taux de propriétaires") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
 dependent_variable <- "part"
 excluded_covariables <- c("dep", "codecommune", "plm", "abs", "nulsT2", "absT2", "codecommune2", "dep2", "part", "partT2", "GD_ratio_T1", "GD_ratio_T2", "lib_ratio_T1")
 regression_formula <- as.formula(paste(dependent_variable, "~", paste(setdiff(names(pres1981), excluded_covariables), collapse = "+")))
