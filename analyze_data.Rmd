@@ -6,14 +6,15 @@ date: "2024-01-26"
 
 ```{r}
 # Packages
-install.packages("feather", quiet = TRUE)
+# install.packages("feather", quiet = TRUE)
 
 # Librairies
-library(data.table)
-library(feather)
+# library(data.table)
+# library(feather)
+library(ggplot2)
 
 # Données
-pres1981 <- read_feather("pres1981.feather")
+# pres1981 <- read_feather("pres1981.feather")
 ```
 
 ```{r}
