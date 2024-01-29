@@ -133,6 +133,7 @@ religdep <- import_feather("/diffusion/Enseignement_prive/religiositedepartement
 ## Ratio de nclerge1791 sur le nombre d'habitants, pour avoir une idée de la présence des institutions religieuses dans la commune.
 religcomm[popul, c("pop1791") := .(i.pop1791), on = "codecommune"]
 religcomm[, pclerge1791 := nclerge1791/pop1791]
+religcomm[, pclerge1791 := replace(pclerge1791, is.infinite(pclerge1791), NaN)]
 ```
 
 ## 5. CSP
