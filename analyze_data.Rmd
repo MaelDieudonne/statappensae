@@ -5,17 +5,19 @@ date: "2024-01-26"
 ---
 
 ```{r}
-# Packages
-# install.packages("feather", quiet = TRUE)
+# A supprimer si le package dependencies fonctionne bien.
 
-# Librairies
+# install.packages("feather", quiet = TRUE)
 # library(data.table)
 # library(feather)
-library(ggplot2)
+# library(ggplot2)
+```
 
-# Données
+```{r}
+# Optionnel : pour charger la base si déjà enregistrée.
 # pres1981 <- read_feather("pres1981.feather")
 ```
+
 
 ```{r}
 # Calcul du taux national de propriétaires

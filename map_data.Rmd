@@ -1,0 +1,48 @@
+---
+title: "map_data"
+output: html_document
+date: "2024-01-29"
+---
+
+```{r}
+# A supprimer si dependencies.R fonctionne bien.
+
+# install.packages("sf", quiet = TRUE)
+# install.packages("archive", quiet = TRUE)
+# library(archive)
+# library(httr)
+# library(sf)
+# library(ggplot2)
+```
+
+```{r}
+# Téléchargement du fond de carte.
+# Le serveur est très lent, d'où le timeout.
+# Si nous faisons beaucoup de cartes, il faudra plutôt déposer les fichiers sur le bucket.
+if (!dir.exists("shapefile")) {dir.create("shapefile")}
+httr::GET("https://wxs.ign.fr/x02uy2aiwjo9bm8ce5plwqmr/telechargement/prepackage/ADMINEXPRESS_SHP_TERRITOIRES_PACK_2023-12-19$ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/file/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19.7z", timeout(1800), progress(), write_disk("shapefile/Carto_Insee.7z", overwrite = TRUE))
+
+# Extraction
+archive_extract("shapefile/Carto_Insee.7z", dir = "shapefile", files = c("ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-12-00156/ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19/COMMUNE.shp", "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-12-00156/ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19/COMMUNE.shx"), "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-12-00156/ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19/COMMUNE.dbf"))
+unlink("shapefile/Carto_Insee.7z")
+
+# Nettoyage
+file.rename(file.path(target_dir, "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19", "ADMIN-EXPRESS", "1_DONNEES_LIVRAISON_2023-12-00156", "ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19", "COMMUNE.shp"), 
+            file.path(target_dir, "COMMUNE.shp"))
+file.rename(file.path(target_dir, "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19", "ADMIN-EXPRESS", "1_DONNEES_LIVRAISON_2023-12-00156", "ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19", "COMMUNE.shx"), 
+            file.path(target_dir, "COMMUNE.shx"))
+file.rename(file.path(target_dir, "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19", "ADMIN-EXPRESS", "1_DONNEES_LIVRAISON_2023-12-00156", "ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19", "COMMUNE.dbf"), 
+            file.path(target_dir, "COMMUNE.dbf"))
+unlink(file.path(target_dir, "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19"), recursive = TRUE)
+```
+
+```{r}
+background <- st_read("shapefile/COMMUNE.shx")
+map_data <- merge(background, pres1981, by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
+ggplot() +
+  geom_sf(data = map_data, aes(fill = part)) +
+  scale_fill_viridis_c(name = "Part") +
+  ggtitle("Participation au premier tour des élections présidentielles, 1981") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
