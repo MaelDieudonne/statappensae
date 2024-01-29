@@ -5,16 +5,7 @@ date: "2024-01-26"
 ---
 
 ```{r}
-# A supprimer si le package dependencies fonctionne bien.
-
-# install.packages("feather", quiet = TRUE)
-# library(data.table)
-# library(feather)
-# library(ggplot2)
-```
-
-```{r}
-# Optionnel : pour charger la base si déjà enregistrée.
+# Optionnel, pour charger la base si déjà enregistrée.
 # pres1981 <- read_feather("pres1981.feather")
 ```
 
@@ -30,6 +21,8 @@ for (year in 1960:2022) {
   prop_ratio <- sum_npropri / sum_nlogement
   propri_tot <- rbind(propri_tot, data.table(year = year, sum_npropri = sum_npropri, sum_nlogement = sum_nlogement, prop_ratio = prop_ratio))
 }
+rm(col_npropri, col_nlogement, sum_npropri, sum_nlogement, prop_ratio, year)
+
 # Graph
 ggplot(propri_tot, aes(x = year, y = prop_ratio)) +
   geom_line(color = "skyblue") +
@@ -39,6 +32,7 @@ ggplot(propri_tot, aes(x = year, y = prop_ratio)) +
        y = "Taux de propriétaires") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
+rm(propri_tot)
 ```
 
 ```{r}
@@ -47,6 +41,7 @@ excluded_covariables <- c("dep", "codecommune", "plm", "abs", "nulsT2", "absT2",
 regression_formula <- as.formula(paste(dependent_variable, "~", paste(setdiff(names(pres1981), excluded_covariables), collapse = "+")))
 model <- lm(regression_formula, data = pres1981)
 summary(model)
+rm(dependent_variable, excluded_covariables, regression_formula)
 ```
 
 ```{r}
@@ -55,4 +50,5 @@ excluded_covariables <- c("dep", "codecommune", "plm", "abs", "nulsT2", "absT2",
 regression_formula <- as.formula(paste(dependent_variable, "~", paste(setdiff(names(pres1981), excluded_covariables), collapse = "+")))
 model <- lm(regression_formula, data = pres1981)
 summary(model)
+rm(dependent_variable, excluded_covariables, regression_formula)
 ```

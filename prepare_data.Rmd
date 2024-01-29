@@ -4,31 +4,6 @@ output: html_document
 date: "2024-01-26"
 ---
 
-```{r}
-# A supprimer si dependencies.R fonctionne correctement.
-
-# Packages
-# install.packages("feather", quiet = TRUE)
-
-# Librairies
-# library(aws.s3)
-# library(data.table)
-# library(feather)
-
-# Fonctions
-# import_feather <- function(input_file) {
-#  bucket_name <- "maeldieudonne"
-#  data <- aws.s3::s3read_using(
-#    FUN = arrow::read_feather,
-#    object = input_file,
-#    bucket = bucket_name,
-#    opts = list("region" = "")
-#  )  
-#  data <- as.data.table(data)
-#  return(data)
-#}
-```
-
 # Résultats électoraux
 
 -   plm
@@ -69,7 +44,7 @@ prefixes_to_drop <- c("exprimes", "inscrits", "nom", "pervote", "ppar", "pvoix",
 pres1981 <- pres1981[, .SD, .SDcols = setdiff(names(pres1981), grep(paste0("^", paste(prefixes_to_drop, collapse = "|")), names(pres1981), value = TRUE))]
 pres1981 <- pres1981[, -c("nuls", "plmdoublon", "perpar", "year")]
 
-rm(T1mask, T2mask, prefixes_to_drop)
+rm(candidats, T1mask, T2mask, T2candidates, prefixes_to_drop)
 ```
 
 # Propriété immobilière
@@ -197,4 +172,3 @@ pres1981[reven, c("revmoy1981") :=
 # Optionnel : écriture de la base, si nous voulons éviter de la reconstruire à chaque fois.
 # write_feather(pres1981, "pres1981.feather")
 ```
-
