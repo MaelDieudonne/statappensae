@@ -1,2 +1,2 @@
 # statappensae
-Repo pour le projet StatApp Maël, Swann, ALexis
+Repo pour le projet StatApp de Maël, Swann et Alexis
