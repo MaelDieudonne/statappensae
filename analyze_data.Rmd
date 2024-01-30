@@ -33,7 +33,7 @@ pop_tot_1981 <- sum(pres1981$pop1981, na.rm = TRUE)
 nan_results[, prop_missing_pop := missing_pop / pop_tot_1981]
 
 print(nan_results)
-rm(columns, na_pop, na_count, nb_communes, pop_tot_1981)
+rm(columns, na_pop, na_count)
 ```
 
 ```{r}
@@ -77,4 +77,15 @@ regression_formula <- as.formula(paste(dependent_variable, "~", paste(setdiff(na
 model <- lm(regression_formula, data = pres1981)
 summary(model)
 rm(dependent_variable, excluded_covariables, regression_formula)
+```
+
+```{r}
+prop_missing_communes_1981 <- sum(apply(pres1981[, !excluded_covariables, with = FALSE], 1, function(row) any(is.na(row)))) / nb_communes
+print("% of missing communes because of nan")
+print(prop_missing_communes_1981)
+
+rows_with_nan <- pres1981[apply(pres1981[, !excluded_covariables, with = FALSE], 1, function(row) any(is.na(row))), ]
+prop_missing_pop_1981 <- sum(rows_with_nan$pop1981, na.rm = TRUE) / pop_tot_1981
+print("% of missing population because of nan")
+print(prop_missing_pop_1981)
 ```
