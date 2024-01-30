@@ -67,6 +67,12 @@ excluded_covariables <- c("dep", "codecommune", "plm", "abs", "nulsT2", "absT2",
 regression_formula <- as.formula(paste(dependent_variable, "~", paste(setdiff(names(pres1981), excluded_covariables), collapse = "+")))
 model <- lm(regression_formula, data = pres1981)
 summary(model)
+
+prop_missing_communes_1981 <- 100 * sum(apply(pres1981[, !excluded_covariables, with = FALSE], 1, function(row) any(is.na(row)))) / nb_communes
+rows_with_nan <- pres1981[apply(pres1981[, !excluded_covariables, with = FALSE], 1, function(row) any(is.na(row))), ]
+prop_missing_pop_1981 <- 100 * sum(rows_with_nan$pop1981, na.rm = TRUE) / pop_tot_1981
+cat("Les valeurs manquantes représentent", prop_missing_communes_1981, "% des communes et", prop_missing_pop_1981, "% de la population en 1981.")
+
 rm(dependent_variable, excluded_covariables, regression_formula)
 ```
 
@@ -76,16 +82,11 @@ excluded_covariables <- c("dep", "codecommune", "plm", "abs", "nulsT2", "absT2",
 regression_formula <- as.formula(paste(dependent_variable, "~", paste(setdiff(names(pres1981), excluded_covariables), collapse = "+")))
 model <- lm(regression_formula, data = pres1981)
 summary(model)
-rm(dependent_variable, excluded_covariables, regression_formula)
-```
 
-```{r}
-prop_missing_communes_1981 <- sum(apply(pres1981[, !excluded_covariables, with = FALSE], 1, function(row) any(is.na(row)))) / nb_communes
-print("% of missing communes because of nan")
-print(prop_missing_communes_1981)
-
+prop_missing_communes_1981 <- 100 * sum(apply(pres1981[, !excluded_covariables, with = FALSE], 1, function(row) any(is.na(row)))) / nb_communes
 rows_with_nan <- pres1981[apply(pres1981[, !excluded_covariables, with = FALSE], 1, function(row) any(is.na(row))), ]
-prop_missing_pop_1981 <- sum(rows_with_nan$pop1981, na.rm = TRUE) / pop_tot_1981
-print("% of missing population because of nan")
-print(prop_missing_pop_1981)
+prop_missing_pop_1981 <- 100 * sum(rows_with_nan$pop1981, na.rm = TRUE) / pop_tot_1981
+cat("Les valeurs manquantes représentent", prop_missing_communes_1981, "% des communes et", prop_missing_pop_1981, "% de la population en 1981.")
+
+rm(dependent_variable, excluded_covariables, regression_formula)
 ```
