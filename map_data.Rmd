@@ -12,32 +12,67 @@ if (!dir.exists("shapefile")) {dir.create("shapefile")}
 httr::GET("https://wxs.ign.fr/x02uy2aiwjo9bm8ce5plwqmr/telechargement/prepackage/ADMINEXPRESS_SHP_TERRITOIRES_PACK_2023-12-19$ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/file/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19.7z", timeout(1800), progress(), write_disk("shapefile/Carto_Insee.7z", overwrite = TRUE))
 
 # Extraction
-archive_extract("shapefile/Carto_Insee.7z", dir = "shapefile", files = c(
-  "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-12-00156/ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19/COMMUNE.shp", 
-  "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-12-00156/ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19/COMMUNE.shx", 
-  "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-12-00156/ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19/COMMUNE.dbf"))
+extensions <- c("shp", "shx", "dbf")
+files_to_extract <- paste0("ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-12-00156/ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19/COMMUNE.", extensions)
+archive_extract("shapefile/Carto_Insee.7z", dir = "shapefile", files = files_to_extract)
 unlink("shapefile/Carto_Insee.7z")
 
 # Nettoyage
-target_dir <- "shapefile"
-file.rename(file.path(target_dir, "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19", "ADMIN-EXPRESS", "1_DONNEES_LIVRAISON_2023-12-00156", "ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19", "COMMUNE.shp"), 
-            file.path(target_dir, "COMMUNE.shp"))
-file.rename(file.path(target_dir, "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19", "ADMIN-EXPRESS", "1_DONNEES_LIVRAISON_2023-12-00156", "ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19", "COMMUNE.shx"), 
-            file.path(target_dir, "COMMUNE.shx"))
-file.rename(file.path(target_dir, "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19", "ADMIN-EXPRESS", "1_DONNEES_LIVRAISON_2023-12-00156", "ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19", "COMMUNE.dbf"), 
-            file.path(target_dir, "COMMUNE.dbf"))
-unlink(file.path(target_dir, "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19"), recursive = TRUE)
-rm(target_dir)
+base_path <- file.path("shapefile", "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19", "ADMIN-EXPRESS", "1_DONNEES_LIVRAISON_2023-12-00156", "ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19")
+for (ext in extensions) {
+  source_file <- file.path(base_path, paste("COMMUNE", ext, sep = "."))
+  target_file <- file.path("shapefile", paste("COMMUNE", ext, sep = "."))
+  file.rename(source_file, target_file)
+}
+unlink(base_path, recursive = TRUE)
+rm(extensions, files_to_extract, base_path)
+unlink("shapefile/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19", recursive = TRUE)
 ```
 
 ```{r}
+# Construction de la base
 background <- st_read("shapefile/COMMUNE.shx")
 map_data <- merge(background, pres1981, by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
+```
+
+
+```{r}
+# Carte statique
 ggplot() +
   geom_sf(data = map_data, aes(fill = part)) +
   scale_fill_viridis_c(name = "Part") +
   ggtitle("Participation au premier tour des élections présidentielles, 1981") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
-rm(background, map_data)
+```
+
+
+
+```{r}
+subset_map_data <- subset(map_data, INSEE_DEP == 75)
+filtered_map_data <- subset(pres1981, plm != 0)
+```
+
+
+
+```{r}
+# Carte dynamique avec mapview
+# Les détails s'affichent en cliquant sur une commune
+# Restriction à 1 département pour accélérer le rendu.
+# Marseille et Lyon apparaissent comme une seule ville.
+# Le code bugue pour le 75. En fait, dans pres1981, les résultats sont agrégés pour Lyon et Marseille, par arrondissement pour Paris. Le problème doit survenir lors de la construction de map_data, où n'apparaît plus qu'une observation pour Paris, remplie de Nan.
+# Car les arrondissements de Paris partagent le même codecommune ?
+# Non, car Paris apparaît en entier dans le shapefile.
+# Il faudra récupérer les arrondissements dans un second shapefile : ARRONDISSEMENT_MUNICIPAL
+
+subset_map_data <- map_data[map_data$INSEE_DEP == "07", ]
+st_crs(subset_map_data) <- 9794
+
+subset_map_data$rounded_part <- paste0(round(subset_map_data$part, digits = 2), " %")
+
+popup_content <- paste("<strong>Commune</strong>", subset_map_data$NOM, sep = "<br>",
+                       "<strong>Participation</strong>", subset_map_data$rounded_part, ""
+                       )
+
+mapview(subset_map_data, zcol = "rounded_part", popup = popup_content, layer.name = "Participation T1 1981")
 ```

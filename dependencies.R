@@ -6,6 +6,7 @@ packages <- c(
   "feather",
   "ggplot2",
   "httr",
+  "mapview",
   "sf")
 
 installed_packages <- packages %in% rownames(installed.packages())
