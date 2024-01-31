@@ -170,5 +170,6 @@ pres1981[reven, c("revmoy1981") :=
 
 ```{r}
 # Optionnel : écriture de la base, si nous voulons éviter de la reconstruire à chaque fois.
+# if (!dir.exists("data")) {dir.create("data")}
 # write_feather(pres1981, "data/pres1981.feather")
 ```
