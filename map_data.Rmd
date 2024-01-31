@@ -4,6 +4,7 @@ output: html_document
 date: "2024-01-29"
 ---
 
+
 ```{r}
 # Téléchargement du fond de carte. Le serveur est très lent, d'où le timeout. Si nous faisons beaucoup de cartes, il faudra plutôt déposer les fichiers sur le bucket.
 if (!dir.exists("shapefile")) {dir.create("shapefile")}
@@ -38,6 +39,7 @@ unlink(c("shapefile/Carto_Insee.7z", "shapefile/ADMIN-EXPRESS_3-2__SHP_LAMB93_FX
 rm(root_name, file_names, extensions, files_to_extract, root_path, source_file, target_file)
 ```
 
+
 ```{r}
 # Construction de la base
 background_province <- st_read("shapefile/COMMUNE.shx")
@@ -54,21 +56,80 @@ map_data <- rbind(map_data_province, map_data_paris)
 st_crs(map_data) <- 9794
 ```
 
+
+# Cartes statiques
+
+
 ```{r}
-# Carte statique
-ggplot() +
-  geom_sf(data = map_data, aes(fill = part)) +
-  scale_fill_viridis_c(name = "Part") +
-  ggtitle("Participation au premier tour des élections présidentielles, 1981") +
+# Carte statique avec ggplot, réduite à un département pour améliorer la lisibilité et accélérer le rendu, à résolution paramétrable
+selected_dep <- "58"
+subset_map_data <- map_data[map_data$dep == selected_dep, ]
+subset_map_data$part <- round(subset_map_data$part, 2)
+title <- paste0("Participation au premier tour des élections présidentielles\n\ndépartement = ", selected_dep, "\nannée = 1981")
+output_file <- paste0("part_1981_dep", selected_dep, ".png")
+
+# Calcul des dimensions de la carte
+bbox <- st_bbox(subset_map_data)
+aspect_ratio <- diff(c(bbox$xmin, bbox$xmax)) / diff(c(bbox$ymin, bbox$ymax))
+base_width <- 7 # Paramètre définissant la résolution
+base_height <- base_width / aspect_ratio
+font_size <- base_width * 2.2
+
+# Génération de la carte
+plot <- ggplot() +
+  geom_sf(data = subset_map_data, aes(fill = part)) +
+  scale_fill_viridis_c(name = "Participation", labels = scales::percent_format(scale = 1)) +
+  ggtitle(paste(title)) +
   theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(plot.title = element_text(hjust = 0.5, size = font_size),
+        axis.text = element_blank(),
+        panel.grid = element_blank(),
+        plot.title.position = "plot",
+        legend.title = element_text(size = font_size * 0.8),
+        legend.text = element_text(size = font_size * 0.7))
+
+# Enregistrement de la carte
+ggsave(output_file, plot = plot, width = base_width, height = base_height, units = "in")
+rm(bbox, aspect_ratio, base_height, base_width, font_size, selected_dep, title)
 ```
 
+
 ```{r}
-# Carte dynamique avec mapview, réduite à un département pour améliorer la lisibilité et accélérer le rendu (les détails s'affichent en cliquant sur une commune).
+# Carte statique avec ggplot, France entière, à résolution paramétrable
+map_data$part <- round(map_data$part, 2)
 
+# Calcul des dimensions de la carte
+bbox <- st_bbox(map_data)
+aspect_ratio <- diff(c(bbox$xmin, bbox$xmax)) / diff(c(bbox$ymin, bbox$ymax))
+base_width <- 7 # Paramètre définissant la résolution
+base_height <- base_width / aspect_ratio
+font_size <- base_width * 2.2
+
+# Génération de la carte
+plot <- ggplot() +
+  geom_sf(data = map_data, aes(fill = part)) +
+  scale_fill_viridis_c(name = "Participation", labels = scales::percent_format(scale = 1)) +
+  ggtitle("Participation au premier tour des élections présidentielles\n1981") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = font_size),
+        axis.text = element_blank(),
+        panel.grid = element_blank(),
+        plot.title.position = "plot",
+        legend.title = element_text(size = font_size * 0.8),
+        legend.text = element_text(size = font_size * 0.7))
+
+# Enregistrement de la carte
+ggsave("part_1981_France.png", plot = plot, width = base_width, height = base_height, units = "in")
+rm(bbox, aspect_ratio, base_height, base_width, title_font_size)
+```
+
+
+# Cartes dynamiques
+
+
+```{r}
+# Carte dynamique avec mapview, réduite à un département (les détails s'affichent en cliquant sur une commune).
 subset_map_data <- map_data[map_data$dep == "2A", ]
-
 subset_map_data$rounded_part <- paste0(round(100 * subset_map_data$part, digits = 2), " %")
 
 popup_content <- paste("<strong>Commune</strong>", subset_map_data$NOM, sep = "<br>",
@@ -80,7 +141,6 @@ mapview(subset_map_data, zcol = "rounded_part", popup = popup_content, layer.nam
 
 ```{r}
 # Carte dynamique avec mapview (les détails s'affichent en cliquant sur une commune).
-
 map_data$rounded_part <- paste0(round(100 * map_data$part, digits = 2), " %")
 
 popup_content <- paste("<strong>Commune</strong>", map_data$NOM, sep = "<br>",
