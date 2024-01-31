@@ -4,9 +4,8 @@ output: html_document
 date: "2024-01-29"
 ---
 
-
 ```{r}
-# Téléchargement du fond de carte. Le serveur est très lent, d'où le timeout. Si nous faisons beaucoup de cartes, il faudra plutôt déposer les fichiers sur le bucket.
+# Téléchargement du fond de carte
 if (!dir.exists("shapefile")) {dir.create("shapefile")}
 httr::GET("https://wxs.ign.fr/x02uy2aiwjo9bm8ce5plwqmr/telechargement/prepackage/ADMINEXPRESS_SHP_TERRITOIRES_PACK_2023-12-19$ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/file/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19.7z", timeout(1800), progress(), write_disk("shapefile/Carto_Insee.7z", overwrite = TRUE))
 
@@ -36,9 +35,8 @@ for (file_name in file_names) {
 }
 
 unlink(c("shapefile/Carto_Insee.7z", "shapefile/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19"), recursive = TRUE)
-rm(root_name, file_names, extensions, files_to_extract, root_path, source_file, target_file)
+rm(ext, extension, extensions, file_name, file_names, files_to_extract, root_name, root_path, source_file, target_file)
 ```
-
 
 ```{r}
 # Construction de la base
@@ -54,11 +52,21 @@ map_data_paris <- subset(map_data_paris, select = -INSEE_ARM)
 
 map_data <- rbind(map_data_province, map_data_paris)
 st_crs(map_data) <- 9794
+
+rm(background_province, map_data_province, background_paris, map_data_paris)
 ```
 
+```{r}
+# if (!dir.exists("data")) {dir.create("data")}
+# st_write(map_data, "data/map.gpkg", driver = "GPKG", append = TRUE)
+# unlink("shapefile", recursive = TRUE)
+```
 
 # Cartes statiques
 
+```{r}
+# map_data <- st_read("data/map.gpkg")
+```
 
 ```{r}
 # Carte statique avec ggplot, réduite à un département pour améliorer la lisibilité et accélérer le rendu, à résolution paramétrable
@@ -93,7 +101,6 @@ ggsave(output_file, plot = plot, width = base_width, height = base_height, units
 rm(bbox, aspect_ratio, base_height, base_width, font_size, selected_dep, title)
 ```
 
-
 ```{r}
 # Carte statique avec ggplot, France entière, à résolution paramétrable
 map_data$part <- round(map_data$part, 2)
@@ -123,9 +130,7 @@ ggsave("part_1981_France.png", plot = plot, width = base_width, height = base_he
 rm(bbox, aspect_ratio, base_height, base_width, font_size)
 ```
 
-
 # Cartes dynamiques
-
 
 ```{r}
 # Carte dynamique avec mapview, réduite à un département (les détails s'affichent en cliquant sur une commune).

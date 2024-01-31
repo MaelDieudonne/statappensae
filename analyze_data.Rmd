@@ -6,7 +6,7 @@ date: "2024-01-26"
 
 ```{r}
 # Optionnel, pour charger la base si déjà enregistrée.
-# pres1981 <- read_feather("pres1981.feather")
+# pres1981 <- read_feather("data/pres1981.feather")
 ```
 
 ```{r}
