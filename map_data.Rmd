@@ -120,7 +120,7 @@ plot <- ggplot() +
 
 # Enregistrement de la carte
 ggsave("part_1981_France.png", plot = plot, width = base_width, height = base_height, units = "in")
-rm(bbox, aspect_ratio, base_height, base_width, title_font_size)
+rm(bbox, aspect_ratio, base_height, base_width, font_size)
 ```
 
 
