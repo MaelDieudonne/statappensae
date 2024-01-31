@@ -6,12 +6,12 @@ date: "2024-01-29"
 
 ```{r}
 # Téléchargement du fond de carte.
-# Le serveur est très lent, d'où le timeout.
-# Si nous faisons beaucoup de cartes, il faudra plutôt déposer les fichiers sur le bucket.
+# Le serveur est très lent, d'où le timeout. Si nous faisons beaucoup de cartes, il faudra plutôt déposer les fichiers sur le bucket.
 if (!dir.exists("shapefile")) {dir.create("shapefile")}
 httr::GET("https://wxs.ign.fr/x02uy2aiwjo9bm8ce5plwqmr/telechargement/prepackage/ADMINEXPRESS_SHP_TERRITOIRES_PACK_2023-12-19$ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/file/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19.7z", timeout(1800), progress(), write_disk("shapefile/Carto_Insee.7z", overwrite = TRUE))
 
 # Extraction
+# Code à compléter pour extraire aussi les fichiers ARRONDISSEMENT_MUNICIPAL
 extensions <- c("shp", "shx", "dbf")
 files_to_extract <- paste0("ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-12-00156/ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19/COMMUNE.", extensions)
 archive_extract("shapefile/Carto_Insee.7z", dir = "shapefile", files = files_to_extract)
@@ -31,10 +31,19 @@ unlink("shapefile/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19", recursive = TRU
 
 ```{r}
 # Construction de la base
-background <- st_read("shapefile/COMMUNE.shx")
-map_data <- merge(background, pres1981, by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
-```
+background_province <- st_read("shapefile/COMMUNE.shx")
+map_data_province <- merge(background_province, subset(pres1981, dep != 75), by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
 
+map_data_province <- subset(map_data_province, select = -c(INSEE_ARR, INSEE_CAN, INSEE_DEP, INSEE_REG, SIREN_EPCI, STATUT))
+
+background_paris <- st_read("shapefile/ARRONDISSEMENT_MUNICIPAL.shx")
+map_data_paris <- merge(background_paris, subset(pres1981, dep == 75), by.x = "INSEE_ARM", by.y = "codecommune", all.x = TRUE)
+
+map_data_paris <- subset(map_data_paris, select = -INSEE_ARM)
+
+map_data <- rbind(map_data_province, map_data_paris)
+st_crs(map_data) <- 9794
+```
 
 ```{r}
 # Carte statique
@@ -46,33 +55,28 @@ ggplot() +
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
-
-
 ```{r}
-subset_map_data <- subset(map_data, INSEE_DEP == 75)
-filtered_map_data <- subset(pres1981, plm != 0)
-```
+# Carte dynamique avec mapview, réduite à un département pour améliorer la lisibilité et accélérer le rendu (les détails s'affichent en cliquant sur une commune).
 
+subset_map_data <- map_data[map_data$dep == "2A", ]
 
-
-```{r}
-# Carte dynamique avec mapview
-# Les détails s'affichent en cliquant sur une commune
-# Restriction à 1 département pour accélérer le rendu.
-# Marseille et Lyon apparaissent comme une seule ville.
-# Le code bugue pour le 75. En fait, dans pres1981, les résultats sont agrégés pour Lyon et Marseille, par arrondissement pour Paris. Le problème doit survenir lors de la construction de map_data, où n'apparaît plus qu'une observation pour Paris, remplie de Nan.
-# Car les arrondissements de Paris partagent le même codecommune ?
-# Non, car Paris apparaît en entier dans le shapefile.
-# Il faudra récupérer les arrondissements dans un second shapefile : ARRONDISSEMENT_MUNICIPAL
-
-subset_map_data <- map_data[map_data$INSEE_DEP == "07", ]
-st_crs(subset_map_data) <- 9794
-
-subset_map_data$rounded_part <- paste0(round(subset_map_data$part, digits = 2), " %")
+subset_map_data$rounded_part <- paste0(round(100 * subset_map_data$part, digits = 2), " %")
 
 popup_content <- paste("<strong>Commune</strong>", subset_map_data$NOM, sep = "<br>",
                        "<strong>Participation</strong>", subset_map_data$rounded_part, ""
                        )
 
 mapview(subset_map_data, zcol = "rounded_part", popup = popup_content, layer.name = "Participation T1 1981")
+```
+
+```{r}
+# Carte dynamique avec mapview (les détails s'affichent en cliquant sur une commune).
+
+map_data$rounded_part <- paste0(round(100 * map_data$part, digits = 2), " %")
+
+popup_content <- paste("<strong>Commune</strong>", map_data$NOM, sep = "<br>",
+                       "<strong>Participation</strong>", map_data$rounded_part, ""
+                       )
+
+mapview(map_data, zcol = "rounded_part", popup = popup_content, layer.name = "Participation T1 1981")
 ```
