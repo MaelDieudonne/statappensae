@@ -5,28 +5,37 @@ date: "2024-01-29"
 ---
 
 ```{r}
-# Téléchargement du fond de carte.
-# Le serveur est très lent, d'où le timeout. Si nous faisons beaucoup de cartes, il faudra plutôt déposer les fichiers sur le bucket.
+# Téléchargement du fond de carte. Le serveur est très lent, d'où le timeout. Si nous faisons beaucoup de cartes, il faudra plutôt déposer les fichiers sur le bucket.
 if (!dir.exists("shapefile")) {dir.create("shapefile")}
 httr::GET("https://wxs.ign.fr/x02uy2aiwjo9bm8ce5plwqmr/telechargement/prepackage/ADMINEXPRESS_SHP_TERRITOIRES_PACK_2023-12-19$ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/file/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19.7z", timeout(1800), progress(), write_disk("shapefile/Carto_Insee.7z", overwrite = TRUE))
 
 # Extraction
-# Code à compléter pour extraire aussi les fichiers ARRONDISSEMENT_MUNICIPAL
+root_name <- ("ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-12-00156/ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19/")
+file_names <- c("COMMUNE", "ARRONDISSEMENT_MUNICIPAL")
 extensions <- c("shp", "shx", "dbf")
-files_to_extract <- paste0("ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-12-00156/ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19/COMMUNE.", extensions)
+
+files_to_extract <- c()
+for (file_name in file_names) {
+  for (extension in extensions) {
+    files_to_extract <- c(files_to_extract, paste0(root_name, file_name, ".", extension))
+  }
+}
+
 archive_extract("shapefile/Carto_Insee.7z", dir = "shapefile", files = files_to_extract)
-unlink("shapefile/Carto_Insee.7z")
 
 # Nettoyage
-base_path <- file.path("shapefile", "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19", "ADMIN-EXPRESS", "1_DONNEES_LIVRAISON_2023-12-00156", "ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19")
-for (ext in extensions) {
-  source_file <- file.path(base_path, paste("COMMUNE", ext, sep = "."))
-  target_file <- file.path("shapefile", paste("COMMUNE", ext, sep = "."))
-  file.rename(source_file, target_file)
+root_path <- file.path("shapefile", "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19", "ADMIN-EXPRESS", "1_DONNEES_LIVRAISON_2023-12-00156", "ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19")
+
+for (file_name in file_names) {
+  for (ext in extensions) {
+    source_file <- file.path(root_path, paste0(file_name, ".", ext))
+    target_file <- file.path("shapefile", paste0(file_name, ".", ext))
+    file.rename(source_file, target_file)
+  }
 }
-unlink(base_path, recursive = TRUE)
-rm(extensions, files_to_extract, base_path)
-unlink("shapefile/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19", recursive = TRUE)
+
+unlink(c("shapefile/Carto_Insee.7z", "shapefile/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19"), recursive = TRUE)
+rm(root_name, file_names, extensions, files_to_extract, root_path, source_file, target_file)
 ```
 
 ```{r}
