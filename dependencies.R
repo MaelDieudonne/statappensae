@@ -7,7 +7,8 @@ packages <- c(
   "ggplot2",
   "httr",
   "mapview",
-  "sf")
+  "sf",
+  "viridis")
 
 installed_packages <- packages %in% rownames(installed.packages())
 if (any(installed_packages == FALSE)) {
