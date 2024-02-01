@@ -42,12 +42,10 @@ rm(ext, extension, extensions, file_name, file_names, files_to_extract, root_nam
 # Construction de la base
 background_province <- st_read("shapefile/COMMUNE.shx")
 map_data_province <- merge(background_province, subset(pres1981, dep != 75), by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
-
 map_data_province <- subset(map_data_province, select = -c(INSEE_ARR, INSEE_CAN, INSEE_DEP, INSEE_REG, SIREN_EPCI, STATUT))
 
 background_paris <- st_read("shapefile/ARRONDISSEMENT_MUNICIPAL.shx")
 map_data_paris <- merge(background_paris, subset(pres1981, dep == 75), by.x = "INSEE_ARM", by.y = "codecommune", all.x = TRUE)
-
 map_data_paris <- subset(map_data_paris, select = -INSEE_ARM)
 
 map_data <- rbind(map_data_province, map_data_paris)
@@ -57,7 +55,6 @@ rm(background_province, map_data_province, background_paris, map_data_paris)
 ```
 
 ```{r}
-# if (!dir.exists("data")) {dir.create("data")}
 # st_write(map_data, "data/map.gpkg", driver = "GPKG", append = TRUE)
 # unlink("shapefile", recursive = TRUE)
 ```
@@ -70,11 +67,11 @@ rm(background_province, map_data_province, background_paris, map_data_paris)
 
 ```{r}
 # Carte statique avec ggplot, réduite à un département pour améliorer la lisibilité et accélérer le rendu, à résolution paramétrable
-selected_dep <- "58"
+selected_dep <- "25"
 subset_map_data <- map_data[map_data$dep == selected_dep, ]
 subset_map_data$part <- round(subset_map_data$part, 2)
 title <- paste0("Participation au premier tour des élections présidentielles\n\ndépartement = ", selected_dep, "\nannée = 1981")
-output_file <- paste0("part_1981_dep", selected_dep, ".png")
+output_file <- paste0("output/part_1981_dep", selected_dep, ".png")
 
 # Calcul des dimensions de la carte
 bbox <- st_bbox(subset_map_data)
@@ -98,7 +95,8 @@ plot <- ggplot() +
 
 # Enregistrement de la carte
 ggsave(output_file, plot = plot, width = base_width, height = base_height, units = "in")
-rm(bbox, aspect_ratio, base_height, base_width, font_size, selected_dep, title)
+
+rm(bbox, aspect_ratio, base_height, base_width, font_size, selected_dep, subset_map_data, title)
 ```
 
 ```{r}
@@ -127,6 +125,7 @@ plot <- ggplot() +
 
 # Enregistrement de la carte
 ggsave("part_1981_France.png", plot = plot, width = base_width, height = base_height, units = "in")
+
 rm(bbox, aspect_ratio, base_height, base_width, font_size)
 ```
 
@@ -142,10 +141,13 @@ popup_content <- paste("<strong>Commune</strong>", subset_map_data$NOM, sep = "<
                        )
 
 mapview(subset_map_data, zcol = "rounded_part", popup = popup_content, layer.name = "Participation T1 1981")
+
+rm(subset_map_data, popup_content)
 ```
 
 ```{r}
 # Carte dynamique avec mapview (les détails s'affichent en cliquant sur une commune).
+# Ne parvient jamais à se charger complètement, demande trop de ressources ?
 map_data$rounded_part <- paste0(round(100 * map_data$part, digits = 2), " %")
 
 popup_content <- paste("<strong>Commune</strong>", map_data$NOM, sep = "<br>",
@@ -153,4 +155,6 @@ popup_content <- paste("<strong>Commune</strong>", map_data$NOM, sep = "<br>",
                        )
 
 mapview(map_data, zcol = "rounded_part", popup = popup_content, layer.name = "Participation T1 1981")
+
+rm(subset_map_data, popup_content)
 ```
