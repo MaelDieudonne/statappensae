@@ -8,7 +8,8 @@ packages <- c(
   "httr",
   "mapview",
   "sf",
-  "viridis")
+  "viridis",
+  "xtable")
 
 installed_packages <- packages %in% rownames(installed.packages())
 if (any(installed_packages == FALSE)) {
@@ -18,6 +19,14 @@ if (any(installed_packages == FALSE)) {
 invisible(lapply(packages, library, character.only = TRUE))
 
 rm(installed_packages, packages)
+
+
+
+# Dossiers
+if (!dir.exists("data")) {dir.create("data")}
+if (!dir.exists("output")) {dir.create("output")}
+
+
 
 # Fonctions
 import_feather <- function(input_file) {

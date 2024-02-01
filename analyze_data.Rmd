@@ -9,6 +9,10 @@ date: "2024-01-26"
 # pres1981 <- read_feather("data/pres1981.feather")
 ```
 
+
+# Analyses descriptives
+
+
 ```{r}
 # Analyse des NaN
 columns <- names(pres1981)[names(pres1981) != "pop1981"]
@@ -33,6 +37,8 @@ pop_tot_1981 <- sum(pres1981$pop1981, na.rm = TRUE)
 nan_results[, prop_missing_pop := missing_pop / pop_tot_1981]
 
 print(nan_results)
+print(xtable(nan_results, type = "latex"), file = "output/nan_results.tex")
+
 rm(columns, na_pop, na_count)
 ```
 
@@ -60,6 +66,10 @@ ggplot(propri_tot, aes(x = year, y = prop_ratio)) +
   theme(plot.title = element_text(hjust = 0.5))
 rm(propri_tot)
 ```
+
+
+# Régressions
+
 
 ```{r}
 dependent_variable <- "part"
