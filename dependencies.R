@@ -29,6 +29,7 @@ if (!dir.exists("output")) {dir.create("output")}
 
 
 # Fonctions
+## Pour récupérer les données dans le Datalab
 import_feather <- function(input_file) {
   bucket_name <- "maeldieudonne"
   data <- aws.s3::s3read_using(
@@ -39,4 +40,15 @@ import_feather <- function(input_file) {
   )  
   data <- as.data.table(data)
   return(data)
+}
+
+## Pour nettoyer les tableaux
+round_and_remove_zeros <- function(x) {
+  if (is.numeric(x)) {
+    rounded_value <- round(x, digits = 3)
+    result <- ifelse(rounded_value != 0, gsub("\\.?0+$", "", as.character(rounded_value)), "0")
+    return(result)
+  } else {
+    return(x)
+  }
 }

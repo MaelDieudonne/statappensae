@@ -24,6 +24,10 @@ pres1981 <- import_feather("/diffusion/Elections_pres/pres1981comm.feather")
 # Recodages
 candidats <- fread("candidats.csv", header = TRUE)
 
+
+# Il faudra ajuster ce code pour éviter de produire des valeurs infinies avec les ratios.
+
+
 ## Participation
 pres1981[, part := votants/inscrits]
 pres1981[, partT2 := votantsT2/inscritsT2]
@@ -40,9 +44,9 @@ T1mask <- candidats[LibCons == "L", .(variable = paste0("voix", Candidat))]
 pres1981[, lib_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1mask$variable]
 
 # Nettoyage
-prefixes_to_drop <- c("exprimes", "inscrits", "nom", "pervote", "ppar", "pvoix", "pvote", "voix", "vot")
+prefixes_to_drop <- c("exprimes", "inscrits", "nom", "nul", "pervote", "ppar", "pvoix", "pvote", "voix", "vot")
 pres1981 <- pres1981[, .SD, .SDcols = setdiff(names(pres1981), grep(paste0("^", paste(prefixes_to_drop, collapse = "|")), names(pres1981), value = TRUE))]
-pres1981 <- pres1981[, -c("nuls", "plmdoublon", "perpar", "year")]
+pres1981 <- pres1981[, -c("plm", "dep2", "plmdoublon", "perpar", "year")]
 
 rm(candidats, T1mask, T2mask, T2candidates, prefixes_to_drop)
 ```
