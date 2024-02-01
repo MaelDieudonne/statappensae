@@ -6,27 +6,15 @@ date: "2024-01-26"
 
 # Résultats électoraux
 
--   plm
-    -   0 = communes non PLM
-    -   1 = 45 arrondissements PLM
-    -   2 = 3 communes entières PLM
--   codecommune2 = code...
-    -   de la nouvelle commune de rattachement ou de substitution (statut1999=2,3,4)
-    -   ou de la commune actuelle (statut1999=1)
-    -   Le fichier comprend plusieurs lignes par codecommune2 dès lors que plusieurs communes ont fusionné en une seule entre 1943 et 1999.
--   dep2 = code...
-    -   du nouveau département de rattachement ou de substitution (statut1999=2,3,4)
-    -   ou du département actuel (statut1999=1)
-
 ```{r}
 pres1981 <- import_feather("/diffusion/Elections_pres/pres1981comm.feather")
 
 # Recodages
 candidats <- fread("candidats.csv", header = TRUE)
 
-
+# == #
 # Il faudra ajuster ce code pour éviter de produire des valeurs infinies avec les ratios.
-
+# == #
 
 ## Participation
 pres1981[, part := votants/inscrits]
