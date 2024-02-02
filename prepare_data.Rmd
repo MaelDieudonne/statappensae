@@ -10,7 +10,7 @@ date: "2024-01-26"
 pres1981 <- import_feather("/diffusion/Elections_pres/pres1981comm.feather")
 
 # Recodages
-candidats <- fread("candidats.csv", header = TRUE)
+candidats <- fread("data/candidats.csv", header = TRUE)
 
 # == #
 # Il faudra ajuster ce code pour éviter de produire des valeurs infinies avec les ratios.
