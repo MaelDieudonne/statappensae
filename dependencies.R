@@ -52,3 +52,14 @@ round_and_remove_zeros <- function(x) {
     return(x)
   }
 }
+
+## Pour générer des abréviations
+get_first_letters <- function(input_string) {
+  words <- unlist(strsplit(input_string, " |-"))
+  if (length(words) == 1) {
+    first_letters <- substr(words, 1, 3)
+  } else {
+    first_letters <- substr(words, 1, 1)
+  }
+  paste(first_letters, collapse = "")
+}

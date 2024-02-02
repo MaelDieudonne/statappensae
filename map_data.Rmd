@@ -4,6 +4,19 @@ output: html_document
 date: "2024-01-29"
 ---
 
+
+```{r}
+# Téléchargement des codes régions
+httr::GET("https://www.insee.fr/fr/statistiques/fichier/6800675/v_region_2023.csv", timeout(15), progress(), write_disk("data/codes_regions_Insee.csv", overwrite = TRUE))
+codes_regions <- fread("data/codes_regions_Insee.csv", header = TRUE)
+codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
+
+# Téléchargement des codes département
+httr::GET("https://www.insee.fr/fr/statistiques/fichier/6800675/v_departement_2023.csv", timeout(15), progress(), write_disk("data/codes_departements_Insee.csv", overwrite = TRUE))
+codes_departements <- fread("data/codes_departements_Insee.csv", header = TRUE)
+```
+
+
 ```{r}
 # Téléchargement du fond de carte
 if (!dir.exists("shapefile")) {dir.create("shapefile")}
@@ -38,40 +51,57 @@ unlink(c("shapefile/Carto_Insee.7z", "shapefile/ADMIN-EXPRESS_3-2__SHP_LAMB93_FX
 rm(ext, extension, extensions, file_name, file_names, files_to_extract, root_name, root_path, source_file, target_file)
 ```
 
+
 ```{r}
 # Construction de la base
+## Contours des départements
 background_province <- st_read("shapefile/COMMUNE.shx")
 map_data_province <- merge(background_province, subset(pres1981, dep != 75), by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
-map_data_province <- subset(map_data_province, select = -c(INSEE_ARR, INSEE_CAN, INSEE_DEP, INSEE_REG, SIREN_EPCI, STATUT))
+map_data_province <- subset(map_data_province, select = -c(INSEE_ARR, INSEE_CAN, INSEE_DEP, SIREN_EPCI, STATUT))
 
-background_paris <- st_read("shapefile/ARRONDISSEMENT_MUNICIPAL.shx")
-map_data_paris <- merge(background_paris, subset(pres1981, dep == 75), by.x = "INSEE_ARM", by.y = "codecommune", all.x = TRUE)
+## Contour des arrondissements
+background_plm <- st_read("shapefile/ARRONDISSEMENT_MUNICIPAL.shx")
+### Ajout du code région
+background_plm$INSEE_REG <- ifelse(startsWith(background_plm$INSEE_COM, "13"), 93,
+                                    ifelse(startsWith(background_plm$INSEE_COM, "69"), 84,
+                                           ifelse(startsWith(background_plm$INSEE_COM, "75"), 11, NA)))
+### Fusion pour les arrondissements parisiens
+map_data_paris <- merge(background_plm, subset(pres1981, dep == 75), by.x = "INSEE_ARM", by.y = "codecommune", all.x = TRUE)
 map_data_paris <- subset(map_data_paris, select = -INSEE_ARM)
 
+## Fusion globale et nettoyage
 map_data <- rbind(map_data_province, map_data_paris)
 st_crs(map_data) <- 9794
-
-rm(background_province, map_data_province, background_paris, map_data_paris)
+rm(background_province, map_data_province, background_plm, map_data_paris)
 ```
 
+
 ```{r}
+# Optionnel : enregistrement de la base
 # st_write(map_data, "data/map.gpkg", driver = "GPKG", append = TRUE)
 # unlink("shapefile", recursive = TRUE)
 ```
 
-# Cartes statiques
 
 ```{r}
+# Optionnel : chargement de la base
 # map_data <- st_read("data/map.gpkg")
 ```
 
+
+# Cartes statiques
+
+
 ```{r}
-# Carte statique avec ggplot, réduite à un département pour améliorer la lisibilité et accélérer le rendu, à résolution paramétrable
-selected_dep <- "25"
-subset_map_data <- map_data[map_data$dep == selected_dep, ]
+# Carte statique avec ggplot, réduite à une région, à résolution paramétrable
+## Se référer à la base code_region pour connaître les numéros de régions
+selected_reg <- "94"
+subset_map_data <- map_data[map_data$INSEE_REG == selected_reg, ]
 subset_map_data$part <- round(subset_map_data$part, 2)
-title <- paste0("Participation au premier tour des élections présidentielles\n\ndépartement = ", selected_dep, "\nannée = 1981")
-output_file <- paste0("output/part_1981_dep", selected_dep, ".png")
+reg_name <- codes_regions$LIBELLE[codes_regions$REG == selected_reg]
+reg_abrv <- codes_regions$ABRV[codes_regions$REG == selected_reg]
+title <- paste0("Participation aux élections présidentielles\nPremier tour, 1981\n", reg_name)
+output_file <- paste0("output/part_1981_", reg_abrv, ".png")
 
 # Calcul des dimensions de la carte
 bbox <- st_bbox(subset_map_data)
@@ -83,7 +113,7 @@ font_size <- base_width * 2.2
 # Génération de la carte
 plot <- ggplot() +
   geom_sf(data = subset_map_data, aes(fill = part)) +
-  scale_fill_viridis_c(name = "Participation", labels = scales::percent_format(scale = 1)) +
+  scale_fill_viridis_c(name = "Participation", labels = scales::percent_format(scale = 100)) +
   ggtitle(paste(title)) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5, size = font_size),
@@ -93,11 +123,11 @@ plot <- ggplot() +
         legend.title = element_text(size = font_size * 0.8),
         legend.text = element_text(size = font_size * 0.7))
 
-# Enregistrement de la carte
 ggsave(output_file, plot = plot, width = base_width, height = base_height, units = "in")
 
-rm(bbox, aspect_ratio, base_height, base_width, font_size, selected_dep, subset_map_data, title)
+rm(bbox, aspect_ratio, base_height, base_width, font_size, reg_abrv, reg_name, selected_reg, subset_map_data, title)
 ```
+
 
 ```{r}
 # Carte statique avec ggplot, France entière, à résolution paramétrable
@@ -129,7 +159,9 @@ ggsave("part_1981_France.png", plot = plot, width = base_width, height = base_he
 rm(bbox, aspect_ratio, base_height, base_width, font_size)
 ```
 
+
 # Cartes dynamiques
+
 
 ```{r}
 # Carte dynamique avec mapview, réduite à un département (les détails s'affichent en cliquant sur une commune).
