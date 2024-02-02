@@ -95,13 +95,18 @@ rm(background_province, map_data_province, background_plm, map_data_paris)
 ```{r}
 # Carte statique avec ggplot, réduite à une région, à résolution paramétrable
 ## Se référer à la base code_region pour connaître les numéros de régions
-selected_reg <- "94"
+
+mapped_var <- "part"
+mapped_var_name <- "Participation"
+selected_reg <- "53"
+
 subset_map_data <- map_data[map_data$INSEE_REG == selected_reg, ]
-subset_map_data$part <- round(subset_map_data$part, 2)
+subset_map_data[[mapped_var]] <- round(subset_map_data[[mapped_var]], 2)
 reg_name <- codes_regions$LIBELLE[codes_regions$REG == selected_reg]
 reg_abrv <- codes_regions$ABRV[codes_regions$REG == selected_reg]
-title <- paste0("Participation aux élections présidentielles\nPremier tour, 1981\n", reg_name)
-output_file <- paste0("output/part_1981_", reg_abrv, ".png")
+
+title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n", reg_name, ", 1981")
+output_file <- paste0("output/", mapped_var, "_1981_", reg_abrv, ".png")
 
 # Calcul des dimensions de la carte
 bbox <- st_bbox(subset_map_data)
@@ -112,8 +117,8 @@ font_size <- base_width * 2.2
 
 # Génération de la carte
 plot <- ggplot() +
-  geom_sf(data = subset_map_data, aes(fill = part)) +
-  scale_fill_viridis_c(name = "Participation", labels = scales::percent_format(scale = 100)) +
+  geom_sf(data = subset_map_data, aes(fill = .data[[mapped_var]])) +
+  scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 100)) +
   ggtitle(paste(title)) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5, size = font_size),
@@ -123,15 +128,21 @@ plot <- ggplot() +
         legend.title = element_text(size = font_size * 0.8),
         legend.text = element_text(size = font_size * 0.7))
 
+# Enregistrement et nettoyage
 ggsave(output_file, plot = plot, width = base_width, height = base_height, units = "in")
-
-rm(bbox, aspect_ratio, base_height, base_width, font_size, reg_abrv, reg_name, selected_reg, subset_map_data, title)
+rm(bbox, aspect_ratio, base_height, base_width, font_size, mapped_var, mapped_var_name, reg_abrv, reg_name, output_file, selected_reg, subset_map_data, title)
 ```
 
 
 ```{r}
 # Carte statique avec ggplot, France entière, à résolution paramétrable
-map_data$part <- round(map_data$part, 2)
+
+mapped_var <- "part"
+mapped_var_name <- "Participation"
+
+title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n1981")
+output_file <- paste0("output/", mapped_var, "_1981_France.png")
+map_data[[mapped_var]] <- round(map_data[[mapped_var]], 2)
 
 # Calcul des dimensions de la carte
 bbox <- st_bbox(map_data)
@@ -142,9 +153,9 @@ font_size <- base_width * 2.2
 
 # Génération de la carte
 plot <- ggplot() +
-  geom_sf(data = map_data, aes(fill = part)) +
-  scale_fill_viridis_c(name = "Participation", labels = scales::percent_format(scale = 1)) +
-  ggtitle("Participation au premier tour des élections présidentielles\n1981") +
+  geom_sf(data = map_data, aes(fill = .data[[mapped_var]])) +
+  scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 100)) +
+  ggtitle(paste(title)) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5, size = font_size),
         axis.text = element_blank(),
@@ -153,10 +164,9 @@ plot <- ggplot() +
         legend.title = element_text(size = font_size * 0.8),
         legend.text = element_text(size = font_size * 0.7))
 
-# Enregistrement de la carte
-ggsave("part_1981_France.png", plot = plot, width = base_width, height = base_height, units = "in")
-
-rm(bbox, aspect_ratio, base_height, base_width, font_size)
+# Enregistrement et nettoyage
+ggsave(output_file, plot = plot, width = base_width, height = base_height, units = "in")
+rm(aspect_ratio, base_height, base_width, bbox, font_size, mapped_var, mapped_var_name, plot)
 ```
 
 
