@@ -1,0 +1,37 @@
+
+```{r}
+if (!requireNamespace("rayshader", quietly = TRUE)) install.packages("rayshader")
+library(rayshader)
+```
+
+```{r}
+# Fonctionne seulement en local, pas depuis le datalab
+# Pas trouvé de solution pour avoir une légende pour chaque variable
+selected_dep <- "09"
+subset_map_data <- map_data[map_data$dep == selected_dep, ]
+
+ggVktor <- ggplot(data=subset_map_data) +
+  geom_sf(aes(fill = part, height = ppropri1981)) +
+  scale_fill_viridis() +
+  ggtitle("Participation et taux de propriété en Ariège") +
+  theme_bw() +
+  guides(
+    fill = guide_colourbar(title = "Participation"),
+    height = guide_legend(title = "Taux de propriétaires")
+  )
+
+plot_gg(
+  ggVktor,
+  multicore = TRUE, 
+  shadow = FALSE,
+  width = 8, 
+  height = 8, 
+  scale = 200,
+  windowsize=c(1680,1050), 
+  zoom = 0.60, 
+  phi = 50,
+  sunangle = 120,
+  theta = 45)
+
+render_snapshot()
+```
