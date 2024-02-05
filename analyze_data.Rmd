@@ -16,9 +16,7 @@ nb_communes <- uniqueN(pres1981, by = "codecommune")
 pop_tot_1981 <- 54028630
 ```
 
-
 # Analyses descriptives
-
 
 ```{r}
 # Initialisation et calcul des valeurs
@@ -67,22 +65,23 @@ for (year in 1960:2022) {
 }
 
 # Graph
-ggplot(propri_tot, aes(x = year, y = prop_ratio)) +
+plot <- ggplot(propri_tot, aes(x = year, y = prop_ratio)) +
   geom_line(color = "skyblue") +
   geom_point(color = "skyblue") +
-  labs(title = "Taux de propriétaires, 1960-2022",
-       x = "Années",
-       y = "Taux de propriétaires") +
+  labs(title = "Proportion de propriétaires, 1960-2022",
+       x = "Année",
+       y = "Proportion de propriétaires") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
 
+print(plot)
+ggsave("output/ppropri_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
+
 # Nettoyage
-rm(col_npropri, col_nlogement, sum_npropri, sum_nlogement, prop_ratio, propri_tot, year)
+rm(col_npropri, col_nlogement, sum_npropri, sum_nlogement, prop_ratio, propri_tot, year, plot)
 ```
 
-
 # Régressions
-
 
 ```{r}
 dependent_variable <- "part"
@@ -90,6 +89,8 @@ excluded_covariables <- c("dep", "codecommune", "abs", "absT2", "codecommune2", 
 regression_formula <- as.formula(paste(dependent_variable, "~", paste(setdiff(names(pres1981), excluded_covariables), collapse = "+")))
 model <- lm(regression_formula, data = pres1981)
 summary(model)
+
+writeLines(capture.output(summary(model)), "output/regression_summary.txt")
 
 prop_missing_communes_1981 <- 100 * sum(apply(pres1981[, !excluded_covariables, with = FALSE], 1, function(row) any(is.na(row)))) / nb_communes
 rows_with_nan <- pres1981[apply(pres1981[, !excluded_covariables, with = FALSE], 1, function(row) any(is.na(row))), ]
