@@ -87,10 +87,10 @@ rm(col_npropri, col_nlogement, sum_npropri, sum_nlogement, prop_ratio, propri_to
 dependent_variable <- "part"
 excluded_covariables <- c("dep", "codecommune", "abs", "absT2", "codecommune2", "part", "partT2", "GD_ratio_T1", "GD_ratio_T2", "lib_ratio_T1")
 regression_formula <- as.formula(paste(dependent_variable, "~", paste(setdiff(names(pres1981), excluded_covariables), collapse = "+")))
-model <- lm(regression_formula, data = pres1981)
-summary(model)
+model_part <- lm(regression_formula, data = pres1981)
+summary(model_part)
 
-writeLines(capture.output(summary(model)), "output/regression_summary.txt")
+# writeLines(capture.output(summary(model_part)), "output/regression_summary_part.txt")
 
 prop_missing_communes_1981 <- 100 * sum(apply(pres1981[, !excluded_covariables, with = FALSE], 1, function(row) any(is.na(row)))) / nb_communes
 rows_with_nan <- pres1981[apply(pres1981[, !excluded_covariables, with = FALSE], 1, function(row) any(is.na(row))), ]
@@ -104,8 +104,10 @@ rm(dependent_variable, excluded_covariables, regression_formula)
 dependent_variable <- "GD_ratio_T1"
 excluded_covariables <- c("dep", "codecommune", "abs", "absT2", "codecommune2", "part", "partT2", "GD_ratio_T1", "GD_ratio_T2", "lib_ratio_T1")
 regression_formula <- as.formula(paste(dependent_variable, "~", paste(setdiff(names(pres1981), excluded_covariables), collapse = "+")))
-model <- lm(regression_formula, data = pres1981)
-summary(model)
+model_GD_ratio_T1 <- lm(regression_formula, data = pres1981)
+summary(model_GD_ratio_T1)
+
+# writeLines(capture.output(summary(model_GD_ratio_T1)), "output/regression_summary_GD_ratio_T1.txt")
 
 prop_missing_communes_1981 <- 100 * sum(apply(pres1981[, !excluded_covariables, with = FALSE], 1, function(row) any(is.na(row)))) / nb_communes
 rows_with_nan <- pres1981[apply(pres1981[, !excluded_covariables, with = FALSE], 1, function(row) any(is.na(row))), ]
@@ -114,3 +116,9 @@ cat("Les valeurs manquantes représentent", prop_missing_communes_1981, "% des c
 
 rm(dependent_variable, excluded_covariables, regression_formula)
 ```
+
+```{r}
+models_list <- list(model_part, model_GD_ratio_T1)
+stargazer(models_list, type = "text", out = "output/regression_results.txt")
+```
+
