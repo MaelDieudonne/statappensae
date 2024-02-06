@@ -8,6 +8,7 @@ packages <- c(
   "httr",
   "mapview",
   "sf",
+  "stargazer",
   "viridis",
   "xtable")
 
