@@ -1,3 +1,5 @@
+Le code ayant été écrit en python, il faut d'abord rendre son exécution possible en créant en environnement virtuel.
+
 ```{r include=FALSE}
 if (!'reticulate' %in% installed.packages()) install.packages('reticulate')
 if (!is.loaded("reticulate")) library(reticulate)
@@ -27,8 +29,11 @@ from tqdm import tqdm
 import zipfile
 ```
 
+**Identification des fichiers**
+
+Les liens ne sont pas encadrés par les balises html classiques, il faut les extraire à partir de l'ensemble des strings apparaissant dans la page.
+
 ```{python}
-# Identification des fichiers
 def extract_strings_from_webpage(url):
     response = requests.get(url) 
     if response.status_code == 200:
@@ -44,8 +49,9 @@ download_links = [item for item in extracted_strings if item.endswith('csv.zip')
 print(f'Identified {len(download_links)} files to download.')
 ```
 
+**Téléchargement des archives**
+
 ```{python}
-# Téléchargement des fichiers
 os.makedirs('data_zip', exist_ok=True)
 
 progress_bar = tqdm(total=len(download_links), desc='Downloading', unit='file')
@@ -75,8 +81,11 @@ total_size_mb = total_size / (1024 * 1024)
 print(f'Total size of downloaded files: {total_size_mb:.2f} MB.')
 ```
 
+**Extraction des données**
+
+D'abord les résultats électoraux, en éliminant les fichiers superflus et en regroupant les autres par type d'élection.
+
 ```{python}
-# Extraction des résultats électoraux
 for prefix in ['pres', 'leg', 'ref']:
     prefix_dir = os.path.join('data_csv', 'Elections_' + prefix)
     os.makedirs(prefix_dir, exist_ok=True)
@@ -106,7 +115,7 @@ del(progress_bar)
 ```
 
 ```{python}
-# Nettoyage des résultats électoraux
+# Nettoyage
 for root, dirs, files in os.walk('data_csv'):
     for file_name in files:
         if file_name.startswith('._'):
@@ -116,8 +125,9 @@ for root, dirs, files in os.walk('data_csv'):
 print('Folder cleaning completed.')
 ```
 
+Puis les autres données, en éliminant à nouveau les fichiers superflus, et en regroupant les autres selon l'archive d'origine.
+
 ```{python}
-# Extraction des contrôles
 zip_files = [f for f in os.listdir('data_zip') if f.endswith('.zip')]
 total_zip_files = sum(not any(file.startswith(prefix) for prefix in ['pres', 'leg', 'ref']) for file in zip_files)
 progress_bar = tqdm(total=total_zip_files, desc='Extracting', unit='file')
@@ -139,7 +149,7 @@ del(progress_bar)
 ```
 
 ```{python}
-# Nettoyage des contrôles
+# Nettoyage
 folders = [f for f in os.listdir('data_csv') if os.path.isdir(os.path.join('data_csv', f))]
 for folder in folders:
     if folder.endswith('_csv'):
@@ -152,6 +162,8 @@ shutil.move('data_csv/alphabetisationcommunes.csv', 'data_csv/Diplomes/')
 
 print("Folder cleaning complete.")
 ```
+
+Finalisation
 
 ```{python echo=FALSE}
 # Taille des données extraites
@@ -170,9 +182,11 @@ shutil.rmtree('data_zip')
 print('Downloaded data removed.')
 ```
 
-```{python}
-# Conversion au format Parquet, avec correction de l'encodage, sans compression
+**Conversion des données au format Parquet**
 
+Pour réduire leur taille et faciliter leur importation. Comme l'encodage n'est pas constant selon les fichiers, il faut le détecter pour éviter toute erreur lors de la conversion. Cette opération est très lente. Pour l'accélérer, on commence par détecter l'encodage sur les 15 premières colonnes des fichiers ; en cas d'erreur, ils sont analysés dans leur ensemble.
+
+```{python}
 def detect_encoding_short(file_path):
     with open(file_path, 'rb') as f:
         first_line = f.readline()
@@ -242,8 +256,9 @@ shutil.rmtree('data_csv')
 print('Extracted data removed.')
 ```
 
+**Téléversement sur le Datalab**
+
 ```{python}
-# Optionnel : téléversement sur le Datalab
 S3_ENDPOINT_URL = 'https://' + os.environ['AWS_S3_ENDPOINT']
 fs = s3fs.S3FileSystem(client_kwargs={'endpoint_url': S3_ENDPOINT_URL})
 
@@ -258,7 +273,7 @@ for root, dirs, files in os.walk(source_directory):
     for file in files:
         source_path = os.path.join(root, file)
         destination_path = os.path.join(destination_directory, os.path.relpath(source_path, source_directory))
-        fs.put(source_path, destination_path, content_type='text/csv', encoding='utf-8')
+        fs.put(source_path, destination_path, content_type='parquet', encoding='utf-8')
         progress_bar.update(1)
 
 progress_bar.close()
@@ -270,9 +285,11 @@ print('Converted data removed.')
 ```
 
 ```{python}
-os.rename('data_parquet', 'data_main')
+# Nettoyage
+if os.path.exists('data_parquet'):
+    os.rename('data_parquet', 'data_main')
 
-for variable in ['csv_files', 'data', 'dirs', 'detect_encoding_short', 'detect_encoding_long', 'encoding_short', 'encoding_long', 'file', 'filename', 'filenames', 'filepath', 'files', 'foldername', 'input_csv_path', 'output_parquet_path', 'progress_bar', 'relative_path', 'root', 'subfolders', 'table', 'total_csv_files', 'total_size', 'total_size_mb', 'variable_name']:
+for variable in ['csv_files', 'data', 'dest', 'dirs', 'detect_encoding_short', 'detect_encoding_long', 'download_links', 'encoding_short', 'encoding_long', 'extracted_strings', 'file', 'file_list', 'file_name', 'file_path', 'filename', 'filenames', 'filepath', 'files', 'folder', 'foldername', 'folders', 'input_csv_path', 'link', 'member', 'nex_folder_name', 'new_path', 'old_path', 'output_parquet_path', 'prefix', 'prefix_dir', 'relative_path', 'response', 'root', 'source', 'subfolders', 'table', 'target_path', 'total_csv_files', 'total_size', 'total_size_mb', 'total_zip_files', 'webpage_url', 'zip_file', 'zip_file_path', 'zip_files', 'zip_path', 'zip_ref']:
     if variable in globals():
         del globals()[variable]
 del variable

@@ -1,6 +1,6 @@
+**Packages et librairies**
 
 ```{r}
-# Packages et librairies
 packages <- c(
   "archive",
   "arrow",
@@ -24,15 +24,17 @@ invisible(lapply(packages, library, character.only = TRUE))
 rm(installed_packages, packages)
 ```
 
+**Répertoires**
+
 ```{r}
-# Répertoires
 if (!dir.exists("data_other")) {dir.create("data_other")}
 if (!dir.exists("output")) {dir.create("output")}
 ```
 
+**Fonctions**
+
 ```{r}
-# Fonctions
-## Pour récupérer les données dans le Datalab
+# Pour charger les données depuis le Datalab
 import_feather <- function(input_file) {
   bucket_name <- "maeldieudonne"
   data <- aws.s3::s3read_using(
@@ -45,7 +47,7 @@ import_feather <- function(input_file) {
   return(data)
 }
 
-## Pour nettoyer les tableaux
+# Pour formater les nombres dans les tableaux
 round_and_remove_zeros <- function(x) {
   if (is.numeric(x)) {
     rounded_value <- round(x, digits = 3)
@@ -56,7 +58,7 @@ round_and_remove_zeros <- function(x) {
   }
 }
 
-## Pour générer des abréviations
+# Pour générer des abréviations
 get_first_letters <- function(input_string) {
   words <- unlist(strsplit(input_string, " |-"))
   if (length(words) == 1) {

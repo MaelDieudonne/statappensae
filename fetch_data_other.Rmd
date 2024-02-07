@@ -1,23 +1,21 @@
-title: "map_data"
-output: html_document
-date: "2024-01-29"
----
+**Téléchargement des codes régionaux**
 
 ```{r}
-# Téléchargement des codes régionaux
-httr::GET("https://www.insee.fr/fr/statistiques/fichier/6800675/v_region_2023.csv", timeout(15), progress(), write_disk("data/codes_regions_Insee.csv", overwrite = TRUE))
-codes_regions <- fread("data/codes_regions_Insee.csv", header = TRUE)
+httr::GET("https://www.insee.fr/fr/statistiques/fichier/6800675/v_region_2023.csv", timeout(15), progress(), write_disk("data_other/codes_regions_Insee.csv", overwrite = TRUE))
+codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
 codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
 ```
 
-```{r}
-# Téléchargement des codes départementaux
-httr::GET("https://www.insee.fr/fr/statistiques/fichier/6800675/v_departement_2023.csv", timeout(15), progress(), write_disk("data/codes_departements_Insee.csv", overwrite = TRUE))
-codes_departements <- fread("data/codes_departements_Insee.csv", header = TRUE)
-```
+**Téléchargement des codes départementaux**
 
 ```{r}
-# Téléchargement du fond de carte
+httr::GET("https://www.insee.fr/fr/statistiques/fichier/6800675/v_departement_2023.csv", timeout(15), progress(), write_disk("data_other/codes_departements_Insee.csv", overwrite = TRUE))
+codes_departements <- fread("data_other/codes_departements_Insee.csv", header = TRUE)
+```
+
+**Téléchargement des données cartographiques**
+
+```{r}
 httr::GET("https://wxs.ign.fr/x02uy2aiwjo9bm8ce5plwqmr/telechargement/prepackage/ADMINEXPRESS_SHP_TERRITOIRES_PACK_2023-12-19$ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/file/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19.7z", timeout(1800), progress(), write_disk("data_other/Carto_Insee.7z", overwrite = TRUE))
 
 # Extraction
@@ -40,11 +38,26 @@ root_path <- file.path("data_other", "shapefile", "ADMIN-EXPRESS_3-2__SHP_LAMB93
 for (file_name in file_names) {
   for (ext in extensions) {
     source_file <- file.path(root_path, paste0(file_name, ".", ext))
-    target_file <- file.path("shapefile", paste0(file_name, ".", ext))
+    target_file <- file.path("data_other/shapefile", paste0(file_name, ".", ext))
     file.rename(source_file, target_file)
   }
 }
 
-unlink(c("data_other/Carto_Insee.7z", "data_other/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19"), recursive = TRUE)
-rm(ext, extension, extensions, file_name, file_names, files_to_extract, root_name, root_path, source_file, target_file)
+unlink(c("data_other/Carto_Insee.7z", "data_other/shapefile/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19"), recursive = TRUE)
+rm(ext, extensions, file_name, file_names, files_to_extract, root_name, root_path, source_file, target_file)
+```
+
+```{r}
+# Optionnel : téléversement sur le Datalab
+aws.s3::s3sync(
+  path = "data_other/shapefile",
+  bucket = "maeldieudonne",
+  region = "",
+  prefix = "/diffusion/shapefile/",
+  direction = "upload",
+  multipart = TRUE,
+  create = TRUE
+)
+
+unlink("data_other/shapefile", recursive = TRUE)
 ```
