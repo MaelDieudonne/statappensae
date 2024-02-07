@@ -1,0 +1,279 @@
+```{r include=FALSE}
+if (!'reticulate' %in% installed.packages()) install.packages('reticulate')
+if (!is.loaded("reticulate")) library(reticulate)
+
+if (condaenv_exists() == FALSE) install_miniconda()
+if (!('r-reticulate' %in% conda_list()$name)) conda_create('r-reticulate')
+use_condaenv('r-reticulate')
+```
+
+```{r include=FALSE}
+package_list <- c('chardet', 'pandas', 'pyarrow', 'requests', 's3fs', 'tqdm')
+py_install(package_list, pip = TRUE)
+rm(package_list)
+```
+
+```{python}
+import chardet
+import os
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+import re
+import requests
+import s3fs
+import shutil
+from tqdm import tqdm
+import zipfile
+```
+
+```{python}
+# Identification des fichiers
+def extract_strings_from_webpage(url):
+    response = requests.get(url) 
+    if response.status_code == 200:
+        strings = re.findall(r'"([^"]*)"', response.text)
+        return strings
+    else:
+        print(f'Failed to fetch the webpage. Status code: {response.status_code}')
+        return []
+
+webpage_url = 'https://unehistoireduconflitpolitique.fr/telecharger.html'
+extracted_strings = extract_strings_from_webpage(webpage_url)
+download_links = [item for item in extracted_strings if item.endswith('csv.zip') or item.endswith('csp.zip')]
+print(f'Identified {len(download_links)} files to download.')
+```
+
+```{python}
+# Téléchargement des fichiers
+os.makedirs('data_zip', exist_ok=True)
+
+progress_bar = tqdm(total=len(download_links), desc='Downloading', unit='file')
+
+for link in download_links:
+    try:
+        file_name = os.path.join('data_zip', os.path.basename(link))
+        response = requests.get(link)
+        with open(file_name, 'wb') as file:
+            file.write(response.content)
+        progress_bar.update(1)
+    except Exception as e:
+        print(f'Error downloading {link}: {e}')
+        
+progress_bar.close()
+del(progress_bar)
+```
+
+```{python echo=FALSE}
+# Taille des données téléchargées
+total_size = 0
+for foldername, subfolders, filenames in os.walk('data_zip'):
+    for filename in filenames:
+        filepath = os.path.join(foldername, filename)
+        total_size += os.path.getsize(filepath)
+total_size_mb = total_size / (1024 * 1024)
+print(f'Total size of downloaded files: {total_size_mb:.2f} MB.')
+```
+
+```{python}
+# Extraction des résultats électoraux
+for prefix in ['pres', 'leg', 'ref']:
+    prefix_dir = os.path.join('data_csv', 'Elections_' + prefix)
+    os.makedirs(prefix_dir, exist_ok=True)
+
+zip_files = [file for file in os.listdir('data_zip') if file.endswith('.zip')]
+total_zip_files = sum(file.startswith(prefix) for prefix in ['pres', 'leg', 'ref'] for file in zip_files)
+progress_bar = tqdm(total=total_zip_files, desc="Extracting", unit="file")
+
+for prefix in ['pres', 'leg', 'ref']:
+    for file in zip_files:
+        if file.startswith(prefix) and file.endswith('.zip'):
+            try:
+                zip_file_path = os.path.join('data_zip', file)
+                prefix_dir = os.path.join('data_csv', 'Elections_' + prefix)
+                with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+                    for member in zip_ref.infolist():
+                        if member.filename.lower().endswith('.csv'):
+                            target_path = os.path.join(prefix_dir, os.path.basename(member.filename))
+                            with zip_ref.open(member) as source, open(target_path, 'wb') as dest:
+                                shutil.copyfileobj(source, dest)
+                progress_bar.update(1)
+            except Exception as e:
+                print(f'Error converting {file}: {e}')
+            
+progress_bar.close()
+del(progress_bar)
+```
+
+```{python}
+# Nettoyage des résultats électoraux
+for root, dirs, files in os.walk('data_csv'):
+    for file_name in files:
+        if file_name.startswith('._'):
+            file_path = os.path.join(root, file_name)
+            os.remove(file_path)
+  
+print('Folder cleaning completed.')
+```
+
+```{python}
+# Extraction des contrôles
+zip_files = [f for f in os.listdir('data_zip') if f.endswith('.zip')]
+total_zip_files = sum(not any(file.startswith(prefix) for prefix in ['pres', 'leg', 'ref']) for file in zip_files)
+progress_bar = tqdm(total=total_zip_files, desc='Extracting', unit='file')
+
+for zip_file in zip_files:
+    if zip_file.startswith(('pres', 'leg', 'ref')):
+        continue
+    zip_path = os.path.join('data_zip', zip_file)
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            file_list = [file for file in zip_ref.namelist() if not file.startswith('__MACOSX')]
+            zip_ref.extractall('data_csv', members=file_list)
+        progress_bar.update(1)
+    except Exception as e:
+        print(f'Error extracting {zip_file}: {e}')
+
+progress_bar.close()
+del(progress_bar)
+```
+
+```{python}
+# Nettoyage des contrôles
+folders = [f for f in os.listdir('data_csv') if os.path.isdir(os.path.join('data_csv', f))]
+for folder in folders:
+    if folder.endswith('_csv'):
+        old_path = os.path.join('data_csv', folder)
+        new_folder_name = folder[:-4]
+        new_path = os.path.join('data_csv', new_folder_name)
+        os.rename(old_path, new_path)
+
+shutil.move('data_csv/alphabetisationcommunes.csv', 'data_csv/Diplomes/')
+
+print("Folder cleaning complete.")
+```
+
+```{python echo=FALSE}
+# Taille des données extraites
+total_size = 0
+for foldername, subfolders, filenames in os.walk('data_csv'):
+    for filename in filenames:
+        filepath = os.path.join(foldername, filename)
+        total_size += os.path.getsize(filepath)
+total_size_mb = total_size / (1024 * 1024)
+print(f'Total size of extracted data: {total_size_mb:.2f} MB.')
+```
+
+```{python echo=FALSE}
+# Suppression du répertoire de téléchargement
+shutil.rmtree('data_zip')
+print('Downloaded data removed.')
+```
+
+```{python}
+# Conversion au format Parquet, avec correction de l'encodage, sans compression
+
+def detect_encoding_short(file_path):
+    with open(file_path, 'rb') as f:
+        first_line = f.readline()
+        num_columns = len(first_line.split(b','))
+        f.seek(0)
+        file_content = f.read()
+    if num_columns < 15:
+        result = chardet.detect(file_content)
+        return result['encoding']
+    else:
+        data = pd.read_csv(file_path, low_memory=False, usecols=range(15))
+        result = chardet.detect(data.to_csv(index=False).encode())
+        return result['encoding']
+
+def detect_encoding_long(file_path):
+    with open(file_path, 'rb') as f:
+        result = chardet.detect(f.read())
+        return result['encoding']
+
+total_csv_files = 0
+for root, dirs, files in os.walk('data_csv'):
+    csv_files = [file for file in files if file.endswith('.csv')]
+    total_csv_files += len(csv_files)
+progress_bar = tqdm(total=total_csv_files)
+
+for root, dirs, files in os.walk('data_csv'):
+    for file in files:
+        if file.endswith('.csv'):
+            input_csv_path = os.path.join(root, file)
+            relative_path = os.path.relpath(input_csv_path, 'data_csv')
+            output_parquet_path = os.path.join('data_parquet', os.path.splitext(relative_path)[0] + '.parquet')
+            os.makedirs(os.path.dirname(output_parquet_path), exist_ok=True)
+            encoding_short = detect_encoding_short(input_csv_path)
+            try:
+                data = pd.read_csv(input_csv_path, low_memory=False, encoding=encoding_short)
+                table = pa.Table.from_pandas(data)
+                pq.write_table(table, output_parquet_path)
+                os.remove(input_csv_path)
+                progress_bar.update(1)
+            except Exception as e:
+                print(f'Improper encoding detected for {input_csv_path} on first 15 columns, analyzing full file.')
+                encoding_long = detect_encoding_long(input_csv_path)
+                data = pd.read_csv(input_csv_path, low_memory=False, encoding=encoding_long)
+                table = pa.Table.from_pandas(data)
+                pq.write_table(table, output_parquet_path)
+                os.remove(input_csv_path)
+                progress_bar.update(1)
+                
+progress_bar.close()
+del(progress_bar)
+```
+
+```{python}
+# Taille des données converties
+total_size = 0
+for foldername, subfolders, filenames in os.walk('data_parquet'):
+    for filename in filenames:
+        filepath = os.path.join(foldername, filename)
+        total_size += os.path.getsize(filepath)
+total_size_mb = total_size / (1024 * 1024)
+print(f'Total size of converted data: {total_size_mb:.2f} MB.')
+```
+
+```{python}
+# Suppression du répertoire d'extraction
+shutil.rmtree('data_csv')
+print('Extracted data removed.')
+```
+
+```{python}
+# Optionnel : téléversement sur le Datalab
+S3_ENDPOINT_URL = 'https://' + os.environ['AWS_S3_ENDPOINT']
+fs = s3fs.S3FileSystem(client_kwargs={'endpoint_url': S3_ENDPOINT_URL})
+
+source_directory = 'data_parquet'
+bucket_name = 'maeldieudonne'
+destination_directory = bucket_name + '/diffusion/'
+
+total_files = sum([len(files) for _, _, files in os.walk(source_directory)])
+progress_bar = tqdm(total=total_files, desc='Uploading', unit='file')
+
+for root, dirs, files in os.walk(source_directory):
+    for file in files:
+        source_path = os.path.join(root, file)
+        destination_path = os.path.join(destination_directory, os.path.relpath(source_path, source_directory))
+        fs.put(source_path, destination_path, content_type='text/csv', encoding='utf-8')
+        progress_bar.update(1)
+
+progress_bar.close()
+del(progress_bar)
+
+# Suppression du répertoire de conversion
+shutil.rmtree('data_parquet')
+print('Converted data removed.')
+```
+
+```{python}
+os.rename('data_parquet', 'data_main')
+
+for variable in ['csv_files', 'data', 'dirs', 'detect_encoding_short', 'detect_encoding_long', 'encoding_short', 'encoding_long', 'file', 'filename', 'filenames', 'filepath', 'files', 'foldername', 'input_csv_path', 'output_parquet_path', 'progress_bar', 'relative_path', 'root', 'subfolders', 'table', 'total_csv_files', 'total_size', 'total_size_mb', 'variable_name']:
+    if variable in globals():
+        del globals()[variable]
+del variable
+```
