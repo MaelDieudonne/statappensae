@@ -6,6 +6,8 @@ date: "2024-01-29"
 
 
 ```{r}
+# A remplacer par un chargement depuis les données locales
+
 # Téléchargement des codes régions
 httr::GET("https://www.insee.fr/fr/statistiques/fichier/6800675/v_region_2023.csv", timeout(15), progress(), write_disk("data/codes_regions_Insee.csv", overwrite = TRUE))
 codes_regions <- fread("data/codes_regions_Insee.csv", header = TRUE)
@@ -18,6 +20,8 @@ codes_departements <- fread("data/codes_departements_Insee.csv", header = TRUE)
 
 
 ```{r}
+# A remplacer par un chargement des données locales ou un import depuis S3
+
 # Téléchargement du fond de carte
 if (!dir.exists("shapefile")) {dir.create("shapefile")}
 httr::GET("https://wxs.ign.fr/x02uy2aiwjo9bm8ce5plwqmr/telechargement/prepackage/ADMINEXPRESS_SHP_TERRITOIRES_PACK_2023-12-19$ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/file/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19.7z", timeout(1800), progress(), write_disk("shapefile/Carto_Insee.7z", overwrite = TRUE))
