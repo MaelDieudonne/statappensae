@@ -1,6 +1,6 @@
 **Packages et librairies**
 
-```{r}
+```{r include=FALSE}
 packages <- c(
   "archive",
   "arrow",
@@ -34,7 +34,8 @@ if (!dir.exists("output")) {dir.create("output")}
 **Fonctions**
 
 ```{r}
-# Pour charger les données depuis le Datalab
+# Pour charger les données feather depuis le Datalab
+# A supprimer quand la transition vers Parquet sera effective.
 import_feather <- function(input_file) {
   bucket_name <- "maeldieudonne"
   data <- aws.s3::s3read_using(
@@ -45,6 +46,34 @@ import_feather <- function(input_file) {
   )  
   data <- as.data.table(data)
   return(data)
+}
+
+# Pour charger les données Parquet
+load_parquet <- function(filename) {
+  local_filepath <- file.path("data_parquet/", filename)
+  
+  if (file.exists(local_filepath)) {
+    message("Loading from local directory")
+    data <- arrow::read_parquet(local_filepath)
+    return(data)
+  } else {
+    message("Downloading from SSP cloud")
+  
+    tryCatch({
+        s3_filepath <- file.path("/diffusion", filename)
+        data <- aws.s3::s3read_using(
+            FUN = arrow::read_parquet,
+            object = s3_filepath,
+            bucket = "maeldieudonne",
+            opts = list("region" = "")
+        )
+        data <- as.data.table(data)
+        return(data)
+    }, error = function(e) {
+      message("Failed to download file from SSP cloud:", e$message)
+      NULL
+    })
+  }
 }
 
 # Pour formater les nombres dans les tableaux
