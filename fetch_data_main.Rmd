@@ -4,7 +4,7 @@ Le code ayant été écrit en python, il faut d'abord rendre son exécution poss
 if (!'reticulate' %in% installed.packages()) install.packages('reticulate')
 if (!is.loaded("reticulate")) library(reticulate)
 
-tryCatch({install_miniconda()},  error = function() {cat("Miniconda is already installed.")})
+tryCatch({install_miniconda()},  error = function(e) {cat("Miniconda is already installed.")})
 if (!('r-reticulate' %in% conda_list()$name)) conda_create('r-reticulate')
 use_condaenv('r-reticulate')
 ```
