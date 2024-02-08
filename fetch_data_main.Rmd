@@ -4,14 +4,14 @@ Le code ayant été écrit en python, il faut d'abord rendre son exécution poss
 if (!'reticulate' %in% installed.packages()) install.packages('reticulate')
 if (!is.loaded("reticulate")) library(reticulate)
 
-if (condaenv_exists() == FALSE) install_miniconda()
+tryCatch({install_miniconda()},  error = function() {cat("Miniconda is already installed.")})
 if (!('r-reticulate' %in% conda_list()$name)) conda_create('r-reticulate')
 use_condaenv('r-reticulate')
 ```
 
 ```{r include=FALSE}
-package_list <- c('chardet', 'pandas', 'pyarrow', 'requests', 's3fs', 'tqdm')
-py_install(package_list, pip = TRUE)
+package_list <- c('pyarrow', 'chardet', 'pandas', 'requests', 's3fs', 'tqdm')
+py_install(package_list)
 rm(package_list)
 ```
 
@@ -293,4 +293,6 @@ for variable in ['bucket_name', 'csv_files', 'data', 'dest', 'destination_direct
     if variable in globals():
         del globals()[variable]
 del variable
+
+# conda_remove('r-reticulate')
 ```

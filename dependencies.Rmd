@@ -9,7 +9,6 @@ packages <- c(
   "ggplot2",
   "httr",
   "mapview",
-  "reticulate",
   "sf",
   "stargazer",
   "viridis",
