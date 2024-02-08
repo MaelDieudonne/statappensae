@@ -1,2 +1,21 @@
-# statappensae
-Repo pour le projet StatApp de Maël, Swann et Alexis
+Ce projet explore les effets du statut de propriétaire immobilier sur les comportements électoraux, à partir des données rassemblées par Julia Cagé et Thomas Piketty pour leur ouvrage *Une histoire du conflit politique. Élections et inégalités sociales en France, 1789-2022* (Paris, Le Seuil, 2023).
+
+Il est réalisé dans le cadre de l’enseignement de statistiques appliquées de seconde année à l’Ensae, au premier semestre 2024.
+
+-   Auteurs : Alexis Barrau, Maël Dieudonne et Swann-Émilien Maillefert
+
+-   Encadrants : Pauline Mendras et Gaston Vermersch (INSEE / IPP)
+
+Le code est conçu pour s’exécuter dans l’environnement [Onyxia](https://datalab.sspcloud.fr/) du Datalab de l’Insee ou localement, avec dans le premier cas, un stockage des données dans le SSP Cloud. Il est réparti entre plusieurs notebooks au format Rmd, à exécuter dans cet ordre :
+
+1.  Dependencies
+2.  Fetch_main_data pour récupérer les données mises à disposition par les auteurs sur le [site compagnon](https://unehistoireduconflitpolitique.fr/) du livre
+3.  Fetch_other_data pour récupérer d’autres données publiques
+
+*NB : ces deux notebooks s’achèvent pas des chunks destinés au téléversement sur le SSP Cloud. Il faut bien adapter le nom et le chemin du bucket, ou ne pas les exécuter pour rester en local.*
+
+4.  Prepare_data pour construire la base
+5.  Analyze pour l’exploitation statistique
+6.  Map pour les cartes
+
+Toutes les sorties sont placées dans le répertoire output, au format latex ou png. Les rapports sont disponibles dans le dossier latex.
