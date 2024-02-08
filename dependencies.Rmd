@@ -36,11 +36,12 @@ if (!dir.exists("output")) {dir.create("output")}
 ```{r}
 # Pour charger les données Parquet
 load_parquet <- function(filename) {
-  local_filepath <- file.path("data_parquet/", filename)
+  local_filepath <- file.path("data_main/", filename)
   
   if (file.exists(local_filepath)) {
     message("Loading from local directory")
     data <- arrow::read_parquet(local_filepath)
+    data <- as.data.table(data)
     return(data)
   } else {
     message("Downloading from SSP cloud")

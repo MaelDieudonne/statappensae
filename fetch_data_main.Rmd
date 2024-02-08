@@ -32,14 +32,14 @@ from tqdm import tqdm
 import zipfile
 ```
 
-```{r}
+```{r eval=FALSE}
 # Le chunk précédent bugue parfois à l'importation de pyarrow. Il semble que reticulate n'arrive pas toujours à charger pyarrow. Il n'y a pas de solution miracle, on peut essayer :
 
-reticulate::py_module_available("pyarrow") # Pour vérifier que pyarrow est bien installé
-reticulate::py_install('pyarrow', pip = TRUE) # Pour le réinstaller avec pip plutôt que conda
-install_pyarrow(envname = 'r-reticulate')
-conda_remove('r-reticulate') # Pour réinitialiser l'environnement virtuel
-miniconda_uninstall() # Pour partir d'une nouvelle installation de Python
+# reticulate::py_module_available("pyarrow") # Pour vérifier que pyarrow est bien installé
+# reticulate::py_install('pyarrow', pip = TRUE) # Pour le réinstaller avec pip plutôt que conda
+# install_pyarrow(envname = 'r-reticulate')
+# conda_remove('r-reticulate') # Pour réinitialiser l'environnement virtuel
+# miniconda_uninstall() # Pour partir d'une nouvelle installation de Python
 
 # Autres pistes : 
 # - utiliser une installation de python complète plutôt de miniconda
@@ -275,7 +275,7 @@ print('Extracted data removed.')
 
 **Téléversement sur le Datalab**
 
-```{python}
+```{python eval=FALSE}
 S3_ENDPOINT_URL = 'https://' + os.environ['AWS_S3_ENDPOINT']
 fs = s3fs.S3FileSystem(client_kwargs={'endpoint_url': S3_ENDPOINT_URL})
 
@@ -297,12 +297,13 @@ progress_bar.close()
 del(progress_bar)
 
 # Suppression du répertoire de conversion
-shutil.rmtree('data_parquet')
-print('Converted data removed.')
+# shutil.rmtree('data_parquet')
+# print('Converted data removed.')
 ```
 
+**Nettoyage**
+
 ```{python}
-# Nettoyage
 if os.path.exists('data_parquet'):
     os.rename('data_parquet', 'data_main')
 
