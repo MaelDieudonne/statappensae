@@ -1,16 +1,10 @@
----
-title: "prepare_data"
-output: html_document
-date: "2024-01-26"
----
-
 # Résultats électoraux
 
 ```{r}
-pres1981 <- import_feather("/diffusion/Elections_pres/pres1981comm.feather")
+pres1981 <- load_parquet("Elections_pres/pres1981comm.parquet")
 
 # Recodages
-candidats <- fread("data/candidats.csv", header = TRUE)
+candidats <- fread("data_other/candidats.csv", header = TRUE)
 
 # == #
 # Il faudra ajuster ce code pour éviter de produire des valeurs infinies avec les ratios.
@@ -46,7 +40,7 @@ rm(candidats, T1mask, T2mask, T2candidates, prefixes_to_drop)
 -   ppropri1981 = proportion de ménages propriétaires de leur logement dans la commune
 
 ```{r}
-propri <- import_feather("/diffusion/Proprietaires/proprietairescommunes.feather")
+propri <- load_parquet("Proprietaires/proprietairescommunes.parquet")
 ```
 
 # Contrôles
@@ -57,7 +51,7 @@ propri <- import_feather("/diffusion/Proprietaires/proprietairescommunes.feather
 -   popagglo1981
 
 ```{r}
-popul <- import_feather("/diffusion/Taille_agglo_commune/popcommunes.feather")
+popul <- load_parquet("Taille_agglo_commune/popcommunes.parquet")
 ```
 
 ## 2. Âge
@@ -69,7 +63,7 @@ popul <- import_feather("/diffusion/Taille_agglo_commune/popcommunes.feather")
 -   prop60p1981 = proportion de 60 ans et + dans la commune
 
 ```{r}
-ages <- import_feather("/diffusion/Age_csp/agesexcommunes.feather")
+ages <- load_parquet("Age_csp/agesexcommunes.parquet")
 ```
 
 ## 3. Diplômes
@@ -79,7 +73,7 @@ ages <- import_feather("/diffusion/Age_csp/agesexcommunes.feather")
 -   sup1981 = nombre total de personnes 25+ diplômées du supérieur
 
 ```{r}
-diplo <- import_feather("/diffusion/Diplomes/diplomescommunes.feather")
+diplo <- load_parquet("Diplomes/diplomescommunes.parquet")
 
 # Recodages
 ## Conversion du nombre de (non-)diplômés en proportion
@@ -97,8 +91,8 @@ diplo[, propsup1981 := sup1981/pop1981]
 -   pmessalisants1950 : effectifs totaux de personnes allant à la messe du dimanche en 1950 en proportion de la population totale
 
 ```{r}
-religcomm <- import_feather("/diffusion/Enseignement_prive/religiositecommunes.feather")
-religdep <- import_feather("/diffusion/Enseignement_prive/religiositedepartements.feather")
+religcomm <- load_parquet("Enseignement_prive/religiositecommunes.parquet")
+religdep <- load_parquet("Enseignement_prive/religiositedepartements.parquet")
 
 # Recodages
 ## Ratio de nclerge1791 sur le nombre d'habitants, pour avoir une idée de la présence des institutions religieuses dans la commune.
@@ -118,7 +112,7 @@ religcomm[, pclerge1791 := replace(pclerge1791, is.infinite(pclerge1791), NaN)]
 -   pchom1981 = proportion de chômeurs parmi les actifs 25-54 ans (=chom/pact)
 
 ```{r}
-catsociopro <- import_feather("/diffusion/CSP/cspcommunes.feather")
+catsociopro <- load_parquet("CSP/cspcommunes.parquet")
 ```
 
 ## 6. Nationalités
@@ -126,7 +120,7 @@ catsociopro <- import_feather("/diffusion/CSP/cspcommunes.feather")
 -   petranger1981 = proportion de personnes de nationalité étrangère
 
 ```{r}
-nation <- import_feather("/diffusion/Nationalites/etrangerscommunes.feather")
+nation <- load_parquet("Nationalites/etrangerscommunes.parquet")
 ```
 
 ## 7. Productions et revenus
@@ -134,7 +128,7 @@ nation <- import_feather("/diffusion/Nationalites/etrangerscommunes.feather")
 -   revmoy1981 = revenu moyen par habitant de la commune (exprimé en euros de 2022)
 
 ```{r}
-reven <- import_feather("/diffusion/Revenus/revcommunes.feather")
+reven <- load_parquet("Revenus/revcommunes.parquet")
 ```
 
 # Construction de la base
@@ -162,5 +156,6 @@ pres1981[reven, c("revmoy1981") :=
 
 ```{r}
 # Optionnel : écriture de la base, si nous voulons éviter de la reconstruire à chaque fois.
-# write_feather(pres1981, "data/pres1981.feather")
+if (!dir.exists("data_main")) {dir.create("data_main")}
+write_parquet(pres1981, "data_main/pres1981.parquet")
 ```
