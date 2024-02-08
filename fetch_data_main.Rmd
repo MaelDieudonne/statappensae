@@ -4,15 +4,18 @@ Le code ayant été écrit en python, il faut d'abord rendre son exécution poss
 if (!'reticulate' %in% installed.packages()) install.packages('reticulate')
 if (!is.loaded("reticulate")) library(reticulate)
 
-tryCatch({install_miniconda()},  error = function() {cat("Miniconda is already installed.")})
+tryCatch({install_miniconda()},  error = function(e) {cat("Miniconda is already installed.")})
 if (!('r-reticulate' %in% conda_list()$name)) conda_create('r-reticulate')
 use_condaenv('r-reticulate')
 ```
 
 ```{r include=FALSE}
-package_list <- c('pyarrow', 'chardet', 'pandas', 'requests', 's3fs', 'tqdm')
-py_install(package_list)
-rm(package_list)
+py_install('chardet')
+py_install('pandas')
+py_install('requests')
+py_install('s3fs')
+py_install('tqdm')
+py_install('pyarrow')
 ```
 
 ```{python}
@@ -27,6 +30,20 @@ import s3fs
 import shutil
 from tqdm import tqdm
 import zipfile
+```
+
+```{r}
+# Le chunk précédent bugue parfois à l'importation de pyarrow. Il semble que reticulate n'arrive pas toujours à charger pyarrow. Il n'y a pas de solution miracle, on peut essayer :
+
+reticulate::py_module_available("pyarrow") # Pour vérifier que pyarrow est bien installé
+reticulate::py_install('pyarrow', pip = TRUE) # Pour le réinstaller avec pip plutôt que conda
+install_pyarrow(envname = 'r-reticulate')
+conda_remove('r-reticulate') # Pour réinitialiser l'environnement virtuel
+miniconda_uninstall() # Pour partir d'une nouvelle installation de Python
+
+# Autres pistes : 
+# - utiliser une installation de python complète plutôt de miniconda
+# - forcer une version précédente de pyarrow
 ```
 
 **Identification des fichiers**
