@@ -34,20 +34,6 @@ if (!dir.exists("output")) {dir.create("output")}
 **Fonctions**
 
 ```{r}
-# Pour charger les données feather depuis le Datalab
-# A supprimer quand la transition vers Parquet sera effective.
-import_feather <- function(input_file) {
-  bucket_name <- "maeldieudonne"
-  data <- aws.s3::s3read_using(
-    FUN = arrow::read_feather,
-    object = input_file,
-    bucket = bucket_name,
-    opts = list("region" = "")
-  )  
-  data <- as.data.table(data)
-  return(data)
-}
-
 # Pour charger les données Parquet
 load_parquet <- function(filename) {
   local_filepath <- file.path("data_parquet/", filename)
@@ -73,6 +59,30 @@ load_parquet <- function(filename) {
       message("Failed to download file from SSP cloud:", e$message)
       NULL
     })
+  }
+}
+
+# Pour charger les données Shapefile
+load_shapefile <- function(filename) {
+  local_filepath <- paste0("data_other/shapefile/", filename)
+  message(local_filepath)
+  if (file.exists(local_filepath)) {
+    message("Loading from local directory")
+    data <- sf::st_read(local_filepath)
+    return(data)
+  } else {
+    message("Downloading from SSP cloud")
+    if (!dir.exists("data_other/shapefile")) {dir.create("data_other/shapefile")}
+    aws.s3::s3sync(
+        path = "data_other/shapefile",
+        bucket = "maeldieudonne",
+        region = "",
+        prefix = "diffusion/shapefile/",
+        direction = c("upload", "download"),
+        multipart = TRUE,
+        create = TRUE)
+    data <- sf::st_read(local_filepath)
+    return(data)
   }
 }
 

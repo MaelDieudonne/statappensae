@@ -1,100 +1,32 @@
----
-title: "map_data"
-output: html_document
-date: "2024-01-29"
----
-
+**Construction de la base**
 
 ```{r}
-# A remplacer par un chargement depuis les données locales
-
-# Téléchargement des codes régions
-httr::GET("https://www.insee.fr/fr/statistiques/fichier/6800675/v_region_2023.csv", timeout(15), progress(), write_disk("data/codes_regions_Insee.csv", overwrite = TRUE))
-codes_regions <- fread("data/codes_regions_Insee.csv", header = TRUE)
+codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
 codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
 
-# Téléchargement des codes département
-httr::GET("https://www.insee.fr/fr/statistiques/fichier/6800675/v_departement_2023.csv", timeout(15), progress(), write_disk("data/codes_departements_Insee.csv", overwrite = TRUE))
-codes_departements <- fread("data/codes_departements_Insee.csv", header = TRUE)
-```
-
-
-```{r}
-# A remplacer par un chargement des données locales ou un import depuis S3
-
-# Téléchargement du fond de carte
-if (!dir.exists("shapefile")) {dir.create("shapefile")}
-httr::GET("https://wxs.ign.fr/x02uy2aiwjo9bm8ce5plwqmr/telechargement/prepackage/ADMINEXPRESS_SHP_TERRITOIRES_PACK_2023-12-19$ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/file/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19.7z", timeout(1800), progress(), write_disk("shapefile/Carto_Insee.7z", overwrite = TRUE))
-
-# Extraction
-root_name <- ("ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/ADMIN-EXPRESS/1_DONNEES_LIVRAISON_2023-12-00156/ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19/")
-file_names <- c("COMMUNE", "ARRONDISSEMENT_MUNICIPAL")
-extensions <- c("shp", "shx", "dbf")
-
-files_to_extract <- c()
-for (file_name in file_names) {
-  for (extension in extensions) {
-    files_to_extract <- c(files_to_extract, paste0(root_name, file_name, ".", extension))
-  }
-}
-
-archive_extract("shapefile/Carto_Insee.7z", dir = "shapefile", files = files_to_extract)
-
-# Nettoyage
-root_path <- file.path("shapefile", "ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19", "ADMIN-EXPRESS", "1_DONNEES_LIVRAISON_2023-12-00156", "ADE_3-2_SHP_LAMB93_FXX-ED2023-12-19")
-
-for (file_name in file_names) {
-  for (ext in extensions) {
-    source_file <- file.path(root_path, paste0(file_name, ".", ext))
-    target_file <- file.path("shapefile", paste0(file_name, ".", ext))
-    file.rename(source_file, target_file)
-  }
-}
-
-unlink(c("shapefile/Carto_Insee.7z", "shapefile/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19"), recursive = TRUE)
-rm(ext, extension, extensions, file_name, file_names, files_to_extract, root_name, root_path, source_file, target_file)
-```
-
-
-```{r}
-# Construction de la base
-## Contours des départements
-background_province <- st_read("shapefile/COMMUNE.shx")
+# Contours des départements
+background_province <- load_shapefile("COMMUNE.shx")
 map_data_province <- merge(background_province, subset(pres1981, dep != 75), by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
 map_data_province <- subset(map_data_province, select = -c(INSEE_ARR, INSEE_CAN, INSEE_DEP, SIREN_EPCI, STATUT))
 
-## Contour des arrondissements
-background_plm <- st_read("shapefile/ARRONDISSEMENT_MUNICIPAL.shx")
-### Ajout du code région
+# Contour des arrondissements
+background_plm <- load_shapefile("ARRONDISSEMENT_MUNICIPAL.shx")
+## Ajout du code région
 background_plm$INSEE_REG <- ifelse(startsWith(background_plm$INSEE_COM, "13"), 93,
                                     ifelse(startsWith(background_plm$INSEE_COM, "69"), 84,
                                            ifelse(startsWith(background_plm$INSEE_COM, "75"), 11, NA)))
-### Fusion pour les arrondissements parisiens
+
+# Fusion pour les arrondissements parisiens
 map_data_paris <- merge(background_plm, subset(pres1981, dep == 75), by.x = "INSEE_ARM", by.y = "codecommune", all.x = TRUE)
 map_data_paris <- subset(map_data_paris, select = -INSEE_ARM)
 
-## Fusion globale et nettoyage
+# Fusion globale et nettoyage
 map_data <- rbind(map_data_province, map_data_paris)
 st_crs(map_data) <- 9794
 rm(background_province, map_data_province, background_plm, map_data_paris)
 ```
 
-
-```{r}
-# Optionnel : enregistrement de la base
-# st_write(map_data, "data/map.gpkg", driver = "GPKG", append = TRUE)
-# unlink("shapefile", recursive = TRUE)
-```
-
-
-```{r}
-# Optionnel : chargement de la base
-# map_data <- st_read("data/map.gpkg")
-```
-
-
-# Cartes statiques
-
+**Cartes statiques**
 
 ```{r}
 # Carte statique avec ggplot, réduite à une région, à résolution paramétrable
@@ -137,7 +69,6 @@ ggsave(output_file, plot = plot, width = base_width, height = base_height, units
 rm(bbox, aspect_ratio, base_height, base_width, font_size, mapped_var, mapped_var_name, reg_abrv, reg_name, output_file, selected_reg, subset_map_data, title)
 ```
 
-
 ```{r}
 # Carte statique avec ggplot, France entière, à résolution paramétrable
 
@@ -173,9 +104,7 @@ ggsave(output_file, plot = plot, width = base_width, height = base_height, units
 rm(aspect_ratio, base_height, base_width, bbox, font_size, mapped_var, mapped_var_name, plot)
 ```
 
-
-# Cartes dynamiques
-
+**Cartes dynamiques**
 
 ```{r}
 # Carte dynamique avec mapview, réduite à un département (les détails s'affichent en cliquant sur une commune).

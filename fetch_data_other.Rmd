@@ -2,15 +2,15 @@
 
 ```{r}
 httr::GET("https://www.insee.fr/fr/statistiques/fichier/6800675/v_region_2023.csv", timeout(15), progress(), write_disk("data_other/codes_regions_Insee.csv", overwrite = TRUE))
-codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
-codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
+# codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
+# codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
 ```
 
 **Téléchargement des codes départementaux**
 
 ```{r}
 httr::GET("https://www.insee.fr/fr/statistiques/fichier/6800675/v_departement_2023.csv", timeout(15), progress(), write_disk("data_other/codes_departements_Insee.csv", overwrite = TRUE))
-codes_departements <- fread("data_other/codes_departements_Insee.csv", header = TRUE)
+# codes_departements <- fread("data_other/codes_departements_Insee.csv", header = TRUE)
 ```
 
 **Téléchargement des données cartographiques**
@@ -25,8 +25,8 @@ extensions <- c("shp", "shx", "dbf")
 
 files_to_extract <- c()
 for (file_name in file_names) {
-  for (extension in extensions) {
-    files_to_extract <- c(files_to_extract, paste0(root_name, file_name, ".", extension))
+  for (ext in extensions) {
+    files_to_extract <- c(files_to_extract, paste0(root_name, file_name, ".", ext))
   }
 }
 
@@ -47,8 +47,9 @@ unlink(c("data_other/Carto_Insee.7z", "data_other/shapefile/ADMIN-EXPRESS_3-2__S
 rm(ext, extensions, file_name, file_names, files_to_extract, root_name, root_path, source_file, target_file)
 ```
 
+**Téléversement sur le Datalab**
+
 ```{r}
-# Optionnel : téléversement sur le Datalab
 aws.s3::s3sync(
   path = "data_other/shapefile",
   bucket = "maeldieudonne",
@@ -59,5 +60,6 @@ aws.s3::s3sync(
   create = TRUE
 )
 
+# Nettoyage
 unlink("data_other/shapefile", recursive = TRUE)
 ```
