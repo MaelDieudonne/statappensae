@@ -14,10 +14,12 @@ L'installation du package pyarrow, nécessaire pour manipuler les fichiers Parqu
 ```{r}
 tryCatch({install_pyarrow('r-reticulate-conda')}, error = function(e) {py_install('pyarrow')})
 
+# Test depuis R
 if (!py_module_available("pyarrow")) error = function(e) {cat("The pyarrow module is not properly installed. Fatal errors will ensue.")}
 ```
 
 ```{python}
+# Test depuis Python
 try:
     import pyarrow
     print("Pyarrow library imported successfully.")
