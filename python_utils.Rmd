@@ -26,14 +26,26 @@ conda_remove("r-reticulate-conda") # Pour réinitialiser l'environnement virtuel
 miniconda_uninstall()
 ```
 
-```{r include=FALSE}
-# Réinstallation
+```{r}
+# Réinstallation, avec création d'un environnement vierge puis installation de Pyarrow
 tryCatch({install_miniconda()}, error = function(e) {cat("Miniconda is already installed.")})
 
 if (!("r-reticulate-conda" %in% conda_list()$name)) conda_create("r-reticulate-conda")
 use_condaenv("r-reticulate-conda")
 
 tryCatch({install_pyarrow("r-reticulate-conda")}, error = function(e) {py_install("pyarrow")})
+```
+
+```{r}
+# Méthode alternative en incluant les packages dès la création de l'environnement
+tryCatch({install_miniconda()}, error = function(e) {cat("Miniconda is already installed.")})
+
+if (!("r-reticulate-conda" %in% conda_list()$name)) 
+  conda_create(
+    envname = "r-reticulate-conda",
+    packages = c("pyarrow", "chardet", "pandas", "requests", "s3fs", "tqdm"))
+
+use_virtualenv("r-reticulate-python")
 ```
 
 ```{r}
@@ -62,13 +74,26 @@ virtualenv_remove('r-reticulate-python')
 py_config()
 ```
 
-```{r include=FALSE}
+```{r}
+# Réinstallation, avec création d'un environnement vierge puis installation de Pyarrow
 tryCatch({install_python()}, error = function(e) {cat("Python is already installed.")})
 
 if (!(virtualenv_exists("r-reticulate-python"))) virtualenv_create("r-reticulate-python")
 use_virtualenv("r-reticulate-python")
 
 tryCatch({install_pyarrow("r-reticulate-python")}, error = function(e) {py_install("pyarrow")})
+```
+
+```{r}
+# Méthode alternative en incluant les packages dès la création de l'environnement
+tryCatch({install_python()}, error = function(e) {cat("Python is already installed.")})
+
+if (!(virtualenv_exists("r-reticulate-python"))) 
+  virtualenv_create(
+    envname = "r-reticulate-python",
+    packages = c("pyarrow", "chardet", "pandas", "requests", "s3fs", "tqdm"))
+
+use_virtualenv("r-reticulate-python")
 ```
 
 ```{r}
