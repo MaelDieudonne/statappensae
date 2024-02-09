@@ -1,0 +1,86 @@
+On vérifie d'abord que reticulate est bien installé.
+
+```{r}
+if (!"reticulate" %in% installed.packages()) install.packages("reticulate")
+if (!is.loaded("reticulate")) library(reticulate)
+```
+
+On peut ensuite explorer deux options pour installer Python :
+
+1.  Miniconda comme dans le notebook initial, qui a l'avantage d'être légère,
+
+2.  Python.
+
+Il faut nettoyer toute installation précédente de l'un ou l'autre, ce qui implique en particulier de supprimer les environnements virtuels. Si l'installation de pyarrow réussit avec l'une ou l'autre option, on peut rebasculer sur le notebook initial.
+
+**Miniconda**
+
+```{r}
+# Nettoyage d'une précédente installation de Miniconda
+conda_list()
+## Désinstallation du package pyarrow (non-testé)
+reticulate::conda_remove("r-reticulate-conda", packages = "pyarrow")
+## Suppression de l'environnement virtuel
+conda_remove("r-reticulate-conda") # Pour réinitialiser l'environnement virtuel
+## Désinstallation de miniconda
+miniconda_uninstall()
+```
+
+```{r include=FALSE}
+# Réinstallation
+tryCatch({install_miniconda()}, error = function(e) {cat("Miniconda is already installed.")})
+
+if (!("r-reticulate-conda" %in% conda_list()$name)) conda_create("r-reticulate-conda")
+use_condaenv("r-reticulate-conda")
+
+tryCatch({install_pyarrow("r-reticulate-conda")}, error = function(e) {py_install("pyarrow")})
+```
+
+```{r}
+# Test depuis R
+if (!py_module_available("pyarrow")) error = function(e) {cat("The pyarrow module is not properly installed. Fatal errors will ensue.")}
+```
+
+```{python}
+# Test depuis Python
+try:
+    import pyarrow
+    print("Pyarrow library imported successfully.")
+except ImportError:
+    print("Importation of pyarrow library failed.")
+```
+
+**Python**
+
+```{r}
+# Nettoyage d'une précédente installation de Python
+virtualenv_list()
+## Suppression de l'environnement virtuel
+virtualenv_remove('r-reticulate-python')
+## Désinstallation de python : impossible directement.
+## Il faut identifier les répertoires d'installation avec la commande précédente, et les effacer manuellement.
+py_config()
+```
+
+```{r include=FALSE}
+tryCatch({install_python()}, error = function(e) {cat("Python is already installed.")})
+
+if (!(virtualenv_exists("r-reticulate-python"))) virtualenv_create("r-reticulate-python")
+use_virtualenv("r-reticulate-python")
+
+tryCatch({install_pyarrow("r-reticulate-python")}, error = function(e) {py_install("pyarrow")})
+```
+
+```{r}
+# Test depuis R
+if (!py_module_available("pyarrow")) error = function(e) {cat("The pyarrow module is not properly installed. Fatal errors will ensue.")}
+```
+
+```{python}
+# Test depuis Python
+try:
+    import pyarrow
+    print("Pyarrow library imported successfully.")
+except ImportError:
+    print("Importation of pyarrow library failed.")
+```

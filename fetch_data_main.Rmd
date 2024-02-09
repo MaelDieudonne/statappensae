@@ -4,10 +4,28 @@ Le code ayant été écrit en python, il faut d'abord rendre son exécution poss
 if (!'reticulate' %in% installed.packages()) install.packages('reticulate')
 if (!is.loaded("reticulate")) library(reticulate)
 
-tryCatch({install_miniconda()},  error = function(e) {cat("Miniconda is already installed.")})
-if (!('r-reticulate' %in% conda_list()$name)) conda_create('r-reticulate')
-use_condaenv('r-reticulate')
+tryCatch({install_miniconda()}, error = function(e) {cat("Miniconda is already installed.")})
+if (!('r-reticulate-conda' %in% conda_list()$name)) conda_create('r-reticulate-conda')
+use_condaenv('r-reticulate-conda')
 ```
+
+L'installation du package pyarrow, nécessaire pour manipuler les fichiers Parquet, est capricieuse. Il n'est pas toujours reconnu, entraînant une erreur d'importation dans Python. On commence donc par l'installer et vérifier qu'il est correctement chargé.
+
+```{r}
+tryCatch({install_pyarrow('r-reticulate-conda')}, error = function(e) {py_install('pyarrow')})
+
+if (!py_module_available("pyarrow")) error = function(e) {cat("The pyarrow module is not properly installed. Fatal errors will ensue.")}
+```
+
+```{python}
+try:
+    import pyarrow
+    print("Pyarrow library imported successfully.")
+except ImportError:
+    print("Importation of pyarrow library failed.")
+```
+
+En cas d'échec, se reporter au notebook python_utils pour explorer des options d'installation alternatives.
 
 ```{r include=FALSE}
 py_install('chardet')
@@ -15,7 +33,6 @@ py_install('pandas')
 py_install('requests')
 py_install('s3fs')
 py_install('tqdm')
-py_install('pyarrow')
 ```
 
 ```{python}
@@ -30,20 +47,6 @@ import s3fs
 import shutil
 from tqdm import tqdm
 import zipfile
-```
-
-```{r eval=FALSE}
-# Le chunk précédent bugue parfois à l'importation de pyarrow. Il semble que reticulate n'arrive pas toujours à charger pyarrow. Il n'y a pas de solution miracle, on peut essayer :
-
-# reticulate::py_module_available("pyarrow") # Pour vérifier que pyarrow est bien installé
-# reticulate::py_install('pyarrow', pip = TRUE) # Pour le réinstaller avec pip plutôt que conda
-# install_pyarrow(envname = 'r-reticulate')
-# conda_remove('r-reticulate') # Pour réinitialiser l'environnement virtuel
-# miniconda_uninstall() # Pour partir d'une nouvelle installation de Python
-
-# Autres pistes : 
-# - utiliser une installation de python complète plutôt de miniconda
-# - forcer une version précédente de pyarrow
 ```
 
 **Identification des fichiers**
