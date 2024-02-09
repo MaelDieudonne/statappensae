@@ -1,0 +1,41 @@
+Travail en cours pour traiter l'ensemble des élections présidentielles.
+
+```{r}
+elections <- fread("data_other/elections.csv", header = TRUE)
+
+for (year in elections$year) {
+  tablename <- paste0("pres", year) 
+  filename <- paste0("Elections_pres/pres", year, "comm.parquet")
+  assign(tablename, load_parquet(filename))
+  
+}
+
+rm(filename, tablename, year)
+```
+
+Créer une fonction pour les recodages
+
+```{r}
+## Participation
+pres1981[, part := votants/inscrits]
+pres1981[, partT2 := votantsT2/inscritsT2]
+
+## Droite / gauche
+T1mask <- candidats[DrGau == "G", .(variable = paste0("voix", Candidat))]
+pres1981[, GD_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1mask$variable]
+T2mask <- candidats[DrGau == "G", .(variable = paste0("voixT2", Candidat))]
+T2candidates <- intersect(T2mask$variable, names(pres1981))
+pres1981[, GD_ratio_T2 := rowSums(.SD, na.rm = TRUE) / exprimesT2, .SDcols = T2candidates]
+
+## Libéralisme culturel / conservatisme moral
+T1mask <- candidats[LibCons == "L", .(variable = paste0("voix", Candidat))]
+pres1981[, lib_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1mask$variable]
+
+# Nettoyage
+prefixes_to_drop <- c("exprimes", "inscrits", "nom", "nul", "pervote", "ppar", "pvoix", "pvote", "voix", "vot")
+pres1981 <- pres1981[, .SD, .SDcols = setdiff(names(pres1981), grep(paste0("^", paste(prefixes_to_drop, collapse = "|")), names(pres1981), value = TRUE))]
+pres1981 <- pres1981[, -c("plm", "dep2", "plmdoublon", "perpar", "year")]
+
+rm(candidats, T1mask, T2mask, T2candidates, prefixes_to_drop)
+```
+
