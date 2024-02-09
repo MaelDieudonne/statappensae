@@ -1,10 +1,9 @@
 # Résultats électoraux
 
 ```{r}
-pres1981 <- load_parquet("Elections_pres/pres1981comm.parquet")
-
-# Recodages
 candidats <- fread("data_other/candidats.csv", header = TRUE)
+
+pres1981 <- load_parquet("Elections_pres/pres1981comm.parquet")
 
 # == #
 # Il faudra ajuster ce code pour éviter de produire des valeurs infinies avec les ratios.
