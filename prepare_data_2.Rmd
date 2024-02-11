@@ -2,30 +2,60 @@ Travail en cours pour traiter l'ensemble des élections présidentielles.
 
 ```{r}
 elections <- fread("data_other/elections.csv", header = TRUE)
+candidats <- fread("data_other/candidats.csv", header = TRUE)
 
-for (year in elections$year) {
-  tablename <- paste0("pres", year) 
-  filename <- paste0("Elections_pres/pres", year, "comm.parquet")
-  assign(tablename, load_parquet(filename))
-  
+full_data <- data.table(
+  dep = character(),
+  codecommune = character(),
+  year = integer(),
+  inscrits = numeric(), 
+  # on l'utilisera après fusion avec la population pour calculer le taux d'inscrits
+  # si cette information n'est pas déjà estimée par les auteurs
+  part_T1 = numeric(),
+  part_T2 = numeric(),
+  rGD_T1 = numeric(),
+  rGD_T2 = numeric()
+  )
+
+for (year in candidats$year) {
+  output_file <- paste0("pres", year) 
+  input_file <- paste0("Elections_pres/pres", year, "comm.parquet")
+  assign(output_file, load_parquet(input_file))
+  recode_pres(year)
 }
+rm(input_file, output_file, year)
 
-rm(filename, tablename, year)
+# Pour nettoyer après construction de la base :
+for (year in elections$year) {
+  tablename <- paste0("pres", year)
+  rm(list = tablename)
+}
 ```
 
+Sur la structure des données:
+Regrouper par élection / année, en distinguant T1 et T2 (1981 -> partT1, partT2, etc.)
+
 Créer une fonction pour les recodages
+Une autre pour les Nan
 
 ```{r}
-## Participation
-pres1981[, part := votants/inscrits]
-pres1981[, partT2 := votantsT2/inscritsT2]
+recode_pres <- function(year) {
+  tablename <- paste0("pres", year)
+  dt <- get(tablename)
+ # Participation
+  dt[, part_T1 := votants/inscrits]
+  dt[, part_T2 := votantsT2/inscritsT2]
+ # Droite / gauche
+  T1mask <- candidats[Election == year & DrGau == "G", .(variable = paste0("voix", Candidat))]
+  dt[, GD_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1mask$variable]
+  T2mask <- candidats[Election == year & DrGau == "G", .(variable = paste0("voixT2", Candidat))]
+  T2candidate <- intersect(T2mask$variable, names(dt))
+  dt[, GD_ratio_T2 := rowSums(.SD, na.rm = TRUE) / exprimesT2, .SDcols = T2candidate]
+  return(dt)
+}
 
-## Droite / gauche
-T1mask <- candidats[DrGau == "G", .(variable = paste0("voix", Candidat))]
-pres1981[, GD_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1mask$variable]
-T2mask <- candidats[DrGau == "G", .(variable = paste0("voixT2", Candidat))]
-T2candidates <- intersect(T2mask$variable, names(pres1981))
-pres1981[, GD_ratio_T2 := rowSums(.SD, na.rm = TRUE) / exprimesT2, .SDcols = T2candidates]
+recode_pres(1974)
+
 
 ## Libéralisme culturel / conservatisme moral
 T1mask <- candidats[LibCons == "L", .(variable = paste0("voix", Candidat))]
@@ -39,3 +69,28 @@ pres1981 <- pres1981[, -c("plm", "dep2", "plmdoublon", "perpar", "year")]
 rm(candidats, T1mask, T2mask, T2candidates, prefixes_to_drop)
 ```
 
+
+
+Ensuite, la population
+
+# Supprimer
+"nomdep"
+"nomcommune"
+"nomreg"
+"paris" ?
+"codeagglo" ?
+"nomagglo" ?
+"multicommune" ?
+après suivent popagglo et popcommune pour toutes les années depuis 1780.
+
+```{r}
+full_data <- load_parquet("Taille_agglo_commune/popcommunes.parquet")
+
+print(unique(dt$full_data))
+
+# Taux d'inscription
+pres1981[, pinscript := votants/pop1981]
+# Mais on ne l'a pas encore...
+# Commencer par récupérer la population ?
+# On peut aussi utiliser les estimations du nombre d'électeurs par C&P
+```
