@@ -114,19 +114,17 @@ recode_merge_pres <- function(input_year) {
   var_name_2 <- paste0("popagglo", input_year)
   dt[popul, c("popcomm", "popagglo") := .(get(var_name_1), get(var_name_2)), on = "codecommune"]
 ## Âges
-  var_name_1 <- paste0("age", input_year)
-  var_name_2 <- paste0("prop014", input_year)
-  var_name_3 <- paste0("prop1539", input_year)
-  var_name_4 <- paste0("prop4059", input_year)
-  var_name_5 <- paste0("prop60p", input_year)
-  dt[ages, c("age", "prop014", "prop1539", "prop4059", "prop60p") :=
-       .(get(var_name_1), get(var_name_2), get(var_name_3), get(var_name_4), get(var_name_5)), on = "codecommune"]
+  suffixes <- c("age", "prop014", "prop1539", "prop4059", "prop60p")
+  for (suffix in suffixes) {
+    var_name <- paste0(suffix, year)
+    dt[ages, (suffix) := .(get(var_name)), on = "codecommune"]
+  }
 ## Diplômes
-  var_name_1 <- paste0("propnodip", input_year)
-  var_name_2 <- paste0("propbac", input_year)
-  var_name_3 <- paste0("propsup", input_year)
-  dt[diplo, c("propnodip", "propbac", "propsup") :=
-       .(get(var_name_1), get(var_name_2), get(var_name_3)), on = "codecommune"]
+  suffixes <- c("propnodip", "propbac", "propsup")
+  for (suffix in suffixes) {
+    var_name <- paste0(suffix, year)
+    dt[diplo, (suffix) := .(get(var_name)), on = "codecommune"]
+  }
 ## CSP
   suffixes <- c("pagri", "pindp", "pcadr", "ppint", "pempl", "pouvr", "pchom")
   for (suffix in suffixes) {
@@ -154,6 +152,19 @@ print(catsociopro$pagri1965)
 pres2022 <- read_parquet("data_main/Elections_pres/pres2022comm.parquet")
 pres2022 <- as.data.table(pres2022)
 
+  var_name_1 <- paste0("age", input_year)
+  var_name_2 <- paste0("prop014", input_year)
+  var_name_3 <- paste0("prop1539", input_year)
+  var_name_4 <- paste0("prop4059", input_year)
+  var_name_5 <- paste0("prop60p", input_year)
+  dt[ages, c("age", "prop014", "prop1539", "prop4059", "prop60p") :=
+       .(get(var_name_1), get(var_name_2), get(var_name_3), get(var_name_4), get(var_name_5)), on = "codecommune"]
+
+    
+    dt[diplo, c("propnodip", "propbac", "propsup") :=
+       .(get(var_name_1), get(var_name_2), get(var_name_3)), on = "codecommune"]
+
+  
 # Ajout des contrôles
 pres1981[religcomm, c("prefract1791", "pclerge1791") :=
              .(i.prefract1791, i.pclerge1791), on = "codecommune"]
@@ -172,9 +183,12 @@ for (year in unique(candidats$Annee)) {
   input_file <- paste0("Elections_pres/pres", year, "comm.parquet")
   assign(output_file, load_parquet(input_file))
   full_data <- recode_merge_pres(year)
+  print(year)
   # faudra modifier au-dessus, que la fonction ne sorte pas full_data mais pres<year>
   # full_data <- add_controls(year)
 }
+
+write_parquet(full_data, "data_main/full_data.parquet")
 ```
 
 ```{r}
