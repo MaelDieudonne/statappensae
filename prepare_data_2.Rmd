@@ -29,10 +29,19 @@ ages <- load_parquet("Age_csp/agesexcommunes.parquet")
 
 diplo <- load_parquet("Diplomes/diplomescommunes.parquet")
 ## Conversion du nombre de (non-)diplômés en proportion
-diplo[popul, c("pop1981") := .(i.pop1981), on = "codecommune"]
-diplo[, propnodip1981 := nodip1981/pop1981]
-diplo[, propbac1981 := bac1981/pop1981]
-diplo[, propsup1981 := sup1981/pop1981]
+for (year in unique(candidats$Annee)) {
+  var_name_1 <- paste0("pop", year) 
+  var_name_2 <- paste0("propnodip", year) 
+  var_name_3 <- paste0("propbac", year) 
+  var_name_4 <- paste0("propsup", year) 
+  var_name_5 <- paste0("nodip", year) 
+  var_name_6 <- paste0("bac", year)
+  var_name_7 <- paste0("sup", year)
+  diplo[popul, c(var_name_1) := .(get(var_name_1)), on = "codecommune"]
+  diplo[, (var_name_2) := get(var_name_5)/get(var_name_1)]
+  diplo[, (var_name_3) := get(var_name_6)/get(var_name_1)]
+  diplo[, (var_name_4) := get(var_name_7)/get(var_name_1)]
+}
 
 religcomm <- load_parquet("Enseignement_prive/religiositecommunes.parquet")
 religdep <- load_parquet("Enseignement_prive/religiositedepartements.parquet")
@@ -59,12 +68,22 @@ full_data <- data.table(
   part_T2 = numeric(),
   GD_ratio_T1 = numeric(),
   GD_ratio_T2 = numeric(),
-  ppropri = numeric()
+  ppropri = numeric(),
+  popcomm = numeric(),
+  popagglo = numeric (),
+  age = numeric (),
+  prop014 = numeric (),
+  prop1539 = numeric (),
+  prop4059 = numeric (),
+  prop60p = numeric (),
+  propnodip = numeric (),
+  propbac = numeric (),
+  propsup = numeric ()
   )
 ```
 
 ```{r}
-# Recodages politiques + tentative de merge
+# Recodages politiques + contrôles + merge
 recode_merge_pres <- function(input_year) {
   tablename <- paste0("pres", input_year)
   dt <- get(tablename)
@@ -85,13 +104,27 @@ recode_merge_pres <- function(input_year) {
   dt[, GD_ratio_T2 := rowSums(.SD, na.rm = TRUE) / exprimesT2, .SDcols = T2candidate]
   dt[is.infinite(GD_ratio_T2), GD_ratio_T2 := 1]
 # Contrôles
+## Propriétaires  
   var_name_1 <- paste0("ppropri", input_year)
-  dt[propri, c("ppropri") := .(i.var_name_1), on = "codecommune"]
+  dt[propri, c("ppropri") := .(get(var_name_1)), on = "codecommune"]
+## Population
   var_name_1 <- paste0("pop", input_year)
   var_name_2 <- paste0("popagglo", input_year)
-  print(var_name_1)
-  print(var_name_2)
   dt[popul, c("popcomm", "popagglo") := .(get(var_name_1), get(var_name_2)), on = "codecommune"]
+## Âges
+  var_name_1 <- paste0("age", input_year)
+  var_name_2 <- paste0("prop014", input_year)
+  var_name_3 <- paste0("prop1539", input_year)
+  var_name_4 <- paste0("prop4059", input_year)
+  var_name_5 <- paste0("prop60p", input_year)
+  dt[ages, c("age", "prop014", "prop1539", "prop4059", "prop60p") :=
+       .(get(var_name_1), get(var_name_2), get(var_name_3), get(var_name_4), get(var_name_5)), on = "codecommune"]
+## Diplômes
+  var_name_1 <- paste0("propnodip", input_year)
+  var_name_2 <- paste0("propbac", input_year)
+  var_name_3 <- paste0("propsup", input_year)
+  dt[diplo, c("propnodip", "propbac", "propsup") :=
+       .(get(var_name_1), get(var_name_2), get(var_name_3)), on = "codecommune"]
 # Merge
   cols_to_keep <- intersect(names(full_data), names(dt))
   dt <- dt[, ..cols_to_keep]
@@ -100,26 +133,8 @@ recode_merge_pres <- function(input_year) {
 }
 ```
 
-recode_merge_pres <- function(input_year) {
-  tablename <- paste0("pres", input_year)
-  dt <- get(tablename)
-  var_name_1 <- paste0("ppropri", input_year)
-  dt[propri, c("ppropri") := .(i.var_name_1), on = "codecommune"]
-  var_name_1 <- paste0("pop", input_year)
-  var_name_2 <- paste0("popagglo", input_year)
-  dt[popul, c("popcomm", "popagglo") := .(i.var_name_1, i.var_name_2), on = "codecommune"]
-  return(dt)
-}
-
 ```{r}
 # Ajout des contrôles
-
-
-# Code pour 1981 seulement, à convertir en fonction
-pres1981[ages, c("age1981", "prop0141981", "prop15391981", "prop40591981", "prop60p1981") :=
-             .(i.age1981, i.prop0141981, i.prop15391981, i.prop40591981, i.prop60p1981), on = "codecommune"]
-pres1981[diplo, c("propnodip1981", "propbac1981", "propsup1981") :=
-             .(i.propnodip1981, i.propbac1981, propsup1981), on = "codecommune"]
 pres1981[religcomm, c("prefract1791", "pclerge1791") :=
              .(i.prefract1791, i.pclerge1791), on = "codecommune"]
 pres1981[religdep, c("pclerge1856", "pmessalisants1950") :=
@@ -141,7 +156,6 @@ for (year in unique(candidats$Annee)) {
   full_data <- recode_merge_pres(year)
   # faudra modifier au-dessus, que la fonction ne sorte pas full_data mais pres<year>
   # full_data <- add_controls(year)
-  
 }
 ```
 
