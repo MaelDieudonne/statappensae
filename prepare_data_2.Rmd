@@ -38,8 +38,6 @@ for (year in unique(candidats$Annee)) {
   diplo[, (var_name_4) := get(var_name_7)/get(var_name_1)]
 }
 
-
-
 catsociopro <- load_parquet("CSP/cspcommunes.parquet")
 nation <- load_parquet("Nationalites/etrangerscommunes.parquet")
 reven <- load_parquet("Revenus/revcommunes.parquet")
@@ -75,7 +73,14 @@ full_data <- data.table(
   prop60p = numeric (),
   propnodip = numeric (),
   propbac = numeric (),
-  propsup = numeric ()
+  propsup = numeric (),
+  pagri = numeric (),
+  pindp = numeric (),
+  pcadr = numeric (),
+  ppint = numeric (),
+  pempl = numeric (),
+  pouvr = numeric (),
+  pchom = numeric ()
   )
 ```
 
@@ -122,6 +127,12 @@ recode_merge_pres <- function(input_year) {
   var_name_3 <- paste0("propsup", input_year)
   dt[diplo, c("propnodip", "propbac", "propsup") :=
        .(get(var_name_1), get(var_name_2), get(var_name_3)), on = "codecommune"]
+## CSP
+  suffixes <- c("pagri", "pindp", "pcadr", "ppint", "pempl", "pouvr", "pchom")
+  for (suffix in suffixes) {
+    var_name <- paste0(suffix, year)
+    dt[catsociopro, (suffix) := .(get(var_name)), on = "codecommune"]
+  }
 # Merge
   cols_to_keep <- intersect(names(full_data), names(dt))
   dt <- dt[, ..cols_to_keep]
@@ -131,13 +142,23 @@ recode_merge_pres <- function(input_year) {
 ```
 
 ```{r}
+year <- 1965
+suffixes <- c("pagri", "pindp", "pcadr", "ppint", "pempl", "pouvr", "pchom")
+for (suffix in suffixes) {
+  var_name <- paste0(suffix, year)
+  pres2022[catsociopro, (suffix) := .(get(var_name)), on = "codecommune"]
+}
+
+print(catsociopro$pagri1965)
+
+pres2022 <- read_parquet("data_main/Elections_pres/pres2022comm.parquet")
+pres2022 <- as.data.table(pres2022)
+
 # Ajout des contrôles
 pres1981[religcomm, c("prefract1791", "pclerge1791") :=
              .(i.prefract1791, i.pclerge1791), on = "codecommune"]
 pres1981[religdep, c("pclerge1856", "pmessalisants1950") :=
              .(i.pclerge1856, i.pmessalisants1950), on = "dep"]
-pres1981[catsociopro, c("pagri1981", "pindp1981", "pcadr1981", "ppint1981", "pempl1981", "pouvr1981", "pchom1981") :=
-             .(i.pagri1981, i.pindp1981, i.pcadr1981, i.ppint1981, i.pempl1981, i.pouvr1981, i.pchom1981), on = "codecommune"]
 pres1981[nation, c("petranger1981") :=
              .(i.petranger1981), on = "codecommune"]
 pres1981[reven, c("revmoy1981") :=
@@ -168,6 +189,8 @@ for (year in unique(candidats$Annee)) {
 rm(input_file, output_file)
 ```
 
+
+
 Pour la population
 Supprimer : "nomdep" "nomcommune" "nomreg" "paris" ? "codeagglo" ? "nomagglo" ? "multicommune" ? après suivent popagglo et popcommune pour toutes les années depuis 1780.
 
@@ -194,7 +217,6 @@ ggplot(avg_part_T1, aes(x = year, y = part_T1)) +
   labs(x = "Year", y = "Average part_T1", title = "Evolution of Average part_T1 over Time")
 
 ```
-
 
 ```{r}
 print(sum(is.null(full_data$year)))
