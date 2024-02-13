@@ -14,14 +14,14 @@ pres1981[, part := votants/inscrits]
 pres1981[, partT2 := votantsT2/inscritsT2]
 
 ## Droite / gauche
-T1mask <- candidats[DrGau == "G", .(variable = paste0("voix", Candidat))]
+T1mask <- candidats[Annee == 1981 & DrGau == "G", .(variable = paste0("voix", Candidat))]
 pres1981[, GD_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1mask$variable]
-T2mask <- candidats[DrGau == "G", .(variable = paste0("voixT2", Candidat))]
+T2mask <- candidats[Annee == 1981 & DrGau == "G", .(variable = paste0("voixT2", Candidat))]
 T2candidates <- intersect(T2mask$variable, names(pres1981))
 pres1981[, GD_ratio_T2 := rowSums(.SD, na.rm = TRUE) / exprimesT2, .SDcols = T2candidates]
 
 ## Libéralisme culturel / conservatisme moral
-T1mask <- candidats[LibCons == "L", .(variable = paste0("voix", Candidat))]
+T1mask <- candidats[Annee == 1981 & LibCons == "L", .(variable = paste0("voix", Candidat))]
 pres1981[, lib_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1mask$variable]
 
 # Nettoyage

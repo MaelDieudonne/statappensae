@@ -7,13 +7,13 @@ library(rayshader)
 ```{r}
 # Fonctionne seulement en local, pas depuis le datalab
 # Pas trouvé de solution pour avoir une légende pour chaque variable
-selected_dep <- "09"
+selected_dep <- "26"
 subset_map_data <- map_data[map_data$dep == selected_dep, ]
 
 ggVktor <- ggplot(data=subset_map_data) +
   geom_sf(aes(fill = part, height = ppropri1981)) +
   scale_fill_viridis() +
-  ggtitle("Participation et taux de propriété en Ariège") +
+  ggtitle("Participation et taux de propriété dans la Drôme") +
   theme_bw() +
   guides(
     fill = guide_colourbar(title = "Participation"),

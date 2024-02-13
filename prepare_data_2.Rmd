@@ -1,33 +1,26 @@
 Travail en cours pour traiter l'ensemble des élections présidentielles.
 
-Procédure :
+On construit la base en itérant à partir des résultats électoraux. On commence par créer une table de destination, intégrant l'ensemble des variables souhaitées. Puis pour chaque fichier électoral...
 
-1.  Créer un df vide avec des colonnes correspondant seulement aux variables électorales désirées - ou aussi aux contrôles ?
+1.  On recode les outcomes, à l'aide des informations sur les orientations politiques des candidats stockées dans une table dédiée.
 
-2.  Pour chaque fichier électoral...
+2.  On ajoute les contrôles de l'année correspondante.
 
-    1.  Faire les recodages
-
-    2.  Ajouter les contrôles
-
-    3.  Compléter au besoin les recodages
-
-    4.  Traiter les Nan
-
-    5.  Merge avec le df vide
-
-Essayer de prévoir une fonction à chaque fois ?
+3.  On fusionne avec la table de destination (rbind pour s'ajouter aux données existantes).
 
 ```{r}
-# Chargement des données sur les élections et les orientations politiques
+# Chargement des données sur les orientations politiques des candidats
 candidats <- fread("data_other/candidats.csv", header = TRUE)
 
 # Chargement et préparation des contrôles
 propri <- load_parquet("Proprietaires/proprietairescommunes.parquet")
 popul <- load_parquet("Taille_agglo_commune/popcommunes.parquet")
 ages <- load_parquet("Age_csp/agesexcommunes.parquet")
-
+catsociopro <- load_parquet("CSP/cspcommunes.parquet")
+nation <- load_parquet("Nationalites/etrangerscommunes.parquet")
+reven <- load_parquet("Revenus/revcommunes.parquet")
 diplo <- load_parquet("Diplomes/diplomescommunes.parquet")
+
 ## Conversion du nombre de (non-)diplômés en proportion
 for (year in unique(candidats$Annee)) {
   suffixes <- c("pop", "propnodip", "propbac", "propsup", "nodip", "bac", "sup")
@@ -38,16 +31,14 @@ for (year in unique(candidats$Annee)) {
   diplo[, (var_name_4) := get(var_name_7)/get(var_name_1)]
 }
 
-catsociopro <- load_parquet("CSP/cspcommunes.parquet")
-nation <- load_parquet("Nationalites/etrangerscommunes.parquet")
-reven <- load_parquet("Revenus/revcommunes.parquet")
 
-religcomm <- load_parquet("Enseignement_prive/religiositecommunes.parquet")
-religdep <- load_parquet("Enseignement_prive/religiositedepartements.parquet")
-## Ratio de nclerge1791 sur le nombre d'habitants, pour avoir une idée de la présence des institutions religieuses dans la commune.
-religcomm[popul, c("pop1791") := .(i.pop1791), on = "codecommune"]
-religcomm[, pclerge1791 := nclerge1791/pop1791]
-religcomm[, pclerge1791 := replace(pclerge1791, is.infinite(pclerge1791), NA)]
+# religcomm <- load_parquet("Enseignement_prive/religiositecommunes.parquet")
+# religdep <- load_parquet("Enseignement_prive/religiositedepartements.parquet")
+
+## Ratio de nclerge1791 sur le nombre d'habitants, pour avoir une idée de la présence des institutions religieuses dans la commune
+# religcomm[popul, c("pop1791") := .(i.pop1791), on = "codecommune"]
+# religcomm[, pclerge1791 := nclerge1791/pop1791]
+# religcomm[, pclerge1791 := replace(pclerge1791, is.infinite(pclerge1791), NA)]
 ```
 
 ```{r}
@@ -80,7 +71,10 @@ full_data <- data.table(
   ppint = numeric (),
   pempl = numeric (),
   pouvr = numeric (),
-  pchom = numeric ()
+  pchom = numeric (),
+  petranger = numeric(),
+  revmoy = numeric()
+# ajouter sexe
   )
 ```
 
@@ -89,15 +83,16 @@ full_data <- data.table(
 recode_merge_pres <- function(input_year) {
   tablename <- paste0("pres", input_year)
   dt <- get(tablename)
- #  Ajout des années lorsqu'elles manquent
+# Ajout des années lorsqu'elles manquent dans la table d'origine
   if (year %in% colnames(dt)) {
     dt[is.na(dt$year), year := input_year]
     } else {
       dt[, year := input_year]}
- # Participation
+# Outcomes
+## Participation
   dt[, part_T1 := votants/inscrits]
   dt[, part_T2 := votantsT2/inscritsT2]
- # Droite / gauche
+## Droite / gauche
   T1mask <- candidats[Annee == input_year & DrGau == "G", .(variable = paste0("voix", Candidat))]
   dt[, GD_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1mask$variable]
   dt[is.infinite(GD_ratio_T1), GD_ratio_T1 := 1]
@@ -105,7 +100,8 @@ recode_merge_pres <- function(input_year) {
   T2candidate <- intersect(T2mask$variable, names(dt))
   dt[, GD_ratio_T2 := rowSums(.SD, na.rm = TRUE) / exprimesT2, .SDcols = T2candidate]
   dt[is.infinite(GD_ratio_T2), GD_ratio_T2 := 1]
-# Contrôles
+## Centre / extrême
+# Régresseurs
 ## Propriétaires  
   var_name_1 <- paste0("ppropri", input_year)
   dt[propri, c("ppropri") := .(get(var_name_1)), on = "codecommune"]
@@ -131,6 +127,16 @@ recode_merge_pres <- function(input_year) {
     var_name <- paste0(suffix, year)
     dt[catsociopro, (suffix) := .(get(var_name)), on = "codecommune"]
   }
+## Étrangers
+  var_name_1 <- paste0("petranger", input_year)
+  dt[nation, c("petranger") := .(get(var_name_1)), on = "codecommune"]
+## Revenus
+## La série commence seulement en 1980
+  var_name_1 <- paste0("revmoy", input_year)
+  if (var_name_1 %in% colnames(reven))
+    {dt[reven, c("revmoy") := .(get(var_name_1)), on = "codecommune"]}
+  else
+    {dt[, revmoy := NA]}
 # Merge
   cols_to_keep <- intersect(names(full_data), names(dt))
   dt <- dt[, ..cols_to_keep]
@@ -140,40 +146,16 @@ recode_merge_pres <- function(input_year) {
 ```
 
 ```{r}
-year <- 1965
-suffixes <- c("pagri", "pindp", "pcadr", "ppint", "pempl", "pouvr", "pchom")
-for (suffix in suffixes) {
-  var_name <- paste0(suffix, year)
-  pres2022[catsociopro, (suffix) := .(get(var_name)), on = "codecommune"]
-}
 
-print(catsociopro$pagri1965)
+print(reven$revmoy1980)
 
-pres2022 <- read_parquet("data_main/Elections_pres/pres2022comm.parquet")
-pres2022 <- as.data.table(pres2022)
+print(reven$rev)
 
-  var_name_1 <- paste0("age", input_year)
-  var_name_2 <- paste0("prop014", input_year)
-  var_name_3 <- paste0("prop1539", input_year)
-  var_name_4 <- paste0("prop4059", input_year)
-  var_name_5 <- paste0("prop60p", input_year)
-  dt[ages, c("age", "prop014", "prop1539", "prop4059", "prop60p") :=
-       .(get(var_name_1), get(var_name_2), get(var_name_3), get(var_name_4), get(var_name_5)), on = "codecommune"]
-
-    
-    dt[diplo, c("propnodip", "propbac", "propsup") :=
-       .(get(var_name_1), get(var_name_2), get(var_name_3)), on = "codecommune"]
-
-  
 # Ajout des contrôles
 pres1981[religcomm, c("prefract1791", "pclerge1791") :=
              .(i.prefract1791, i.pclerge1791), on = "codecommune"]
 pres1981[religdep, c("pclerge1856", "pmessalisants1950") :=
              .(i.pclerge1856, i.pmessalisants1950), on = "dep"]
-pres1981[nation, c("petranger1981") :=
-             .(i.petranger1981), on = "codecommune"]
-pres1981[reven, c("revmoy1981") :=
-             .(i.revmoy1981), on = "codecommune"]
 ```
 
 ```{r}
@@ -184,8 +166,7 @@ for (year in unique(candidats$Annee)) {
   assign(output_file, load_parquet(input_file))
   full_data <- recode_merge_pres(year)
   print(year)
-  # faudra modifier au-dessus, que la fonction ne sorte pas full_data mais pres<year>
-  # full_data <- add_controls(year)
+  rm(tablename)
 }
 
 write_parquet(full_data, "data_main/full_data.parquet")
@@ -203,15 +184,12 @@ for (year in unique(candidats$Annee)) {
 rm(input_file, output_file)
 ```
 
-
-
-Pour la population
-Supprimer : "nomdep" "nomcommune" "nomreg" "paris" ? "codeagglo" ? "nomagglo" ? "multicommune" ? après suivent popagglo et popcommune pour toutes les années depuis 1780.
+Pour la population Supprimer : "nomdep" "nomcommune" "nomreg" "paris" ? "codeagglo" ? "nomagglo" ? "multicommune" ? après suivent popagglo et popcommune pour toutes les années depuis 1780.
 
 ```{r}
 full_data <- load_parquet("Taille_agglo_commune/popcommunes.parquet")
 
-print(unique(dt$full_data))
+print(unique(dt$reven))
 
 # Taux d'inscription
 pres1981[, pinscript := votants/pop1981]
@@ -249,4 +227,6 @@ pres1981 <- pres1981[, .SD, .SDcols = setdiff(names(pres1981), grep(paste0("^", 
 pres1981 <- pres1981[, -c("plm", "dep2", "plmdoublon", "perpar", "year")]
 
 rm(candidats, T1mask, T2mask, T2candidates, prefixes_to_drop)
+
+full_data <- load_parquet("full_data.parquet")
 ```

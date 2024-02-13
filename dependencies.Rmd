@@ -43,9 +43,9 @@ load_parquet <- function(filename) {
     data <- arrow::read_parquet(local_filepath)
     data <- as.data.table(data)
     return(data)
+    
   } else {
     message("Downloading from SSP cloud")
-  
     tryCatch({
         s3_filepath <- file.path("/diffusion", filename)
         data <- aws.s3::s3read_using(
@@ -67,10 +67,12 @@ load_parquet <- function(filename) {
 load_shapefile <- function(filename) {
   local_filepath <- paste0("data_other/shapefile/", filename)
   message(local_filepath)
+  
   if (file.exists(local_filepath)) {
     message("Loading from local directory")
     data <- sf::st_read(local_filepath)
     return(data)
+    
   } else {
     message("Downloading from SSP cloud")
     if (!dir.exists("data_other/shapefile")) {dir.create("data_other/shapefile")}
