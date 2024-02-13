@@ -74,7 +74,6 @@ full_data <- data.table(
   pchom = numeric (),
   petranger = numeric(),
   revmoy = numeric()
-# ajouter sexe
   )
 ```
 
@@ -146,19 +145,6 @@ recode_merge_pres <- function(input_year) {
 ```
 
 ```{r}
-
-print(reven$revmoy1980)
-
-print(reven$rev)
-
-# Ajout des contrôles
-pres1981[religcomm, c("prefract1791", "pclerge1791") :=
-             .(i.prefract1791, i.pclerge1791), on = "codecommune"]
-pres1981[religdep, c("pclerge1856", "pmessalisants1950") :=
-             .(i.pclerge1856, i.pmessalisants1950), on = "dep"]
-```
-
-```{r}
 # Boucle sur les élections
 for (year in unique(candidats$Annee)) {
   output_file <- paste0("pres", year) 
@@ -166,7 +152,6 @@ for (year in unique(candidats$Annee)) {
   assign(output_file, load_parquet(input_file))
   full_data <- recode_merge_pres(year)
   print(year)
-  rm(tablename)
 }
 
 write_parquet(full_data, "data_main/full_data.parquet")
@@ -174,29 +159,43 @@ write_parquet(full_data, "data_main/full_data.parquet")
 
 ```{r}
 # Nettoyage final
-rm(recode_merge_pres)
 ## Suppression des résultats électoraux
 for (year in unique(candidats$Annee)) {
   tablename <- paste0("pres", year)
   rm(list = tablename)
 }
+
+## Suppression des données de contrôle
+rm(ages, candidats, catsociopro, diplo, nation, popul, propri, reven)
+
 ## Suppression des variables
-rm(input_file, output_file)
+rm(i, input_file, output_file, suffixes, tablename, var_name_1, var_name_2, year)
 ```
 
-Pour la population Supprimer : "nomdep" "nomcommune" "nomreg" "paris" ? "codeagglo" ? "nomagglo" ? "multicommune" ? après suivent popagglo et popcommune pour toutes les années depuis 1780.
+**Variables à ajouter**
+
+Sexe
 
 ```{r}
-full_data <- load_parquet("Taille_agglo_commune/popcommunes.parquet")
+## Libéralisme culturel / conservatisme moral
+T1mask <- candidats[LibCons == "L", .(variable = paste0("voix", Candidat))]
+pres1981[, lib_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1mask$variable]
+```
 
-print(unique(dt$reven))
-
+```{r}
 # Taux d'inscription
 pres1981[, pinscript := votants/pop1981]
-# Mais on ne l'a pas encore...
-# Commencer par récupérer la population ?
-# On peut aussi utiliser les estimations du nombre d'électeurs par C&P
 ```
+
+```{r}
+## Religion
+pres1981[religcomm, c("prefract1791", "pclerge1791") :=
+             .(i.prefract1791, i.pclerge1791), on = "codecommune"]
+pres1981[religdep, c("pclerge1856", "pmessalisants1950") :=
+             .(i.pclerge1856, i.pmessalisants1950), on = "dep"]
+```
+
+**Graphs**
 
 ```{r}
 # Calculate the average of part_T1 for each year
@@ -210,23 +209,12 @@ ggplot(avg_part_T1, aes(x = year, y = part_T1)) +
 
 ```
 
+**Vérifications**
+
 ```{r}
 print(sum(is.null(full_data$year)))
 print(sum(is.na(pres2022$GD_ratio_T1)))
 print(sum(is.infinite(pres1981$GD_ratio_T1)))
 print(sum(is.infinite(dt$GD_ratio_T1)))
 print(sum(!is.na(pres2022$GD_ratio_T1) & !is.finite(pres1981$GD_ratio_T1)))
-
-## Libéralisme culturel / conservatisme moral
-T1mask <- candidats[LibCons == "L", .(variable = paste0("voix", Candidat))]
-pres1981[, lib_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1mask$variable]
-
-# Nettoyage
-prefixes_to_drop <- c("exprimes", "inscrits", "nom", "nul", "pervote", "ppar", "pvoix", "pvote", "voix", "vot")
-pres1981 <- pres1981[, .SD, .SDcols = setdiff(names(pres1981), grep(paste0("^", paste(prefixes_to_drop, collapse = "|")), names(pres1981), value = TRUE))]
-pres1981 <- pres1981[, -c("plm", "dep2", "plmdoublon", "perpar", "year")]
-
-rm(candidats, T1mask, T2mask, T2candidates, prefixes_to_drop)
-
-full_data <- load_parquet("full_data.parquet")
 ```
