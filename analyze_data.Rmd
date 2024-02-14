@@ -6,7 +6,7 @@ date: "2024-01-26"
 
 ```{r}
 # Optionnel, pour charger la base si déjà enregistrée.
-# pres1981 <- read_feather("data/pres1981.feather")
+pres1981 <- load_parquet("pres1981.parquet")
 ```
 
 ```{r}
@@ -120,5 +120,38 @@ rm(dependent_variable, excluded_covariables, regression_formula)
 ```{r}
 models_list <- list(model_part, model_GD_ratio_T1)
 stargazer(models_list, type = "text", out = "output/regression_results.txt")
+```
+
+# Corrélogramme
+
+```{r}
+install.packages("corrplot")
+library(corrplot)
+
+pres1981 <- load_parquet("pres1981.parquet")
+
+prefixes_to_drop <- c("exprimes", "inscrits", "nom", "nul", "pervote", "ppar", "pvoix", "pvote", "voix", "vot")
+pres1981 <- pres1981[, .SD, .SDcols = setdiff(names(pres1981), grep(paste0("^", paste(prefixes_to_drop, collapse = "|")), names(pres1981), value = TRUE))]
+pres1981 <- pres1981[, -c("plm", "dep2", "plmdoublon", "perpar", "year")]
+
+pres1981 <- pres1981[, -c("part", "partT2", "lib_ratio_T1", "popagglo1981", "prop0141981", "pclerge1791", "prefract1791", "pclerge1856", "pmessalisants1950")]
+
+pres1981_numeric <- pres1981[, .SD, .SDcols = sapply(pres1981, is.numeric)]
+pres1981_numeric <- pres1981_numeric[complete.cases(pres1981_numeric)]
+
+correlation_matrix <- cor(pres1981_numeric)
+
+png(filename = "output/corrplot.png", width = 2200, height = 1800)
+corrplot(
+  correlation_matrix,
+  type = "upper",
+  method = "color",
+  order = "FPC",
+  tl.cex = 3.5,
+  tl.srt = 60,
+  tl.col = "darkgrey",
+  cl.cex = 3.5
+)
+dev.off()
 ```
 
