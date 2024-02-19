@@ -1,0 +1,87 @@
+Script pas prévu pour s'exécuter seul, options d'installation à choisir.
+
+On vérifie d'abord que le package reticulate, qui assure l'interface entre R et Python, est bien installé.
+
+```{r}
+if (!'reticulate' %in% installed.packages()) install.packages('reticulate')
+if (!is.loaded("reticulate")) library(reticulate)
+```
+
+**Pour exécution sur le Datalab**
+
+Faut installer Python et le configurer, pas besoin d'un environnement virtuel comme il ne s'agit pas d'une installation persistante.
+On l'installe directement, ainsi que les packages nécessaires.
+
+```{r}
+install_python()
+
+py_install("pyarrow")
+py_install('chardet')
+py_install('pandas')
+py_install('requests')
+py_install('s3fs')
+py_install('tqdm')
+```
+
+Test Pyarrow?
+
+**Pour exécution locale**
+
+Ici, comme installation persistante, bonne pratique est d'utiliser un environnement virtuel.
+Si Python n'est pas déjà installé et configuré dans RStudio, solution recommandée est de l'installer séparément, puis de régler le chemin de l'interprète dans les paramètres de RStudio.
+Mais il est aussi possible, par commodité, de l'installer directement.
+On commence par vérifier ce qui est présent.
+
+```{r}
+py_config()
+```
+
+```{r}
+install_python()
+```
+
+On créé un environnement virtuel dédié, avec les packages nécessaires.
+
+```{r}
+virtualenv_create(
+  envname = "r-reticulate-statapp",
+  packages = c("pyarrow", "chardet", "pandas", "requests", "s3fs", "tqdm"),
+  force = TRUE)
+```
+
+Faut l'activer. Implique de réinitialiser reticulate. Le code ci-dessous désinstalle et réinstalle. Invite à redémarrer R : c'est inutile, faudrait reprendre la configuration de zéro.
+
+```{r}
+Sys.setenv(RETICULATE_PYTHON = "~/.virtualenvs/r-reticulate-statapp/bin/python")
+
+remove.packages("reticulate")
+install.packages("reticulate")
+library("reticulate")
+```
+
+**Vérifications**
+
+Est-ce que le chemin Python correspond bien à l'environnement virtuel ?
+
+```{r}
+py_config()
+```
+
+Est-ce que le package pyarrow, parfois capricieux, est correctement chargé ?.
+
+```{r}
+# Test depuis R
+if(py_module_available("pyarrow")) {print("Pyarrow is available.")}
+   else {print("Warning, Pyarrow is not available.")}
+```
+
+```{python}
+# Test depuis Python
+try:
+  import pyarrow
+  print("Pyarrow library imported successfully.")
+except ImportError:
+  print("Importation of pyarrow library failed.")
+```
+
+Si erreurs, c'est que l'environnement virtuel n'est pas correctement activé. Le sélectionner depuis le menu de RStudio, et redémarrer R.

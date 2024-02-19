@@ -27,7 +27,6 @@ rm(installed_packages, packages)
 **Répertoires**
 
 ```{r}
-if (!dir.exists("data_other")) {dir.create("data_other")}
 if (!dir.exists("output")) {dir.create("output")}
 ```
 
