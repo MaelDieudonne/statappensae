@@ -9,11 +9,15 @@ if (!is.loaded("reticulate")) library(reticulate)
 
 **Pour exécution sur le Datalab**
 
-Faut installer Python et le configurer, pas besoin d'un environnement virtuel comme il ne s'agit pas d'une installation persistante.
+Faut installer Python et le configurer, pas besoin d'un environnement virtuel comme il ns'agit d'une installation temporaire.
 On l'installe directement, ainsi que les packages nécessaires.
+Distribution miniconda, plus légère...
 
 ```{r}
-install_python()
+tryCatch({install_miniconda()}, error = function(e) {cat("Miniconda is already installed.")})
+
+conda_create("r-reticulate-conda")
+use_condaenv("r-reticulate-conda")
 
 py_install("pyarrow")
 py_install('chardet')
@@ -22,8 +26,6 @@ py_install('requests')
 py_install('s3fs')
 py_install('tqdm')
 ```
-
-Test Pyarrow?
 
 **Pour exécution locale**
 
@@ -71,8 +73,9 @@ Est-ce que le package pyarrow, parfois capricieux, est correctement chargé ?.
 
 ```{r}
 # Test depuis R
-if(py_module_available("pyarrow")) {print("Pyarrow is available.")}
-   else {print("Warning, Pyarrow is not available.")}
+if(py_module_available("pyarrow")) {print("Pyarrow is available.")
+  } else {
+    print("Warning, Pyarrow is not available.")}
 ```
 
 ```{python}
