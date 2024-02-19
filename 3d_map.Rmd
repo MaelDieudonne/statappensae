@@ -1,7 +1,36 @@
 
 ```{r}
+if (!requireNamespace("rgl", quietly = TRUE)) install.packages("rgl")
 if (!requireNamespace("rayshader", quietly = TRUE)) install.packages("rayshader")
-library(rayshader)
+library(rgl, rayshader)
+
+install.packages("devtools")
+devtools::install_github("tylermorganwall/rayshader")
+
+packages <- c(
+  "doParallel",
+  "foreach",
+  "Rcpp",
+  "progress",
+  "raster",
+  "scales",
+  "png",
+  # "jpg",
+  "magrittr",
+  "rgl",
+  "terrainmeshr",
+  "rayimage",
+  "rayvertex",
+  "rayrender")
+
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+invisible(lapply(packages, library, character.only = TRUE))
+
+rm(installed_packages, packages)
 ```
 
 ```{r}

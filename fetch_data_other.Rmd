@@ -49,7 +49,7 @@ rm(ext, extensions, file_name, file_names, files_to_extract, root_name, root_pat
 
 **Téléversement sur le Datalab**
 
-```{r}
+```{r eval=FALSE}
 aws.s3::s3sync(
   path = "data_other/shapefile",
   bucket = "maeldieudonne",

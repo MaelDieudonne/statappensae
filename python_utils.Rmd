@@ -76,7 +76,7 @@ py_config()
 
 ```{r}
 # Réinstallation, avec création d'un environnement vierge puis installation de Pyarrow
-tryCatch({install_python()}, error = function(e) {cat("Python is already installed.")})
+# tryCatch({install_python()}, error = function(e) {cat("Python is already installed.")})
 
 if (!(virtualenv_exists("r-reticulate-python"))) virtualenv_create("r-reticulate-python")
 use_virtualenv("r-reticulate-python")
@@ -108,4 +108,12 @@ try:
     print("Pyarrow library imported successfully.")
 except ImportError:
     print("Importation of pyarrow library failed.")
+```
+
+```{r include=FALSE}
+py_install('chardet')
+py_install('pandas')
+py_install('requests')
+py_install('s3fs')
+py_install('tqdm')
 ```
