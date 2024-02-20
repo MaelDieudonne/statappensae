@@ -1,15 +1,15 @@
-Script pas prévu pour s'exécuter seul, options d'installation à choisir.
+Ce notebook permet de configurer un environnement Python. Il n'est pas prévu pour s'exécuter seul, des options sont à choisir.
 
-On vérifie d'abord que le package reticulate, qui assure l'interface entre R et Python, est bien installé.
+On commence par vérifier que le package reticulate, qui assure l'interface entre R et Python, est bien installé.
 
 ```{r include=FALSE}
 if (!'reticulate' %in% installed.packages()) install.packages('reticulate')
 if (!is.loaded("reticulate")) library(reticulate)
 ```
 
-**Pour exécution sur le Datalab**
+**Pour une exécution sur le Datalab**
 
-On installe directement Python, ainsi que les packages nécessaires, dans l'environnement ad hoc. On utilise la distribution miniconda, plus légère...
+On installe la distribution Miniconda, plus légère, on créé un environnement Python puis l'on charge les packages nécessaires. C'est terminé !
 
 ```{r include=FALSE}
 install_miniconda()
@@ -25,22 +25,23 @@ py_install('s3fs')
 py_install('tqdm')
 ```
 
-**Pour exécution locale**
+**Pour une exécution locale**
 
-Configuration d'une installation persistante plus délicate, au niveau des environnements virtuels (faut arriver à bien charger celui dans lequel les packages ont été installés, toutes les commandes de reticulate ne fonctionnent pas).
-Si Python n'est pas déjà installé et configuré dans RStudio, solution recommandée est de l'installer séparément, puis de régler le chemin de l'interprète dans les paramètres de RStudio.
-Mais il est aussi possible, par commodité, de l'installer directement. En utilisant ici la distribution complète.
-On commence par vérifier ce qui est présent.
+La configuration d'une installation persistante est plus délicate, notamment à cause des environnements virtuels que les commandes dédiées n'activent pas toujours correctement.
 
-```{r}
-py_config()
-```
+Si Python n'est pas déjà installé, il est recommander de l'installer de manière indépendante, comme le langage R. Il est aussi possible de l'installer depuis R, par commodité.
 
 ```{r eval=FALSE}
 install_python()
 ```
 
-On créé un environnement virtuel dédié, avec les packages nécessaires.
+On vérifie que Python est bien détecté par R avec la commande ci-dessous. S'il n'apparaît pas, il faut se rendre dans les options globales de RStudio, rubrique Python, puis choisir un interpréteur au niveau du système, sans activer automatiquement les environnements locaux.
+
+```{r}
+py_config()
+```
+
+On créé maintenant un environnement virtuel pour le projet, intégrant les packages nécessaires.
 
 ```{r}
 virtualenv_create(
@@ -49,11 +50,10 @@ virtualenv_create(
   force = TRUE)
 ```
 
-Faut l'activer, ce qui implique de réinitialiser reticulate. Le code ci-dessous désinstalle et réinstalle. Invite à redémarrer R : c'est inutile, faudrait reprendre la configuration de zéro.
+Pour utiliser cet environnement, il est nécessaire de réinitialiser reticulate. Le code suivant le désinstalle puis le réinstalle. Il génère une invite à redémarrer R : c'est préférable.
 
 ```{r}
 Sys.setenv(RETICULATE_PYTHON = "~/.virtualenvs/r-reticulate-statapp/bin/python")
-
 remove.packages("reticulate")
 install.packages("reticulate")
 library("reticulate")
@@ -61,7 +61,9 @@ library("reticulate")
 
 **Vérifications**
 
-Est-ce que le chemin Python correspond bien à l'environnement virtuel ?
+On s'assure pour terminer que la configuration est correcte.
+
+Est-ce que le chemin Python correspond bien à l'environnement virtuel, plutôt qu'à la distribution principale ?
 
 ```{r}
 py_config()
@@ -85,4 +87,11 @@ except ImportError:
   print("Importation of pyarrow library failed.")
 ```
 
-Si erreurs, c'est que l'environnement virtuel n'est pas correctement activé. Le sélectionner depuis le menu de RStudio, et redémarrer R.
+Si des erreurs surviennent, c'est probablement car l'environnement virtuel n'est pas activé. Il faut alors le sélectionner depuis les options du projet dans RStudio, et redémarrer R. On peut tout de même vérifier s'il existe bien, à l'aide des commandes suivantes.
+
+```{r}
+# Miniconda
+conda_list()
+# Python
+virtualenv_list()
+```
