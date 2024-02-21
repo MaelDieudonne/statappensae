@@ -21,6 +21,7 @@ nation <- load_parquet("Nationalites/etrangerscommunes.parquet")
 reven <- load_parquet("Revenus/revcommunes.parquet")
 diplo <- load_parquet("Diplomes/diplomescommunes.parquet")
 crim <- load_parquet("CSP/crimesdelitscommunes.parquet")
+rsa <- load_parquet("CSP/rsacommunes.parquet")
 
 ## Conversion du nombre de (non-)diplômés en proportion
 for (year in unique(candidats$Annee)) {
@@ -31,6 +32,10 @@ for (year in unique(candidats$Annee)) {
   diplo[, (var_name_3) := get(var_name_6)/get(var_name_1)]
   diplo[, (var_name_4) := get(var_name_7)/get(var_name_1)]
 }
+
+## Correction des codes communes dans la base RSA (traités comme des nombres donc avec suppression des zéros initiaux)
+rsa$codecommune <- as.character(rsa$codecommune)
+rsa$codecommune <- ifelse(nchar(rsa$dep) == 1, paste0("0", rsa$codecommune), rsa$codecommune)
 
 # religcomm <- load_parquet("Enseignement_prive/religiositecommunes.parquet")
 # religdep <- load_parquet("Enseignement_prive/religiositedepartements.parquet")
@@ -58,6 +63,12 @@ full_data <- data.table(
   DIns_ratio_T1 = numeric(),
   GIns_ratio_T2 = numeric(),
   DIns_ratio_T2 = numeric(),
+  EC_ratio_T1 = numeric(),
+  EC_ratio_T2 = numeric(),
+  EIns_ratio_T1 = numeric(),
+  CIns_ratio_T1 = numeric(),
+  EIns_ratio_T2 = numeric(),
+  CIns_ratio_T2 = numeric(),  
   ppropri = numeric(),
   popcomm = numeric(),
   popagglo = numeric (),
@@ -79,7 +90,8 @@ full_data <- data.table(
   pchom = numeric (),
   petranger = numeric(),
   revmoy = numeric(),
-  pcrimesdelits = numeric()
+  pcrimesdelits = numeric(),
+  prsa = numeric ()
   )
 ```
 
@@ -107,7 +119,7 @@ recode_merge_pres <- function(input_year) {
 ### Ratio relatif / sur l'orientation politique opposée
   dt[, GD_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1maskG$variable]
   dt[is.infinite(GD_ratio_T1), GD_ratio_T1 := 1]
-  # Pour le second tour, le ratio G/D est seulement calculé si un candidat de gauche est présent.
+  # Pour le second tour, le ratio G/exp est seulement calculé si un candidat de gauche est présent.
   if (length(T2candidateG) == 1) {
     dt[, GD_ratio_T2 := rowSums(.SD, na.rm = TRUE) / exprimesT2, .SDcols = T2candidateG]
     dt[is.infinite(GD_ratio_T2), GD_ratio_T2 := 1]
@@ -131,13 +143,42 @@ recode_merge_pres <- function(input_year) {
   else {dt[, DIns_ratio_T2 := NA]}
 ## Centre / extrêmes
 ### Identification des candidats
-### Ratios relatifs
-### Ratios absolus
+  T1maskC <- candidats[Annee == input_year & CentExt == "C", .(variable = paste0("voix", Candidat))]
+  T1maskE <- candidats[Annee == input_year & CentExt == "E", .(variable = paste0("voix", Candidat))]
+  T2maskC <- candidats[Annee == input_year & CentExt == "C", .(variable = paste0("voixT2", Candidat))]
+  T2candidateC <- intersect(T2maskC$variable, names(dt))
+  T2maskE <- candidats[Annee == input_year & CentExt == "E", .(variable = paste0("voixT2", Candidat))]
+  T2candidateE <- intersect(T2maskE$variable, names(dt))
+### Ratio relatif / sur l'orientation politique opposée
+  dt[, EC_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1maskE$variable]
+  dt[is.infinite(EC_ratio_T1), EC_ratio_T1 := 1]
+  # Pour le second tour, le ratio E/exp est seulement calculé si un candidat des extrêmes est présent.
+  if (length(T2candidateE) == 1) {
+    dt[, EC_ratio_T2 := rowSums(.SD, na.rm = TRUE) / exprimesT2, .SDcols = T2candidateE]
+    dt[is.infinite(EC_ratio_T2), EC_ratio_T2 := 1]
+    }
+  else {dt[, EC_ratio_T2 := NA]}
+### Ratios absolus / sur les inscrits
+  dt[, CIns_ratio_T1 := rowSums(.SD, na.rm = TRUE) / inscrits, .SDcols = T1maskC$variable]
+  dt[is.infinite(CIns_ratio_T1), CIns_ratio_T1 := 1]
+  dt[, EIns_ratio_T1 := rowSums(.SD, na.rm = TRUE) / inscrits, .SDcols = T1maskE$variable]
+  dt[is.infinite(EIns_ratio_T1), EIns_ratio_T1 := 1]
+  # Pour le second tour, le ratio de chaque orientation est seulement calculé si un candidat est présent. 
+  if (length(T2candidateC) >= 1) {
+    dt[, CIns_ratio_T2 := rowSums(.SD, na.rm = TRUE) / inscritsT2, .SDcols = T2candidateC]
+    dt[is.infinite(CIns_ratio_T2), CIns_ratio_T2 := 1]
+    } 
+  else {dt[, CIns_ratio_T2 := NA]}
+  if (length(T2candidateE) >= 1) {
+    dt[, EIns_ratio_T2 := rowSums(.SD, na.rm = TRUE) / inscritsT2, .SDcols = T2candidateE]
+    dt[is.infinite(EIns_ratio_T2), EIns_ratio_T2 := 1]
+    } 
+  else {dt[, EIns_ratio_T2 := NA]}
 
 # Régresseurs
 ## Propriétaires  
   var_name_1 <- paste0("ppropri", input_year)
-  dt[propri, c("ppropri") := .(get(var_name_1)), on = "codecommune"]
+  dt[propri, "ppropri" := .(get(var_name_1)), on = "codecommune"]
 ## Population
   var_name_1 <- paste0("pop", input_year)
   var_name_2 <- paste0("popagglo", input_year)
@@ -162,23 +203,31 @@ recode_merge_pres <- function(input_year) {
   }
 ## Étrangers
   var_name_1 <- paste0("petranger", input_year)
-  dt[nation, c("petranger") := .(get(var_name_1)), on = "codecommune"]
+  dt[nation, "petranger" := .(get(var_name_1)), on = "codecommune"]
 ## Revenus
 ## La série commence seulement en 1980
   var_name_1 <- paste0("revmoy", input_year)
   if (var_name_1 %in% colnames(reven))
-    {dt[reven, c("revmoy") := .(get(var_name_1)), on = "codecommune"]}
+    {dt[reven, "revmoy" := .(get(var_name_1)), on = "codecommune"]}
   else
-    {dt[, revmoy := NA]}
+    {dt[, "revmoy" := NA]}
 ## Crimes et délits
 ## On dispose de données pour 2016, 2018 et 2020.
   if (year == 2017) 
-    {dt[crim, c("pcrimesdelits") := i.pcrimesdelits2016, on = "codecommune"]}
+    {dt[crim, "pcrimesdelits" := i.pcrimesdelits2016, on = "codecommune"]}
   else if (year == 2022) 
-    {dt[crim, pcrimesdelits := i.pcrimesdelits2020, on = "codecommune"]}
+    {dt[crim, "pcrimesdelits" := i.pcrimesdelits2020, on = "codecommune"]}
   else 
-    {dt[, pcrimesdelits := NA]}
-
+    {dt[, "pcrimesdelits" := NA]}
+## RSA
+## On dispose de données entre 2017 et 2021.  
+  if (year == 2017) 
+    {dt[rsa, "prsa" := i.prsa2017, on = "codecommune"]}
+  else if (year == 2022) 
+    {dt[rsa, "prsa" := i.prsa2021, on = "codecommune"]}
+  else 
+    {dt[, "prsa" := NA]}
+   
 # Merge
   cols_to_keep <- intersect(names(full_data), names(dt))
   dt <- dt[, ..cols_to_keep]
@@ -197,7 +246,7 @@ for (year in unique(candidats$Annee)) {
   print(year)
 }
 
-# for (year in 2022) {
+for (year in 2022) {
   output_file <- paste0("pres", year) 
   input_file <- paste0("Elections_pres/pres", year, "comm.parquet")
   assign(output_file, load_parquet(input_file))
@@ -237,6 +286,13 @@ pres1981[religcomm, c("prefract1791", "pclerge1791") :=
 pres1981[religdep, c("pclerge1856", "pmessalisants1950") :=
              .(i.pclerge1856, i.pmessalisants1950), on = "dep"]
 ```
+
+```{r}
+# Pour 2017 on a la proportion de foyers soumis à l'ISF et la valeur moyenne du patrimoine / de l'ISF (?) dans Capital_immobilier/isfcommunes.parquet.
+mmoyfortune2017
+pisf2017
+```
+
 
 **Graphs**
 
