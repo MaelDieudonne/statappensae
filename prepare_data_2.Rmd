@@ -245,22 +245,14 @@ for (name in paste0("var_name_", 1:7)) {rm(list = name)}
 rm(i, input_file, name, tablename, output_file, suffixes, year)
 ```
 
-
-
-
-
 ```{r eval=FALSE}
-# Upload sur le SSP cloud
-# Code à reprendre !
-
-aws.s3::s3sync(
-  path = "",
+# Téléversement sur le SSP Cloud
+aws.s3::put_object(
+  "data_main/panel_data.parquet",
+  object = "/diffusion/panel_data.parquet",
   bucket = "maeldieudonne",
   region = "",
-  prefix = "/diffusion/",
-  direction = "upload",
-  multipart = TRUE,
-  create = TRUE
+  multipart = TRUE
 )
 ```
 
@@ -320,22 +312,14 @@ write_parquet(acp_data, "data_main/acp_data.parquet")
 rm(popul, religcomm, religdep)
 ```
 
-
-
-
-
 ```{r eval=FALSE}
-# Upload sur le SSP cloud
-# Code à reprendre !
-
-aws.s3::s3sync(
-  path = "",
+# Téléversement sur le SSP Cloud
+aws.s3::s3write_using(
+  acp_data
+  FUN = arrow::write_parquet,
+  object = "/diffusion/acp.parquet",
   bucket = "maeldieudonne",
-  region = "",
-  prefix = "/diffusion/",
-  direction = "upload",
-  multipart = TRUE,
-  create = TRUE
+  opts = list("region" = "")
 )
 ```
 
