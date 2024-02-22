@@ -29,6 +29,29 @@ Cartes ?
 
 ## Panel...
 
+```{r}
+install.packages("plm")
+library(plm)
+
+# Assuming panel_data is your data.table
+# Convert panel_data to pdata.frame
+panel_as_pdata <- pdata.frame(panel_data, index = c("codecommune", "year"))
+
+# Run the panel regression
+panel_model <- plm(GD_ratio_T1 ~ ppropri + popcomm + popagglo+ pinscript + age + prop1539 + prop4059 + prop60p + propf + propbac + propsup + pagri + pindp + pcadr + ppint + pempl + pchom + petranger + revmoy, data = panel_as_pdata, model = "within")
+
+panel_model <- plm(GD_ratio_T1 ~ ppropri + popcomm + popagglo+ pinscript + age + prop1539 + prop4059 + prop60p + propf + propbac + propsup + pagri + pindp + pcadr + ppint + pempl + pchom + petranger + revmoy, data = panel_as_pdata, model = "fd")
+
+# prop014
+# propnodip
+# pouvr
+
+# Print the results
+summary(panel_model)
+
+# Exprimer les habitants et les revenus en milliers pour simplifier la lecture ?
+```
+
 # **ACP**
 
 ```{r}
