@@ -1,38 +1,13 @@
-**Construction de la base**
-
-```{r}
-codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
-codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
-
-# Contours des départements
-background_province <- load_shapefile("COMMUNE.shx")
-map_data_province <- merge(background_province, subset(pres1981, dep != 75), by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
-map_data_province <- subset(map_data_province, select = -c(INSEE_ARR, INSEE_CAN, INSEE_DEP, SIREN_EPCI, STATUT))
-
-# Contour des arrondissements
-background_plm <- load_shapefile("ARRONDISSEMENT_MUNICIPAL.shx")
-## Ajout du code région
-background_plm$INSEE_REG <- ifelse(startsWith(background_plm$INSEE_COM, "13"), 93,
-                                    ifelse(startsWith(background_plm$INSEE_COM, "69"), 84,
-                                           ifelse(startsWith(background_plm$INSEE_COM, "75"), 11, NA)))
-
-# Fusion pour les arrondissements parisiens
-map_data_paris <- merge(background_plm, subset(pres1981, dep == 75), by.x = "INSEE_ARM", by.y = "codecommune", all.x = TRUE)
-map_data_paris <- subset(map_data_paris, select = -INSEE_ARM)
-
-# Fusion globale et nettoyage
-map_data <- rbind(map_data_province, map_data_paris)
-st_crs(map_data) <- 9794
-rm(background_province, map_data_province, background_plm, map_data_paris)
-```
-
 **Cartes statiques**
 
 ```{r}
 # Carte statique avec ggplot, réduite à une région, à résolution paramétrable
 ## Se référer à la base code_region pour connaître les numéros de régions
 
-mapped_var <- "part"
+year <- 1965
+map_data <- create_map_data(year)
+
+mapped_var <- "part_T1"
 mapped_var_name <- "Participation"
 selected_reg <- "53"
 
@@ -41,8 +16,8 @@ subset_map_data[[mapped_var]] <- round(subset_map_data[[mapped_var]], 2)
 reg_name <- codes_regions$LIBELLE[codes_regions$REG == selected_reg]
 reg_abrv <- codes_regions$ABRV[codes_regions$REG == selected_reg]
 
-title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n", reg_name, ", 1981")
-output_file <- paste0("output/", mapped_var, "_1981_", reg_abrv, ".png")
+title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n", reg_name, ", ", year)
+output_file <- paste0("output/", mapped_var, "_", year, "_", reg_abrv, ".png")
 
 # Calcul des dimensions de la carte
 bbox <- st_bbox(subset_map_data)
@@ -72,11 +47,15 @@ rm(bbox, aspect_ratio, base_height, base_width, font_size, mapped_var, mapped_va
 ```{r}
 # Carte statique avec ggplot, France entière, à résolution paramétrable
 
-mapped_var <- "part"
+year <- 1965
+map_data <- create_map_data(year)
+st_write(map_data, "your_shapefile.shp")
+
+mapped_var <- "part_T1"
 mapped_var_name <- "Participation"
 
-title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n1981")
-output_file <- paste0("output/", mapped_var, "_1981_France.png")
+title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n", year)
+output_file <- paste0("output/", mapped_var, "_", year, "_France.png")
 map_data[[mapped_var]] <- round(map_data[[mapped_var]], 2)
 
 # Calcul des dimensions de la carte

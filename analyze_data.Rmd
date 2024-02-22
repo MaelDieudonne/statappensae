@@ -1,12 +1,13 @@
----
-title: "analyze_data"
-output: html_document
-date: "2024-01-26"
----
+**Desc**
+
+Graph du taux de participation au T1...
+
 
 ```{r}
 # Optionnel, pour charger la base si déjà enregistrée.
-pres1981 <- load_parquet("pres1981.parquet")
+panel_data <- load_parquet("data_main/panel_data.parquet")
+
+pres1981 <- subset(panel_data, year == 2017)
 ```
 
 ```{r}
@@ -26,7 +27,7 @@ for (col in names(pres1981)) {if (!(col %in% c("dep", "codecommune", "codecommun
     fivenum_values <- fivenum(get(col))
     nan_count <- sum(is.na(get(col)))
     nan_count_prop <- round(100 * nan_count / nb_communes, 2)
-    nan_pop <- sum(pop1981[is.na(get(col))], na.rm = TRUE)
+    nan_pop <- sum(popcomm[is.na(get(col))], na.rm = TRUE)
     prop_nan_pop <- round(100 * nan_pop / pop_tot_1981, 2)
     data.table(
       Variable = col,
@@ -54,6 +55,8 @@ rm(stat_desc, summary)
 
 ```{r}
 # Calcul du taux agrégé de propriétaires
+propri <- load_parquet("Proprietaires/proprietairescommunes.parquet")
+
 propri_tot <- data.table(year = numeric(), sum_npropri = numeric(), sum_nlogement = numeric(), prop_ratio = numeric())
 for (year in 1960:2022) {
   col_npropri <- paste0("npropri", year)
@@ -78,7 +81,7 @@ print(plot)
 ggsave("output/ppropri_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
 
 # Nettoyage
-rm(col_npropri, col_nlogement, sum_npropri, sum_nlogement, prop_ratio, propri_tot, year, plot)
+rm(col_npropri, col_nlogement, propri, sum_npropri, sum_nlogement, prop_ratio, propri_tot, year, plot)
 ```
 
 # Régressions
@@ -134,7 +137,7 @@ prefixes_to_drop <- c("exprimes", "inscrits", "nom", "nul", "pervote", "ppar", "
 pres1981 <- pres1981[, .SD, .SDcols = setdiff(names(pres1981), grep(paste0("^", paste(prefixes_to_drop, collapse = "|")), names(pres1981), value = TRUE))]
 pres1981 <- pres1981[, -c("plm", "dep2", "plmdoublon", "perpar", "year")]
 
-pres1981 <- pres1981[, -c("part", "partT2", "lib_ratio_T1", "popagglo1981", "prop0141981", "pclerge1791", "prefract1791", "pclerge1856", "pmessalisants1950")]
+pres1981 <- pres1981[, -c("part", "partT2", "lib_ratio_T1", "popagglo1981", "prop0141981", "pclerge1791", "prefract1791", "pclerge1856", "pmessalisants1950", "age1981")]
 
 pres1981_numeric <- pres1981[, .SD, .SDcols = sapply(pres1981, is.numeric)]
 pres1981_numeric <- pres1981_numeric[complete.cases(pres1981_numeric)]
@@ -146,7 +149,8 @@ corrplot(
   correlation_matrix,
   type = "upper",
   method = "color",
-  order = "FPC",
+  col = colorRampPalette(c("blue", "white", "red"))(100),
+#  order = "FPC",
   tl.cex = 3.5,
   tl.srt = 60,
   tl.col = "darkgrey",

@@ -315,7 +315,6 @@ if os.path.exists('data_parquet'):
 for variable in ['bucket_name', 'csv_files', 'data', 'dest', 'destination_directory', 'destination_path', 'detect_encoding_short', 'detect_encoding_long', 'dirs', 'download_links', 'encoding_short', 'encoding_long', 'extracted_strings', 'file', 'file_list', 'file_name', 'file_path', 'filename', 'filenames', 'filepath', 'files', 'folder', 'foldername', 'folders', 'input_csv_path', 'link', 'member', 'new_folder_name', 'new_path', 'old_path', 'output_parquet_path', 'prefix', 'prefix_dir', 'relative_path', 'response', 'root', 'S3_ENDPOINT_URL', 'source', 'source_directory', 'source_path', 'subfolders', 'table', 'target_path', 'total_csv_files', 'total_files', 'total_size', 'total_size_mb', 'total_zip_files', 'webpage_url', 'zip_file', 'zip_file_path', 'zip_files', 'zip_path', 'zip_ref']:
     if variable in globals():
         del globals()[variable]
-del variable
 
-# conda_remove('r-reticulate')
+del variable
 ```

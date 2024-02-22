@@ -8,7 +8,7 @@ On construit la base en itérant à partir des résultats électoraux. On commen
 
 3.  On fusionne avec la table de destination (rbind pour s'ajouter aux données existantes).
 
-Inconvénient de cette méthode : implique de charger simultanément toutes les bases, donc consomme beaucoup de mémoire. Avantage : simplifie beaucoup la sélection des variables pertinentes, et le passage du format wide au format long.
+Inconvénient de cette méthode : implique de charger simultanément toutes les bases, donc consomme beaucoup de mémoire (mais passe quand même, sous Win10, avec 16 Go de Ram). Avantage : simplifie beaucoup la sélection des variables pertinentes, et le passage du format wide au format long.
 
 **Données de panel**
 
@@ -16,16 +16,17 @@ Inconvénient de cette méthode : implique de charger simultanément toutes les 
 # Chargement des données sur les orientations politiques des candidats
 candidats <- fread("data_other/candidats.csv", header = TRUE)
 
-# Chargement et préparation des contrôles
+# Chargement et préparation des régressuers
 propri <- load_parquet("Proprietaires/proprietairescommunes.parquet")
 popul <- load_parquet("Taille_agglo_commune/popcommunes.parquet")
+pop_elec <- load_parquet("Taille_agglo_commune/popcommuneselecteurs.parquet")
 ages <- load_parquet("Age_csp/agesexcommunes.parquet")
 catsociopro <- load_parquet("CSP/cspcommunes.parquet")
 nation <- load_parquet("Nationalites/etrangerscommunes.parquet")
 reven <- load_parquet("Revenus/revcommunes.parquet")
 diplo <- load_parquet("Diplomes/diplomescommunes.parquet")
 
-## Conversion du nombre de (non-)diplômés en proportion
+## Conversion du nombre de (non-)diplômés en proportion du nombre d'habitants
 for (year in unique(candidats$Annee)) {
   suffixes <- c("pop", "propnodip", "propbac", "propsup", "nodip", "bac", "sup")
   for (i in seq_along(suffixes)) {assign(paste0("var_name_", i), paste0(suffixes[i], year))}
@@ -42,7 +43,7 @@ panel_data <- data.table(
   dep = character(),
   codecommune = character(),
   year = integer(),
-  inscrits = numeric(), 
+  # inscrits = numeric(), 
   # on l'utilisera après fusion avec la population pour calculer le taux d'inscrits
   # si cette information n'est pas déjà estimée par les auteurs
   part_T1 = numeric(),
@@ -62,6 +63,7 @@ panel_data <- data.table(
   ppropri = numeric(),
   popcomm = numeric(),
   popagglo = numeric (),
+  pinscript = numeric (),
   age = numeric (),
   prop014 = numeric (),
   prop1539 = numeric (),
@@ -164,13 +166,19 @@ recode_add_bind <- function(input_year) {
   else {dt[, EIns_ratio_T2 := NA]}
 
 # Régresseurs
-## Propriétaires  
+## Propriétaires
   var_name_1 <- paste0("ppropri", input_year)
   dt[propri, "ppropri" := .(get(var_name_1)), on = "codecommune"]
 ## Population
   var_name_1 <- paste0("pop", input_year)
   var_name_2 <- paste0("popagglo", input_year)
   dt[popul, c("popcomm", "popagglo") := .(get(var_name_1), get(var_name_2)), on = "codecommune"]
+## Taux d'inscription sur les listes électorales
+  var_name_1 <- paste0("electeurs", input_year)
+  dt[pop_elec, "nb_electeurs" := .(get(var_name_1)), on = "codecommune"]
+  dt[, "pinscript" := inscrits / nb_electeurs]
+  dt[is.infinite(pinscript), pinscript := NA]
+  dt[, nb_electeurs := NULL]
 ## Âge et sexe
   suffixes <- c("age", "prop014", "prop1539", "prop4059", "prop60p", "propf")
   for (suffix in suffixes) {
@@ -193,7 +201,7 @@ recode_add_bind <- function(input_year) {
   var_name_1 <- paste0("petranger", input_year)
   dt[nation, "petranger" := .(get(var_name_1)), on = "codecommune"]
 ## Revenus
-## La série commence seulement en 1980
+## La série commence en 1980.
   var_name_1 <- paste0("revmoy", input_year)
   if (var_name_1 %in% colnames(reven))
     {dt[reven, "revmoy" := .(get(var_name_1)), on = "codecommune"]}
@@ -209,13 +217,13 @@ recode_add_bind <- function(input_year) {
 ```
 
 ```{r}
-# Boucle sur les élections pour créer les données de panel
+# Boucle sur les élections pour constituer les données de panel
 for (year in unique(candidats$Annee)) {
   output_file <- paste0("pres", year) 
   input_file <- paste0("Elections_pres/pres", year, "comm.parquet")
   assign(output_file, load_parquet(input_file))
   panel_data <- recode_add_bind(year)
-  print(year)
+  cat("Data generated for year", year, "\n")
 }
 
 write_parquet(panel_data, "data_main/panel_data.parquet")
@@ -230,20 +238,42 @@ for (year in unique(candidats$Annee)) {
 }
 
 ## Suppression des données de contrôle
-rm(ages, candidats, catsociopro, diplo, nation, popul, propri, reven)
+rm(ages, candidats, catsociopro, diplo, nation, pop_elec, popul, propri, reven)
 
 ## Suppression des variables
-rm(i, input_file, name, tablename, output_file, suffixes, year)
 for (name in paste0("var_name_", 1:7)) {rm(list = name)}
+rm(i, input_file, name, tablename, output_file, suffixes, year)
+```
+
+
+
+
+
+```{r eval=FALSE}
+# Upload sur le SSP cloud
+# Code à reprendre !
+
+aws.s3::s3sync(
+  path = "",
+  bucket = "maeldieudonne",
+  region = "",
+  prefix = "/diffusion/",
+  direction = "upload",
+  multipart = TRUE,
+  create = TRUE
+)
 ```
 
 **Données pour l'ACP**
 
+Pour ajouter les régresseurs seulement disponibles en fin de période.
+
 ```{r}
 # Chargement des bases
 crim <- load_parquet("CSP/crimesdelitscommunes.parquet")
-rsa <- load_parquet("CSP/rsacommunes.parquet")
 isf <- load_parquet("Capital_immobilier/isfcommunes.parquet")
+rsa <- load_parquet("CSP/rsacommunes.parquet")
+vbbm <- load_parquet("Taille_agglo_commune/popcommunesvbbm.parquet")
 
 ## Correction des codes communes dans la base RSA (traités comme des nombres donc avec suppression des zéros initiaux)
 rsa$codecommune <- as.character(rsa$codecommune)
@@ -252,12 +282,18 @@ rsa$codecommune <- ifelse(nchar(rsa$dep) == 1, paste0("0", rsa$codecommune), rsa
 # Sélection de l'année 2017 dans les données de panel et ajout de régresseurs supplémentaires
 acp_data <- subset(panel_data, year == 2017)
 acp_data[crim, "pcrimesdelits" := i.pcrimesdelits2016, on = "codecommune"]
-acp_data[rsa, "prsa" := i.prsa2017, on = "codecommune"]
 acp_data[isf, c("mmoyfortune", "pisf") := .(mmoyfortune2017, pisf2017), on = "codecommune"]
+acp_data[rsa, "prsa" := i.prsa2017, on = "codecommune"]
+acp_data[vbbm, "type_comm" := i.vbbm2017, on = "codecommune"]
+
+## Les données fiscales sont disponibles uniquement pour les communes de plus de 20 000 habitants comptant au moins 50 contribuables assujettis à l'ISF (soit 374 communes rassemblant 22,3 millions d’habitants en 2017).
+## Les valeurs manquantes sont remplacées par des valeurs nulles.
+acp_data[is.na(mmoyfortune), mmoyfortune := 0]
+acp_data[is.na(pisf), pisf := 0]
 
 # Ecriture du fichier et nettoyage
 write_parquet(acp_data, "data_main/acp_data.parquet")
-rm(crim, isf, rsa)
+rm(crim, isf, rsa, vbbm)
 ```
 
 ```{r}
@@ -266,6 +302,7 @@ rm(crim, isf, rsa)
 ## Chargement des bases
 religcomm <- load_parquet("Enseignement_prive/religiositecommunes.parquet")
 religdep <- load_parquet("Enseignement_prive/religiositedepartements.parquet")
+popul <- load_parquet("Taille_agglo_commune/popcommunes.parquet")
 
 ## Ratio de nclerge1791 sur le nombre d'habitants, pour avoir une idée de la présence des institutions religieuses dans la commune
 religcomm[popul, c("pop1791") := .(i.pop1791), on = "codecommune"]
@@ -280,44 +317,67 @@ acp_data[religdep, c("pclerge1856", "pmessalisants1950") :=
 
 ## Ecriture du fichier et nettoyage
 write_parquet(acp_data, "data_main/acp_data.parquet")
-rm(religcomm, religdep)
+rm(popul, religcomm, religdep)
 ```
 
-**Variables à ajouter**
 
-```{r}
-# Taux d'inscription
-pres1981[, pinscript := votants/pop1981]
+
+
+
+```{r eval=FALSE}
+# Upload sur le SSP cloud
+# Code à reprendre !
+
+aws.s3::s3sync(
+  path = "",
+  bucket = "maeldieudonne",
+  region = "",
+  prefix = "/diffusion/",
+  direction = "upload",
+  multipart = TRUE,
+  create = TRUE
+)
 ```
 
-**Graphs**
+**Cartes**
+
+Fonction qui fusionne les données avec les contours des communes pour permettre de tracer des cartes.
+
+Données très volumineuses car très précises, et identiques pour toutes les années dans la base.
+
+Donc au lieu de les ajouter de manière redondante aux bases précédentes, on créé une fonction pour générer à la demande la table nécessaire.
+
+Difficulté : données pour Paris sont présentées à l'échelle des arrondissements. Donc faut utiliser une seconde base géographique.
+
+On ajoute aussi les codes régionaux de l'Insee pour permettre de tracer des cartes à l'échelle régionale (la plus lisible).
 
 ```{r}
-# Calculate the average of part_T1 for each year
-avg_part_T1 <- aggregate(part_T1 ~ year, data = full_data, FUN = mean)
+codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
+codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
 
-# Plot the evolution of the average of part_T1 over time
-ggplot(avg_part_T1, aes(x = year, y = part_T1)) +
-  geom_line() +
-  geom_point() +
-  labs(x = "Year", y = "Average part_T1", title = "Evolution of Average part_T1 over Time")
+create_map_data <- function(input_year) {
+  dt <- subset(panel_data, year == input_year)
+  
+  # Contours des départements
+  background_province <- load_shapefile("COMMUNE.shx")
+  map_data_province <- merge(background_province, subset(dt, dep != 75), by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
+  map_data_province <- subset(map_data_province, select = -c(INSEE_ARR, INSEE_CAN, INSEE_DEP, SIREN_EPCI, STATUT))
+  
+  # Contour des arrondissements
+  background_plm <- load_shapefile("ARRONDISSEMENT_MUNICIPAL.shx")
+  ## Ajout du code région
+  background_plm$INSEE_REG <- ifelse(startsWith(background_plm$INSEE_COM, "13"), 93,
+                                    ifelse(startsWith(background_plm$INSEE_COM, "69"), 84,
+                                           ifelse(startsWith(background_plm$INSEE_COM, "75"), 11, NA)))
 
-```
+  # Fusion pour les arrondissements parisiens
+  map_data_paris <- merge(background_plm, subset(dt, dep == 75), by.x = "INSEE_ARM", by.y = "codecommune", all.x = TRUE)
+  map_data_paris <- subset(map_data_paris, select = -INSEE_ARM)
+  
+  # Fusion globale
+  map_data <- rbind(map_data_province, map_data_paris)
+  st_crs(map_data) <- 9794
 
-**Vérifications**
-
-```{r}
-print(sum(is.null(full_data$year)))
-print(sum(is.na(pres2022$GD_ratio_T1)))
-print(sum(is.infinite(pres1981$GD_ratio_T1)))
-print(sum(is.infinite(dt$GD_ratio_T1)))
-print(sum(!is.na(pres2022$GD_ratio_T1) & !is.finite(pres1981$GD_ratio_T1)))
-```
-
-```{r}
-column_names <- names(ages)
-matching_columns <- grep("1981$", column_names, value = TRUE)
-print(matching_columns)
-
-print(ages[, .(propf1981)])
+  return(map_data)
+}
 ```

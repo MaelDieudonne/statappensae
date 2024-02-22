@@ -1,0 +1,46 @@
+# Panel
+
+```{r}
+panel_data <- load_parquet("data_main/panel_data.parquet")
+```
+
+## Analyse des valeurs manquantes
+
+Tableau présentant le nombre de NA par variable et par an, coloré façon corrélogramme.
+
+## Analyses descriptives
+
+Evolution historique des principaux outcomes et du taux de propriétaires ?
+
+```{r}
+# Exemple grossier avec la participation au premier tour
+
+# Calculate the average of part_T1 for each year
+avg_part_T1 <- aggregate(part_T1 ~ year, data = panel_data, FUN = mean)
+
+# Plot the evolution of the average of part_T1 over time
+ggplot(avg_part_T1, aes(x = year, y = part_T1)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Year", y = "Average part_T1", title = "Participation au premier tour des élections présidentielles, 1965-2022")
+```
+
+Cartes ?
+
+## Panel...
+
+# **ACP**
+
+```{r}
+acp_data <- load_parquet("acp_data/panel_data.parquet")
+```
+
+## Analyse des valeurs manquantes
+
+## Analyses descriptives
+
+Corrélogramme
+
+Cartes ?
+
+## ACP...
