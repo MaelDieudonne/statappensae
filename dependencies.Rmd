@@ -5,6 +5,7 @@ packages <- c(
   "archive",
   "arrow",
   "aws.s3",
+  "corrplot",
   "data.table",
   "ggplot2",
   "httr",
@@ -27,6 +28,7 @@ rm(installed_packages, packages)
 **Répertoires**
 
 ```{r}
+if (!dir.exists("data_main")) {dir.create("data_main")}
 if (!dir.exists("output")) {dir.create("output")}
 ```
 
@@ -44,7 +46,7 @@ load_parquet <- function(filename) {
     return(data)
     
   } else {
-    message("Downloading", filename, " from SSP cloud")
+    message("Downloading ", filename, " from SSP cloud")
     tryCatch({
         s3_filepath <- file.path("/diffusion", filename)
         data <- aws.s3::s3read_using(
