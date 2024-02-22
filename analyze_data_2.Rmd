@@ -30,24 +30,33 @@ Cartes ?
 ## Panel...
 
 ```{r}
-install.packages("plm")
-library(plm)
-
-# Assuming panel_data is your data.table
-# Convert panel_data to pdata.frame
+# On convertit les données aux format pdata et on sélectionne les régresseurs
 panel_as_pdata <- pdata.frame(panel_data, index = c("codecommune", "year"))
+regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger", "revmoy")
+## Régresseurs abandonnés pour éviter la colinéarité : prop014, propnodip, pouvr
 
-# Run the panel regression
-panel_model <- plm(GD_ratio_T1 ~ ppropri + popcomm + popagglo+ pinscript + age + prop1539 + prop4059 + prop60p + propf + propbac + propsup + pagri + pindp + pcadr + ppint + pempl + pchom + petranger + revmoy, data = panel_as_pdata, model = "within")
+# On ajuste le modèle pour les ratios relatifs = sur exprimés
+## Possibilité d'utiliser within comme paramètre et d'éliminer le clustering.
+relative_outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "GD_ratio_T2", "EC_ratio_T1", "EC_ratio_T2")
+relative_results <- list()
+for (outcome in relative_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep")
+}
+stargazer(relative_results, type = "html", out = "output/panel_relative_results.html")
 
-panel_model <- plm(GD_ratio_T1 ~ ppropri + popcomm + popagglo+ pinscript + age + prop1539 + prop4059 + prop60p + propf + propbac + propsup + pagri + pindp + pcadr + ppint + pempl + pchom + petranger + revmoy, data = panel_as_pdata, model = "fd")
+# On ajuste le modèle pour les ratios relatifs = sur inscrits
+absolute_outcomes <- c("part_T1", "part_T2", "GIns_ratio_T1", "DIns_ratio_T1", "GIns_ratio_T2", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
+absolute_results <- list()
+for (outcome in absolute_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep")
+}
+stargazer(absolute_results, type = "html", out = "output/panel_absolute_results.html")
 
-# prop014
-# propnodip
-# pouvr
 
-# Print the results
-summary(panel_model)
 
 # Exprimer les habitants et les revenus en milliers pour simplifier la lecture ?
 ```
