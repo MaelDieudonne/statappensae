@@ -8,8 +8,7 @@ On construit la base en itérant à partir des résultats électoraux. On commen
 
 3.  On fusionne avec la table de destination (rbind pour s'ajouter aux données existantes).
 
-Inconvénient de cette méthode : implique de charger simultanément toutes les bases, donc consomme beaucoup de mémoire.
-Avantage : simplifie beaucoup la sélection des variables pertinentes, et le passage du format wide au format long.
+Inconvénient de cette méthode : implique de charger simultanément toutes les bases, donc consomme beaucoup de mémoire. Avantage : simplifie beaucoup la sélection des variables pertinentes, et le passage du format wide au format long.
 
 **Données de panel**
 
@@ -35,14 +34,6 @@ for (year in unique(candidats$Annee)) {
   diplo[, (var_name_3) := get(var_name_6)/get(var_name_1)]
   diplo[, (var_name_4) := get(var_name_7)/get(var_name_1)]
 }
-
-# religcomm <- load_parquet("Enseignement_prive/religiositecommunes.parquet")
-# religdep <- load_parquet("Enseignement_prive/religiositedepartements.parquet")
-
-## Ratio de nclerge1791 sur le nombre d'habitants, pour avoir une idée de la présence des institutions religieuses dans la commune
-# religcomm[popul, c("pop1791") := .(i.pop1791), on = "codecommune"]
-# religcomm[, pclerge1791 := nclerge1791/pop1791]
-# religcomm[, pclerge1791 := replace(pclerge1791, is.infinite(pclerge1791), NA)]
 ```
 
 ```{r}
@@ -269,19 +260,34 @@ write_parquet(acp_data, "data_main/acp_data.parquet")
 rm(crim, isf, rsa)
 ```
 
+```{r}
+# Ajout éventuel : les indicateurs de religiosité (dont l'inconvénient est d'être anciens et d'avoir beaucoup de valeurs manquantes)
+
+## Chargement des bases
+religcomm <- load_parquet("Enseignement_prive/religiositecommunes.parquet")
+religdep <- load_parquet("Enseignement_prive/religiositedepartements.parquet")
+
+## Ratio de nclerge1791 sur le nombre d'habitants, pour avoir une idée de la présence des institutions religieuses dans la commune
+religcomm[popul, c("pop1791") := .(i.pop1791), on = "codecommune"]
+religcomm[, pclerge1791 := nclerge1791/pop1791]
+religcomm[, pclerge1791 := replace(pclerge1791, is.infinite(pclerge1791), NA)]
+
+## Ajout aux données
+acp_data[religcomm, c("prefract1791", "pclerge1791") :=
+             .(i.prefract1791, i.pclerge1791), on = "codecommune"]
+acp_data[religdep, c("pclerge1856", "pmessalisants1950") :=
+             .(i.pclerge1856, i.pmessalisants1950), on = "dep"]
+
+## Ecriture du fichier et nettoyage
+write_parquet(acp_data, "data_main/acp_data.parquet")
+rm(religcomm, religdep)
+```
+
 **Variables à ajouter**
 
 ```{r}
 # Taux d'inscription
 pres1981[, pinscript := votants/pop1981]
-```
-
-```{r}
-## Religion
-pres1981[religcomm, c("prefract1791", "pclerge1791") :=
-             .(i.prefract1791, i.pclerge1791), on = "codecommune"]
-pres1981[religdep, c("pclerge1856", "pmessalisants1950") :=
-             .(i.pclerge1856, i.pmessalisants1950), on = "dep"]
 ```
 
 **Graphs**
