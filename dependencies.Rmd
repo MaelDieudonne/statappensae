@@ -38,13 +38,13 @@ load_parquet <- function(filename) {
   local_filepath <- file.path("data_main/", filename)
   
   if (file.exists(local_filepath)) {
-    message("Loading from local directory")
+    message("Loading ", filename, " from local directory")
     data <- arrow::read_parquet(local_filepath)
     data <- as.data.table(data)
     return(data)
     
   } else {
-    message("Downloading from SSP cloud")
+    message("Downloading", filename, " from SSP cloud")
     tryCatch({
         s3_filepath <- file.path("/diffusion", filename)
         data <- aws.s3::s3read_using(
@@ -56,7 +56,7 @@ load_parquet <- function(filename) {
         data <- as.data.table(data)
         return(data)
     }, error = function(e) {
-      message("Failed to download file from SSP cloud:", e$message)
+      message("Failed to download ", filename, " from SSP cloud:", e$message)
       NULL
     })
   }
