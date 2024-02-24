@@ -1,8 +1,81 @@
-# Panel
+```{r}
+# Importation des données
+panel_data <- load_parquet("panel_data.parquet")
+acp_data <- load_parquet("acp_data.parquet")
+
+codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
+codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
+```
 
 ```{r}
-panel_data <- load_parquet("panel_data.parquet")
+# Fonction permettant de générer des cartes statiques
+
+## Elle comporte 5 paramètres :
+### year
+### region permet de restreindre la carte à une région
+#### La fonction utiliser les codes listés dans data_other/code_regions_Insee.csv
+#### La valeur 0 correspond à la France entière.
+### mapped_var est le code de la variable à représenter
+### mapped_var_name est le nom à afficher dans la légende
+### base_width est un paramètre de résolution, de préférence >7 pour une région et >15 pour la France
+
+## Les cartes sont sauvegardées dans le répertoire output.
+## Leurs noms sont générés automatiquement.
+
+draw_map <- function(year, region, mapped_var, mapped_var_name, base_width) {
+  # Chargement des données
+  map_data <- create_map_data(year)
+  if (region != 0) {
+    map_data <- map_data[map_data$INSEE_REG == region, ]
+    map_data[[mapped_var]] <- round(map_data[[mapped_var]], 2)
+    reg_name <- codes_regions$LIBELLE[codes_regions$REG == region]
+    reg_abrv <- codes_regions$ABRV[codes_regions$REG == region]
+  } else {
+    reg_name <- "France"
+    reg_abrv <- "FR"
+  }
+  
+  # Création des chemins
+  title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n", reg_name, ", ", year)
+  output_file <- paste0("output/", mapped_var, "_", year, "_", reg_abrv, ".png")
+  
+  # Exportation d'une carte en haute résolution
+  ## Calcul des dimensions
+  bbox <- st_bbox(map_data)
+  aspect_ratio <- diff(c(bbox$xmin, bbox$xmax)) / diff(c(bbox$ymin, bbox$ymax))
+  base_height <- base_width / aspect_ratio
+  font_size <- base_width * 2.2
+  ## Création et enregistrement
+  plot_png <- ggplot() +
+    geom_sf(data = map_data, aes(fill = .data[[mapped_var]])) +
+    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 100)) +
+    ggtitle(paste(title)) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5, size = font_size),
+          axis.text = element_blank(),
+          panel.grid = element_blank(),
+          plot.title.position = "plot",
+          legend.title = element_text(size = font_size * 0.8),
+          legend.text = element_text(size = font_size * 0.7))
+  ggsave(output_file, plot = plot_png, width = base_width, height = base_height, units = "in")
+
+  # Affichage d'une carte en résolution normale 
+  display_plot <- ggplot() +
+    geom_sf(data = map_data, aes(fill = .data[[mapped_var]])) +
+    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 100)) +
+    ggtitle(paste(title)) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5),
+          axis.text = element_blank(),
+          panel.grid = element_blank(),
+          plot.title.position = "plot",
+          legend.title = element_text(),
+          legend.text = element_text())   
+  print(display_plot)
+}
 ```
+
+# Panel
 
 ## Analyse des valeurs manquantes
 
@@ -10,22 +83,57 @@ Tableau présentant le nombre de NA par variable et par an, coloré façon corr�
 
 ## Analyses descriptives
 
-Evolution historique des principaux outcomes et du taux de propriétaires ?
+Evolution historique des principaux outcomes et du taux de propriétaires.
+
+Il faudra vérifier pourquoi on n'obtient pas les mêmes chiffres avec ppropri et npropri/nlogements.
 
 ```{r}
-# Exemple grossier avec la participation au premier tour
-
-# Calculate the average of part_T1 for each year
-avg_part_T1 <- aggregate(part_T1 ~ year, data = panel_data, FUN = mean)
-
-# Plot the evolution of the average of part_T1 over time
-ggplot(avg_part_T1, aes(x = year, y = part_T1)) +
+# Exemple grossier avec le taux de propriétaires
+ppropri <- aggregate(ppropri ~ year, data = panel_data, FUN = mean)
+ggplot(ppropri, aes(x = year, y = ppropri)) +
   geom_line() +
   geom_point() +
-  labs(x = "Year", y = "Average part_T1", title = "Participation au premier tour des élections présidentielles, 1965-2022")
+  labs(x = "Année", y = "%", title = "Taux de propriétaires de leur résidence principale, 1965-2022")
 ```
 
-Cartes ?
+
+```{r}
+# Calcul du taux agrégé de propriétaires
+propri <- load_parquet("Proprietaires/proprietairescommunes.parquet")
+
+propri_tot <- data.table(year = numeric(), sum_npropri = numeric(), sum_nlogement = numeric(), prop_ratio = numeric())
+for (year in 1960:2022) {
+  col_npropri <- paste0("npropri", year)
+  col_nlogement <- paste0("nlogement", year)
+  sum_npropri <- sum(propri[[col_npropri]], na.rm = TRUE)
+  sum_nlogement <- sum(propri[[col_nlogement]], na.rm = TRUE)
+  prop_ratio <- sum_npropri / sum_nlogement
+  propri_tot <- rbind(propri_tot, data.table(year = year, sum_npropri = sum_npropri, sum_nlogement = sum_nlogement, prop_ratio = prop_ratio))
+}
+
+# Graph
+plot <- ggplot(propri_tot, aes(x = year, y = prop_ratio)) +
+  geom_line(color = "skyblue") +
+  geom_point(color = "skyblue") +
+  labs(title = "Proportion de propriétaires, 1960-2022",
+       x = "Année",
+       y = "Proportion de propriétaires") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+print(plot)
+ggsave("output/ppropri_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
+
+# Nettoyage
+rm(col_npropri, col_nlogement, propri, sum_npropri, sum_nlogement, prop_ratio, propri_tot, year, plot)
+```
+
+
+Cartes...
+
+```{r}
+draw_map(1965, 53, "ppropri", "Taux de propriétaires", 8)
+```
 
 ## Panel...
 
@@ -62,15 +170,51 @@ stargazer(absolute_results, type = "html", out = "output/panel_absolute_results.
 # Exprimer les habitants et les revenus en milliers pour simplifier la lecture ?
 ```
 
-# **ACP**
-
-```{r}
-acp_data <- load_parquet("acp_data.parquet")
-```
-
-## Analyse des valeurs manquantes
+# ACP
 
 ## Analyses descriptives
+
+Tableau récapitulatif (dont valeurs manquantes)
+
+```{r}
+# Population de référence pour 2017
+# Pour déterminer la proportion de la population concernée par des données manquantes, sachant que la population des communes est parfois elle-même manquante.
+# On utilise l'estimation de l'Insee disponible ici : https://www.insee.fr/fr/statistiques/serie/000067670
+pop_tot_2017 <- 64639133
+nb_communes <- uniqueN(acp_data, by = "codecommune")
+
+# Initialisation et calcul des valeurs
+stat_desc <- data.table()
+for (col in names(acp_data)) {if (!(col %in% c("dep", "codecommune", "codecommune2"))) {
+  summary <- acp_data[, {
+    fivenum_values <- fivenum(get(col))
+    nan_count <- sum(is.na(get(col)))
+    nan_count_prop <- round(100 * nan_count / nb_communes, 2)
+    nan_pop <- sum(popcomm[is.na(get(col))], na.rm = TRUE)
+    prop_nan_pop <- round(100 * nan_pop / pop_tot_2017, 2)
+    data.table(
+      Variable = col,
+      "Min" = round(fivenum_values[1], 0),
+      "1er quartile" = fivenum_values[2],
+      "Mediane" = fivenum_values[3],
+      "3e quartile" = fivenum_values[4],
+      "Max" = fivenum_values[5],
+      "Valeurs manquantes" = nan_count,
+      "En % des communes" = nan_count_prop,
+      "En % de la population" = prop_nan_pop
+    )
+  }]
+stat_desc <- rbind(stat_desc, summary)
+}}
+
+# Simplification des valeurs et enregistrement du tableau
+stat_desc[] <- lapply(stat_desc, round_and_remove_zeros)
+print(xtable(stat_desc, type = "latex"), file = "output/stat_desc_acp.tex")
+print(stat_desc)
+
+# Nettoyage
+rm(stat_desc, summary)
+```
 
 Corrélogramme
 
@@ -99,7 +243,6 @@ corrplot(
 )
 dev.off()
 ```
-
 
 Cartes ?
 
