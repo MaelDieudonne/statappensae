@@ -1,3 +1,4 @@
+
 ```{r}
 # Importation des données
 panel_data <- load_parquet("panel_data.parquet")
@@ -81,11 +82,31 @@ draw_map <- function(year, region, mapped_var, mapped_var_name, base_width) {
 
 Tableau présentant le nombre de NA par variable et par an, coloré façon corrélogramme.
 
+```{r}
+count_na <- function(x) mean(is.na(x)) * 100
+
+# Create a new data.table to store the results
+na_prop_table <- data.table(year = unique(panel_data$year))
+
+# Loop through each regressor
+for (regressor in regressors) {
+  # Count NAs for each year and calculate proportions
+  na_prop <- panel_data[, .(na_prop = count_na(get(regressor))), by = year]
+  # Merge the results with the main table
+  na_prop_table <- merge(na_prop_table, na_prop, by = "year", all.x = TRUE)
+  setnames(na_prop_table, "na_prop", regressor)
+}
+
+# Print the resulting table
+na_prop_table[] <- lapply(na_prop_table, round_and_remove_zeros)
+print(na_prop_table)
+```
+
 ## Analyses descriptives
 
 Evolution historique des principaux outcomes et du taux de propriétaires.
 
-Il faudra vérifier pourquoi on n'obtient pas les mêmes chiffres avec ppropri et npropri/nlogements.
+Il faudra vérifier pourquoi on n'obtient pas les mêmes chiffres avec ppropri et npropri/nlogements. Car le graph de ppropri est calculé par la moyenne sur les communes, plutôt que la moyenne pondérée par la population ?
 
 ```{r}
 # Exemple grossier avec le taux de propriétaires
@@ -95,7 +116,6 @@ ggplot(ppropri, aes(x = year, y = ppropri)) +
   geom_point() +
   labs(x = "Année", y = "%", title = "Taux de propriétaires de leur résidence principale, 1965-2022")
 ```
-
 
 ```{r}
 # Calcul du taux agrégé de propriétaires
@@ -127,7 +147,6 @@ ggsave("output/ppropri_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
 # Nettoyage
 rm(col_npropri, col_nlogement, propri, sum_npropri, sum_nlogement, prop_ratio, propri_tot, year, plot)
 ```
-
 
 Cartes...
 
@@ -164,7 +183,6 @@ for (outcome in absolute_outcomes) {
   absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep")
 }
 stargazer(absolute_results, type = "html", out = "output/panel_absolute_results.html")
-
 
 # Fusionner les ratios pour chaque tour ?
 # Exprimer les habitants et les revenus en milliers pour simplifier la lecture ?
