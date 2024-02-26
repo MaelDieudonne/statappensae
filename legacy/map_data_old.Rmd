@@ -1,0 +1,29 @@
+
+```{r}
+# Legacy
+create_map_data_old <- function(input_year) {
+  dt <- subset(panel_data, year == input_year)
+  
+  # Contours des communes
+  background_province <- load_shapefile("COMMUNE.shx")
+  map_data_province <- merge(background_province, subset(dt, dep != 75), by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
+  map_data_province <- subset(map_data_province, select = -c(INSEE_ARR, INSEE_CAN, INSEE_DEP, SIREN_EPCI, STATUT))
+  
+  # Contour des arrondissements
+  background_plm <- load_shapefile("ARRONDISSEMENT_MUNICIPAL.shx")
+  ## Ajout du code région
+  background_plm$INSEE_REG <- ifelse(startsWith(background_plm$INSEE_COM, "13"), 93,
+                                    ifelse(startsWith(background_plm$INSEE_COM, "69"), 84,
+                                           ifelse(startsWith(background_plm$INSEE_COM, "75"), 11, NA)))
+
+  # Fusion pour les arrondissements parisiens
+  map_data_paris <- merge(background_plm, subset(dt, dep == 75), by.x = "INSEE_ARM", by.y = "codecommune", all.x = TRUE)
+  map_data_paris <- subset(map_data_paris, select = -INSEE_ARM)
+  
+  # Fusion globale
+  map_data <- rbind(map_data_province, map_data_paris)
+  st_crs(map_data) <- 9794
+
+  return(map_data)
+}
+```

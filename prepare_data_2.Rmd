@@ -1,22 +1,22 @@
 **Données de panel**
 
-Enjeu : construire une base unique à partir de plusieurs bases, avec des bases annuelles pour les résultats électoraux, et des bases globales au format long pour les régresseurs, ce qui rend impossible de les fusionner directement.
+L'enjeu est de construire une base unique à partir de données dispersées, entre des bases annuelles pour les résultats électoraux, proches du format long, et des bases globales pour les régresseurs, au format wide. La stratégie retenue consiste à itérer sur une table vide à l'aide des résultats électoraux.
 
-Stratégie : itérer à partir des résultats électoraux. On commence par créer une table de destination avec l'ensemble des variables souhaitées. Puis pour chaque fichier électoral...
+On commence par créer une table de destination avec toutes les variables prévue, puis pour chaque base électorale :
 
-1.  On recode les outcomes, à l'aide des informations sur les orientations politiques des candidats stockées dans une table dédiée.
+1.  On recode les outcomes à l'aide des informations sur les orientations politiques des candidats, stockées dans un fichier dédié.
 
-2.  On ajoute les contrôles de l'année correspondante (merge et renaming pour passer au format long)
+2.  On ajoute les régresseurs de l'année correspondante (renaming pour passer au format long puis merge).
 
 3.  On fusionne avec la table de destination (rbind pour s'ajouter aux données existantes en éliminant les variables superflues).
 
-Inconvénient de cette méthode : implique de charger simultanément toutes les bases, donc consomme beaucoup de mémoire (mais passe quand même, sous Win10, avec 16 Go de Ram). Avantage : simplifie beaucoup la sélection des variables pertinentes, et le passage du format wide au format long.
+L'inconvénient de cette méthode est qu'elle implique de charger simultanément toutes les bases, ce qui requiert beaucoup de mémoire. Elle simplifie toutefois la sélection des variables pertinentes, ainsi que le passage du long au format wide.
 
 ```{r}
 # Chargement des données sur les orientations politiques des candidats
 candidats <- fread("data_other/candidats.csv", header = TRUE)
 
-# Chargement et préparation des régressuers
+# Chargement des régresseurs
 propri <- load_parquet("Proprietaires/proprietairescommunes.parquet")
 popul <- load_parquet("Taille_agglo_commune/popcommunes.parquet")
 pop_elec <- load_parquet("Taille_agglo_commune/popcommuneselecteurs.parquet")
@@ -26,7 +26,7 @@ nation <- load_parquet("Nationalites/etrangerscommunes.parquet")
 reven <- load_parquet("Revenus/revcommunes.parquet")
 diplo <- load_parquet("Diplomes/diplomescommunes.parquet")
 
-## Conversion du nombre de (non-)diplômés en proportion du nombre d'habitants
+# Conversion du nombre de (non-)diplômés en proportion du nombre d'habitants
 for (year in unique(candidats$Annee)) {
   suffixes <- c("pop", "propnodip", "propbac", "propsup", "nodip", "bac", "sup")
   for (i in seq_along(suffixes)) {assign(paste0("var_name_", i), paste0(suffixes[i], year))}
@@ -43,6 +43,7 @@ panel_data <- data.table(
   dep = character(),
   codecommune = character(),
   year = integer(),
+  # Outcomes
   part_T1 = numeric(),
   part_T2 = numeric(),
   GD_ratio_T1 = numeric(),
@@ -57,6 +58,7 @@ panel_data <- data.table(
   CIns_ratio_T1 = numeric(),
   EIns_ratio_T2 = numeric(),
   CIns_ratio_T2 = numeric(),  
+  # Régresseurs
   ppropri = numeric(),
   popcomm = numeric(),
   popagglo = numeric (),
@@ -87,37 +89,37 @@ panel_data <- data.table(
 recode_add_bind <- function(input_year) {
   tablename <- paste0("pres", input_year)
   dt <- get(tablename)
-# Ajout des années lorsqu'elles manquent dans la table d'origine
+  # Ajout des années lorsqu'elles manquent dans la table d'origine
   if (year %in% colnames(dt)) {dt[is.na(dt$year), year := input_year]}
   else {dt[, year := input_year]}
 
-# Création des outcomes
-## Participation
+  # Création des outcomes
+  ## Participation
   dt[, part_T1 := votants/inscrits]
   dt[, part_T2 := votantsT2/inscritsT2]
-## Droite / gauche
-### Identification des candidats
+  ## Droite / gauche
+  ### Identification des candidats
   T1maskG <- candidats[Annee == input_year & DrGau == "G", .(variable = paste0("voix", Candidat))]
   T1maskD <- candidats[Annee == input_year & DrGau == "D", .(variable = paste0("voix", Candidat))]
   T2maskG <- candidats[Annee == input_year & DrGau == "G", .(variable = paste0("voixT2", Candidat))]
   T2candidateG <- intersect(T2maskG$variable, names(dt))
   T2maskD <- candidats[Annee == input_year & DrGau == "D", .(variable = paste0("voixT2", Candidat))]
   T2candidateD <- intersect(T2maskD$variable, names(dt))
-### Ratio relatif / sur l'orientation politique opposée
+  ### Ratio relatif / sur l'orientation politique opposée
   dt[, GD_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1maskG$variable]
   dt[is.infinite(GD_ratio_T1), GD_ratio_T1 := 1]
-  # Pour le second tour, le ratio G/exp est seulement calculé si un candidat de gauche est présent.
+  ### Pour le second tour, le ratio G/exp est seulement calculé si un candidat de gauche est présent.
   if (length(T2candidateG) == 1) {
     dt[, GD_ratio_T2 := rowSums(.SD, na.rm = TRUE) / exprimesT2, .SDcols = T2candidateG]
     dt[is.infinite(GD_ratio_T2), GD_ratio_T2 := 1]
     }
   else {dt[, GD_ratio_T2 := NA]}
-### Ratios absolus / sur les inscrits
+  ### Ratios absolus / sur les inscrits
   dt[, GIns_ratio_T1 := rowSums(.SD, na.rm = TRUE) / inscrits, .SDcols = T1maskG$variable]
   dt[is.infinite(GIns_ratio_T1), GIns_ratio_T1 := 1]
   dt[, DIns_ratio_T1 := rowSums(.SD, na.rm = TRUE) / inscrits, .SDcols = T1maskD$variable]
   dt[is.infinite(DIns_ratio_T1), DIns_ratio_T1 := 1]
-  # Pour le second tour, le ratio de chaque orientation est seulement calculé si un candidat est présent. 
+  ### Pour le second tour, le ratio de chaque orientation est seulement calculé si un candidat est présent. 
   if (length(T2candidateG) >= 1) {
     dt[, GIns_ratio_T2 := rowSums(.SD, na.rm = TRUE) / inscritsT2, .SDcols = T2candidateG]
     dt[is.infinite(GIns_ratio_T2), GIns_ratio_T2 := 1]
@@ -128,29 +130,29 @@ recode_add_bind <- function(input_year) {
     dt[is.infinite(DIns_ratio_T2), DIns_ratio_T2 := 1]
     } 
   else {dt[, DIns_ratio_T2 := NA]}
-## Centre / extrêmes
-### Identification des candidats
+  ## Centre / extrêmes
+  ### Identification des candidats
   T1maskC <- candidats[Annee == input_year & CentExt == "C", .(variable = paste0("voix", Candidat))]
   T1maskE <- candidats[Annee == input_year & CentExt == "E", .(variable = paste0("voix", Candidat))]
   T2maskC <- candidats[Annee == input_year & CentExt == "C", .(variable = paste0("voixT2", Candidat))]
   T2candidateC <- intersect(T2maskC$variable, names(dt))
   T2maskE <- candidats[Annee == input_year & CentExt == "E", .(variable = paste0("voixT2", Candidat))]
   T2candidateE <- intersect(T2maskE$variable, names(dt))
-### Ratio relatif / sur l'orientation politique opposée
+  ### Ratio relatif / sur l'orientation politique opposée
   dt[, EC_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1maskE$variable]
   dt[is.infinite(EC_ratio_T1), EC_ratio_T1 := 1]
-  # Pour le second tour, le ratio E/exp est seulement calculé si un candidat des extrêmes est présent.
+  ### Pour le second tour, le ratio E/exp est seulement calculé si un candidat des extrêmes est présent.
   if (length(T2candidateE) == 1) {
     dt[, EC_ratio_T2 := rowSums(.SD, na.rm = TRUE) / exprimesT2, .SDcols = T2candidateE]
     dt[is.infinite(EC_ratio_T2), EC_ratio_T2 := 1]
     }
   else {dt[, EC_ratio_T2 := NA]}
-### Ratios absolus / sur les inscrits
+  ### Ratios absolus / sur les inscrits
   dt[, CIns_ratio_T1 := rowSums(.SD, na.rm = TRUE) / inscrits, .SDcols = T1maskC$variable]
   dt[is.infinite(CIns_ratio_T1), CIns_ratio_T1 := 1]
   dt[, EIns_ratio_T1 := rowSums(.SD, na.rm = TRUE) / inscrits, .SDcols = T1maskE$variable]
   dt[is.infinite(EIns_ratio_T1), EIns_ratio_T1 := 1]
-  # Pour le second tour, le ratio de chaque orientation est seulement calculé si un candidat est présent. 
+  ### Pour le second tour, le ratio de chaque orientation est seulement calculé si un candidat est présent. 
   if (length(T2candidateC) >= 1) {
     dt[, CIns_ratio_T2 := rowSums(.SD, na.rm = TRUE) / inscritsT2, .SDcols = T2candidateC]
     dt[is.infinite(CIns_ratio_T2), CIns_ratio_T2 := 1]
@@ -162,50 +164,50 @@ recode_add_bind <- function(input_year) {
     } 
   else {dt[, EIns_ratio_T2 := NA]}
 
-# Ajout des régresseurs
-## Propriétaires
+  # Ajout des régresseurs
+  ## Propriétaires
   var_name_1 <- paste0("ppropri", input_year)
   dt[propri, "ppropri" := .(get(var_name_1)), on = "codecommune"]
-## Population
+  ## Population
   var_name_1 <- paste0("pop", input_year)
   var_name_2 <- paste0("popagglo", input_year)
   dt[popul, c("popcomm", "popagglo") := .(get(var_name_1), get(var_name_2)), on = "codecommune"]
-## Taux d'inscription sur les listes électorales
+  ## Taux d'inscription sur les listes électorales
   var_name_1 <- paste0("electeurs", input_year)
   dt[pop_elec, "nb_electeurs" := .(get(var_name_1)), on = "codecommune"]
   dt[, "pinscript" := inscrits / nb_electeurs]
   dt[is.infinite(pinscript), pinscript := NA]
   dt[, nb_electeurs := NULL]
-## Âge et sexe
+  ## Âge et sexe
   suffixes <- c("age", "prop014", "prop1539", "prop4059", "prop60p", "propf")
   for (suffix in suffixes) {
     var_name <- paste0(suffix, year)
     dt[ages, (suffix) := .(get(var_name)), on = "codecommune"]
   }
-## Diplômes
+  ## Diplômes
   suffixes <- c("propnodip", "propbac", "propsup")
   for (suffix in suffixes) {
     var_name <- paste0(suffix, year)
     dt[diplo, (suffix) := .(get(var_name)), on = "codecommune"]
   }
-## CSP
+  ## CSP
   suffixes <- c("pagri", "pindp", "pcadr", "ppint", "pempl", "pouvr", "pchom")
   for (suffix in suffixes) {
     var_name <- paste0(suffix, year)
     dt[catsociopro, (suffix) := .(get(var_name)), on = "codecommune"]
   }
-## Étrangers
+  ## Étrangers
   var_name_1 <- paste0("petranger", input_year)
   dt[nation, "petranger" := .(get(var_name_1)), on = "codecommune"]
-## Revenus
-## La série commence en 1980.
+  ## Revenus
+  ## La série commence en 1980.
   var_name_1 <- paste0("revmoy", input_year)
   if (var_name_1 %in% colnames(reven))
     {dt[reven, "revmoy" := .(get(var_name_1)), on = "codecommune"]}
   else
     {dt[, "revmoy" := NA]}
 
-# Rbind
+  # Rbind
   cols_to_keep <- intersect(names(panel_data), names(dt))
   dt <- dt[, ..cols_to_keep]
   panel_data <- rbindlist(list(panel_data, dt))
@@ -214,7 +216,7 @@ recode_add_bind <- function(input_year) {
 ```
 
 ```{r}
-# Boucle sur les élections puis écriture du fichier
+# Boucle sur les élections
 for (year in unique(candidats$Annee)) {
   output_file <- paste0("pres", year) 
   input_file <- paste0("Elections_pres/pres", year, "comm.parquet")
@@ -223,7 +225,18 @@ for (year in unique(candidats$Annee)) {
   cat("Data generated for year", year, "\n")
 }
 
+# Conversion des proportions en pourcentages pour faciliter la lecture des résultats
+excluded_variables <- c("dep", "codecommune", "year", "popcomm", "popagglo", "age", "revmoy")
+variables_to_convert <- setdiff(names(panel_data), excluded_variables)
+panel_data[, (variables_to_convert) := lapply(.SD, function(x) x * 100), .SDcols = variables_to_convert]
+
+# Expression de la population et des revenus en milliers
+variables_to_convert <- c("popcomm", "popagglo", "revmoy")
+panel_data[, (variables_to_convert) := lapply(.SD, function(x) x / 1000), .SDcols = variables_to_convert]
+
+# Ecriture du fichier et nettoyage
 write_parquet(panel_data, "data_main/panel_data.parquet")
+rm(excluded_variables, variables_to_convert)
 ```
 
 ```{r}
@@ -254,9 +267,7 @@ aws.s3::put_object(
 
 **Données de coupe**
 
-Construction d'une base limitée à une année, mais intégrant toutes les données disponibles en fin de période : criminalité, fiscalité, rsa, mais aussi typologie des communes.
-
-On repart de la base précédente en isolant l'année 2017.
+On construit également une base restreinte à une année, mais intégrant toutes les données disponibles seulement en fin de période : sur la criminalité, la fiscalité, les prestations sociales, ainsi que les types de communes. On part de la base précédente en sélectionnant l'année 2017, puis l'on ajoute les régresseurs supplémentaires.
 
 ```{r}
 # Chargement des bases
@@ -281,6 +292,13 @@ mca_data[vbbm, "type_comm" := i.vbbm2017, on = "codecommune"]
 mca_data[is.na(mmoyfortune), mmoyfortune := 0]
 mca_data[is.na(pisf), pisf := 0]
 
+# Conversion des ratios en pourcentages
+variables_to_convert <- c("pcrimesdelits", "pisf", "prsa")
+mca_data[, (variables_to_convert) := lapply(.SD, function(x) x * 100), .SDcols = variables_to_convert]
+
+# Expression de la fortune moyenne des contribuables soumis à l'ISF en milliers
+mca_data[, mmoyfortune := mmoyfortune / 1000]
+
 # Ecriture du fichier et nettoyage
 write_parquet(mca_data, "data_main/mca_data.parquet")
 rm(crim, isf, rsa, vbbm)
@@ -289,23 +307,27 @@ rm(crim, isf, rsa, vbbm)
 ```{r}
 # Ajout éventuel : les indicateurs de religiosité (qui ont l'inconvénient d'être anciens et d'avoir beaucoup de valeurs manquantes)
 
-## Chargement des bases
+# Chargement des bases
 religcomm <- load_parquet("Enseignement_prive/religiositecommunes.parquet")
 religdep <- load_parquet("Enseignement_prive/religiositedepartements.parquet")
 popul <- load_parquet("Taille_agglo_commune/popcommunes.parquet")
 
-## Ratio de nclerge1791 sur le nombre d'habitants, pour avoir une idée de la présence des institutions religieuses dans la commune
+# Ratio de nclerge1791 sur le nombre d'habitants, pour avoir une idée de la présence des institutions religieuses dans la commune
 religcomm[popul, c("pop1791") := .(i.pop1791), on = "codecommune"]
 religcomm[, pclerge1791 := nclerge1791/pop1791]
 religcomm[, pclerge1791 := replace(pclerge1791, is.infinite(pclerge1791), NA)]
 
-## Ajout aux données
+# Ajout aux données
 mca_data[religcomm, c("prefract1791", "pclerge1791") :=
              .(i.prefract1791, i.pclerge1791), on = "codecommune"]
 mca_data[religdep, c("pclerge1856", "pmessalisants1950") :=
              .(i.pclerge1856, i.pmessalisants1950), on = "dep"]
 
-## Ecriture du fichier et nettoyage
+# Conversion des ratios en pourcentages
+variables_to_convert <- c("prefract1791", "pclerge1791", "pclerge1856", "pmessalisants1950")
+mca_data[, (variables_to_convert) := lapply(.SD, function(x) x * 100), .SDcols = variables_to_convert]
+
+# Ecriture du fichier et nettoyage
 write_parquet(mca_data, "data_main/mca_data.parquet")
 rm(popul, religcomm, religdep)
 ```
@@ -323,13 +345,9 @@ aws.s3::s3write_using(
 
 **Cartes**
 
-Les données cartographiques sont très volumineuses car très précises, mais aussi stables au cours du temps.
+Les données géographiques sont très volumineuses car très précises, et stockées dans un format spécifique. Il serait donc malcommode des les intégrer aux bases précédentes. On prévoit plutôt d'utiliser une fonction construisant dynamiquement la base nécessaire chaque fois qu'une carte est tracée.
 
-Plutôt que de les ajouter aux bases précédentes, ce qui les alourdirait considérablement, nous prévoyons de créer une fonction permettant de générer dynamiquement la base nécessaire.
-
-Difficulté : shapefile des communes considère PLM dans leur intégralité. Faut utiliser un second shapefile pour récupérer les arrondissements. Qu'on utilise seulement pour Paris, car seule ville dont les arrondissements sont présents dans la base.
-
-On ajoute aussi les codes régionaux de l'Insee pour permettre de tracer des cartes à l'échelle régionale (la plus lisible).
+On adapte les données géographiques à cette fin. Il faut assembler celles relatives aux communes et aux arrondissements, car les données électorales sont présentées à l'échelle des arrondissements pour Paris, et des communes entières pour Lyon et Marseille. On ajoute aussi les codes régionaux de l'Insee afin de pouvoir tracer les cartes à l'échelle régionale, qui s'avère la plus lisible.
 
 ```{r}
 background_province <- load_shapefile("COMMUNE.shx")
@@ -347,6 +365,8 @@ map_data <- subset(map_data, select = -c(ID, NOM, NOM_M, POPULATION))
 st_crs(map_data) <- 9794
 
 write_sf(map_data, "data_other/shapefile/FRANCE.shp")
+
+rm(background_province, background_plm)
 ```
 
 ```{r eval=FALSE}
@@ -360,37 +380,4 @@ aws.s3::s3sync(
   multipart = TRUE,
   create = TRUE
 )
-```
-
-
-
-
-
-```{r}
-# Legacy
-create_map_data_old <- function(input_year) {
-  dt <- subset(panel_data, year == input_year)
-  
-  # Contours des communes
-  background_province <- load_shapefile("COMMUNE.shx")
-  map_data_province <- merge(background_province, subset(dt, dep != 75), by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
-  map_data_province <- subset(map_data_province, select = -c(INSEE_ARR, INSEE_CAN, INSEE_DEP, SIREN_EPCI, STATUT))
-  
-  # Contour des arrondissements
-  background_plm <- load_shapefile("ARRONDISSEMENT_MUNICIPAL.shx")
-  ## Ajout du code région
-  background_plm$INSEE_REG <- ifelse(startsWith(background_plm$INSEE_COM, "13"), 93,
-                                    ifelse(startsWith(background_plm$INSEE_COM, "69"), 84,
-                                           ifelse(startsWith(background_plm$INSEE_COM, "75"), 11, NA)))
-
-  # Fusion pour les arrondissements parisiens
-  map_data_paris <- merge(background_plm, subset(dt, dep == 75), by.x = "INSEE_ARM", by.y = "codecommune", all.x = TRUE)
-  map_data_paris <- subset(map_data_paris, select = -INSEE_ARM)
-  
-  # Fusion globale
-  map_data <- rbind(map_data_province, map_data_paris)
-  st_crs(map_data) <- 9794
-
-  return(map_data)
-}
 ```

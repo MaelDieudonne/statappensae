@@ -1,5 +1,5 @@
 # Data files
-*.feather
+*.parquet
 *.rda
 *.rds
 # History files
@@ -39,5 +39,6 @@ po/*~
 rsconnect/
 # Output folder
 output/
-# Data foler
+# Data folders
 data_main/
+data_other/

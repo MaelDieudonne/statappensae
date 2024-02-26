@@ -1,9 +1,5 @@
 
 ```{r}
-if (!requireNamespace("rgl", quietly = TRUE)) install.packages("rgl")
-if (!requireNamespace("rayshader", quietly = TRUE)) install.packages("rayshader")
-library(rgl, rayshader)
-
 install.packages("devtools")
 devtools::install_github("tylermorganwall/rayshader")
 
@@ -15,13 +11,14 @@ packages <- c(
   "raster",
   "scales",
   "png",
-  # "jpg",
   "magrittr",
-  "rgl",
   "terrainmeshr",
   "rayimage",
   "rayvertex",
-  "rayrender")
+  "rayrender",
+  "rayshader",
+  "rgl",
+  "fasterize")
 
 installed_packages <- packages %in% rownames(installed.packages())
 if (any(installed_packages == FALSE)) {
@@ -64,3 +61,68 @@ plot_gg(
 
 render_snapshot()
 ```
+
+
+
+
+```{r}
+df <- load_shapefile("ARRONDISSEMENT_MUNICIPAL.shx")
+
+df_sf <- st_as_sf(df, wkt = "geometry")
+# Create an empty raster with desired resolution and extent
+r <- raster(extent(df_sf), resolution = c(50, 50))  # Adjust resolution as needed
+rasterized <- rasterize(df_sf, r)
+
+raster_points <- raster::rasterToPoints(rasterized)
+
+# Extract values and coordinates
+values <- raster_points[,3]
+coordinates <- raster_points[,1:2]
+
+# Get the number of rows and columns in the raster
+nrows <- nrow(rasterized)
+ncols <- ncol(rasterized)
+
+# Create an empty matrix
+matrix_data <- matrix(NA, nrow = nrows, ncol = ncols)
+
+# Fill the matrix with raster values
+for (i in 1:length(values)) {
+  row_index <- as.integer((coordinates[i, 2] - extent(rasterized)[2]) / res(rasterized)[2]) + 1
+  col_index <- as.integer((coordinates[i, 1] - extent(rasterized)[1]) / res(rasterized)[1]) + 1
+  if (row_index > 0 && row_index <= nrows && col_index > 0 && col_index <= ncols) {
+    matrix_data[row_index, col_index] <- values[i]
+  }
+}
+```
+
+```{r}
+create_raster_data
+
+create_map_data <- function(input_year) {
+  dt <- subset(panel_data, year == input_year)
+  
+  # Contours des départements
+  background_province <- load_shapefile("COMMUNE.shx")
+  map_data_province <- merge(background_province, subset(dt, dep != 75), by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
+  map_data_province <- subset(map_data_province, select = -c(INSEE_ARR, INSEE_CAN, INSEE_DEP, SIREN_EPCI, STATUT))
+  
+  # Contour des arrondissements
+  background_plm <- load_shapefile("ARRONDISSEMENT_MUNICIPAL.shx")
+  ## Ajout du code région
+  background_plm$INSEE_REG <- ifelse(startsWith(background_plm$INSEE_COM, "13"), 93,
+                                    ifelse(startsWith(background_plm$INSEE_COM, "69"), 84,
+                                           ifelse(startsWith(background_plm$INSEE_COM, "75"), 11, NA)))
+
+  # Fusion pour les arrondissements parisiens
+  map_data_paris <- merge(background_plm, subset(dt, dep == 75), by.x = "INSEE_ARM", by.y = "codecommune", all.x = TRUE)
+  map_data_paris <- subset(map_data_paris, select = -INSEE_ARM)
+  
+  # Fusion globale
+  map_data <- rbind(map_data_province, map_data_paris)
+  st_crs(map_data) <- 9794
+
+  return(map_data)
+}
+```
+

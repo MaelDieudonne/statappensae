@@ -16,10 +16,10 @@ absolute_outcomes <- c("part_T1", "part_T2", "GIns_ratio_T1", "DIns_ratio_T1", "
 
 panel_regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger")
 ## Régresseurs abandonnés pour éviter la colinéarité : prop014, propnodip, pouvr
-## Ainsi que revmoy en attendant de compléter la série.
+## Ainsi que revmoy en attendant de compléter la série
 
 mca_regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger")
-## Régresseurs abandonnés pour complaire au groupe : prefract1791, pclerge1791, pclerge1856, pmessalisants1950
+## Régresseurs abandonnés pour complaire aux économètres : prefract1791, pclerge1791, pclerge1856, pmessalisants1950
 ```
 
 ```{r}
@@ -34,8 +34,9 @@ mca_regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1
 ### mapped_var_name est le nom à afficher dans la légende
 ### base_width est un paramètre de résolution, de préférence >7 pour une région et >15 pour la France
 
-## Les cartes sont sauvegardées dans le répertoire output.
-## Leurs noms sont générés automatiquement.
+## Les cartes sont sauvegardées dans le répertoire output, leur nom est généré automatiquement.
+## Elles sont aussi affichées ici.
+## Pour la France entière, cela prend du temps !
 
 draw_map <- function(input_year, region, mapped_var, mapped_var_name, base_width) {
   # Chargement des données
@@ -86,7 +87,7 @@ draw_map <- function(input_year, region, mapped_var, mapped_var_name, base_width
           plot.title.position = "plot",
           legend.title = element_text(),
           legend.text = element_text())   
-    print(display_plot)}
+    print(display_plot)
 }
 ```
 
@@ -94,24 +95,19 @@ draw_map <- function(input_year, region, mapped_var, mapped_var_name, base_width
 
 ## Analyse des valeurs manquantes
 
-Tableau présentant le nombre de NA par variable et par an, coloré façon heatmap.
+Tableau présentant la proportion de NA par régresseur et par an, *à colorer façon heatmap ?*
 
 ```{r}
 count_na <- function(x) mean(is.na(x)) * 100
 
-# Create a new data.table to store the results
 na_prop_table <- data.table(year = unique(panel_data$year))
 
-# Loop through each regressor
 for (regressor in panel_regressors) {
-  # Count NAs for each year and calculate proportions
   na_prop <- panel_data[, .(na_prop = count_na(get(regressor))), by = year]
-  # Merge the results with the main table
   na_prop_table <- merge(na_prop_table, na_prop, by = "year", all.x = TRUE)
   setnames(na_prop_table, "na_prop", regressor)
 }
 
-# Print the resulting table
 na_prop_table[] <- lapply(na_prop_table, round_and_remove_zeros)
 print(na_prop_table)
 ```
@@ -180,9 +176,12 @@ relative_results <- list()
 for (outcome in relative_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(panel_regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
+  print(model_name)
   relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
 }
-stargazer(relative_results, type = "html", out = "output/panel_relative_results.html")
+suppressWarnings(
+  stargazer(relative_results, type = "html", out = "output/panel_relative_results.html")
+)
 
 # On ajuste le modèle pour les ratios relatifs = sur inscrits
 absolute_results <- list()
@@ -191,10 +190,11 @@ for (outcome in absolute_outcomes) {
   model_name <- paste0(outcome, "_model")
   absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep")
 }
-stargazer(absolute_results, type = "html", out = "output/panel_absolute_results.html")
+suppressWarnings(
+  stargazer(absolute_results, type = "html", out = "output/panel_absolute_results.html")
+)
 
 # Fusionner les ratios pour chaque tour ?
-# Exprimer les habitants et les revenus en milliers pour simplifier la lecture ?
 ```
 
 # ACM
@@ -245,7 +245,7 @@ rm(stat_desc, summary)
 
 Corrélogramme
 
-```{r eval=FALSE}
+```{r}
 corr_variables <- c(mca_regressors, relative_outcomes)
 mca_corr_data <- mca_data[, ..corr_variables, with = FALSE]
 
@@ -273,12 +273,13 @@ Cartes ?
 ## ACM...
 
 ```{r}
-variables_of_interest <- c(mca_regressors, relative_outcomes)
+mca_relative_outcomes <- relative_outcomes[relative_outcomes != "GD_ratio_T2"]
+variables_of_interest <- c(mca_regressors, mca_relative_outcomes)
 
 mca_data_subset <- mca_data[, ..variables_of_interest]
 mca_data_subset <- na.omit(mca_data_subset)
 
-result <- PCA(mca_data_subset, graph = TRUE)  # Setting graph = FALSE to prevent automatic graph plotting
+result <- PCA(mca_data_subset, graph = TRUE)
 
 fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 50))
 
