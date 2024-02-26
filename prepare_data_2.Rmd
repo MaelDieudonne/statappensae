@@ -256,7 +256,7 @@ aws.s3::put_object(
 )
 ```
 
-**Données pour l'ACP**
+**Données pour l'ACM**
 
 Pour ajouter les régresseurs seulement disponibles en fin de période.
 
@@ -272,19 +272,19 @@ rsa$codecommune <- as.character(rsa$codecommune)
 rsa$codecommune <- ifelse(nchar(rsa$dep) == 1, paste0("0", rsa$codecommune), rsa$codecommune)
 
 # Sélection de l'année 2017 dans les données de panel et ajout de régresseurs supplémentaires
-acp_data <- subset(panel_data, year == 2017)
-acp_data[crim, "pcrimesdelits" := i.pcrimesdelits2016, on = "codecommune"]
-acp_data[isf, c("mmoyfortune", "pisf") := .(mmoyfortune2017, pisf2017), on = "codecommune"]
-acp_data[rsa, "prsa" := i.prsa2017, on = "codecommune"]
-acp_data[vbbm, "type_comm" := i.vbbm2017, on = "codecommune"]
+mca_data <- subset(panel_data, year == 2017)
+mca_data[crim, "pcrimesdelits" := i.pcrimesdelits2016, on = "codecommune"]
+mca_data[isf, c("mmoyfortune", "pisf") := .(mmoyfortune2017, pisf2017), on = "codecommune"]
+mca_data[rsa, "prsa" := i.prsa2017, on = "codecommune"]
+mca_data[vbbm, "type_comm" := i.vbbm2017, on = "codecommune"]
 
 ## Les données fiscales sont disponibles uniquement pour les communes de plus de 20 000 habitants comptant au moins 50 contribuables assujettis à l'ISF (soit 374 communes rassemblant 22,3 millions d’habitants en 2017).
 ## Les valeurs manquantes sont remplacées par des valeurs nulles.
-acp_data[is.na(mmoyfortune), mmoyfortune := 0]
-acp_data[is.na(pisf), pisf := 0]
+mca_data[is.na(mmoyfortune), mmoyfortune := 0]
+mca_data[is.na(pisf), pisf := 0]
 
 # Ecriture du fichier et nettoyage
-write_parquet(acp_data, "data_main/acp_data.parquet")
+write_parquet(mca_data, "data_main/mca_data.parquet")
 rm(crim, isf, rsa, vbbm)
 ```
 
@@ -302,22 +302,22 @@ religcomm[, pclerge1791 := nclerge1791/pop1791]
 religcomm[, pclerge1791 := replace(pclerge1791, is.infinite(pclerge1791), NA)]
 
 ## Ajout aux données
-acp_data[religcomm, c("prefract1791", "pclerge1791") :=
+mca_data[religcomm, c("prefract1791", "pclerge1791") :=
              .(i.prefract1791, i.pclerge1791), on = "codecommune"]
-acp_data[religdep, c("pclerge1856", "pmessalisants1950") :=
+mca_data[religdep, c("pclerge1856", "pmessalisants1950") :=
              .(i.pclerge1856, i.pmessalisants1950), on = "dep"]
 
 ## Ecriture du fichier et nettoyage
-write_parquet(acp_data, "data_main/acp_data.parquet")
+write_parquet(mca_data, "data_main/mca_data.parquet")
 rm(popul, religcomm, religdep)
 ```
 
 ```{r eval=FALSE}
 # Téléversement sur le SSP Cloud
 aws.s3::s3write_using(
-  acp_data
+  mca_data
   FUN = arrow::write_parquet,
-  object = "/diffusion/acp.parquet",
+  object = "/diffusion/mca_data.parquet",
   bucket = "maeldieudonne",
   opts = list("region" = "")
 )
