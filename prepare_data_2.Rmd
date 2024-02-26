@@ -315,7 +315,7 @@ rm(popul, religcomm, religdep)
 ```{r eval=FALSE}
 # Téléversement sur le SSP Cloud
 aws.s3::s3write_using(
-  mca_data
+  mca_data,
   FUN = arrow::write_parquet,
   object = "/diffusion/mca_data.parquet",
   bucket = "maeldieudonne",
@@ -336,9 +336,6 @@ Difficulté : données pour Paris sont présentées à l'échelle des arrondisse
 On ajoute aussi les codes régionaux de l'Insee pour permettre de tracer des cartes à l'échelle régionale (la plus lisible).
 
 ```{r}
-codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
-codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
-
 create_map_data <- function(input_year) {
   dt <- subset(panel_data, year == input_year)
   
