@@ -10,7 +10,7 @@ codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
 
 ```{r}
 # Définition des variables
-relative_outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "EC_ratio_T1", "EC_ratio_T2")
+relative_outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "GD_ratio_T2", "EC_ratio_T1", "EC_ratio_T2")
 
 absolute_outcomes <- c("part_T1", "part_T2", "GIns_ratio_T1", "DIns_ratio_T1", "GIns_ratio_T2", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
 
@@ -19,6 +19,7 @@ panel_regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "pro
 ## Ainsi que revmoy en attendant de compléter la série.
 
 mca_regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger")
+## Régresseurs abandonnés pour complaire au groupe : prefract1791, pclerge1791, pclerge1856, pmessalisants1950
 ```
 
 ```{r}
@@ -28,7 +29,7 @@ mca_regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1
 ### year
 ### region permet de restreindre la carte à une région
 #### La fonction utilise les codes listés dans data_other/code_regions_Insee.csv
-#### L'absence d'argument correspond à la France entière.
+#### La valeur 0 correspond à la France entière.
 ### mapped_var est le code de la variable à représenter
 ### mapped_var_name est le nom à afficher dans la légende
 ### base_width est un paramètre de résolution, de préférence >7 pour une région et >15 pour la France
@@ -74,23 +75,18 @@ draw_map <- function(input_year, region, mapped_var, mapped_var_name, base_width
   ggsave(output_file, plot = plot_png, width = base_width, height = base_height, units = "in")
   
   # Affichage d'une carte en résolution normale
-  ## La carte est recalculée pour conserver l'échelle du texte.
-  ## Mais la fonction bugue inexplicablement pour la France.
-  ## Il faut redémarrer R, ce qui est très pénible.
-  ## D'où l'exclusion suivante.
-  if (region != 0) {
-    display_plot <- ggplot() +
-      geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
-      scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 100)) +
-      ggtitle(paste(title)) +
-      theme_minimal() +
-      theme(plot.title = element_text(hjust = 0.5),
-            axis.text = element_blank(),
-            panel.grid = element_blank(),
-            plot.title.position = "plot",
-            legend.title = element_text(),
-            legend.text = element_text())   
-      print(display_plot)}
+  display_plot <- ggplot() +
+    geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
+    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 100)) +
+    ggtitle(paste(title)) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5),
+          axis.text = element_blank(),
+          panel.grid = element_blank(),
+          plot.title.position = "plot",
+          legend.title = element_text(),
+          legend.text = element_text())   
+    print(display_plot)}
 }
 ```
 
@@ -169,7 +165,7 @@ rm(col_npropri, col_nlogement, propri, sum_npropri, sum_nlogement, prop_ratio, p
 Cartes...
 
 ```{r}
-draw_map(1965, 53, "ppropri", "Taux de propriétaires", 8)
+draw_map(1988, 0, "ppropri", "Taux de propriétaires", 8)
 ```
 
 ## Panel...

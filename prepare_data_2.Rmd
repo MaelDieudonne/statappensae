@@ -43,9 +43,6 @@ panel_data <- data.table(
   dep = character(),
   codecommune = character(),
   year = integer(),
-  # inscrits = numeric(), 
-  # on l'utilisera après fusion avec la population pour calculer le taux d'inscrits
-  # si cette information n'est pas déjà estimée par les auteurs
   part_T1 = numeric(),
   part_T2 = numeric(),
   GD_ratio_T1 = numeric(),
@@ -290,7 +287,7 @@ rm(crim, isf, rsa, vbbm)
 ```
 
 ```{r}
-# Ajout éventuel : les indicateurs de religiosité (dont l'inconvénient est d'être anciens et d'avoir beaucoup de valeurs manquantes)
+# Ajout éventuel : les indicateurs de religiosité (qui ont l'inconvénient d'être anciens et d'avoir beaucoup de valeurs manquantes)
 
 ## Chargement des bases
 religcomm <- load_parquet("Enseignement_prive/religiositecommunes.parquet")
@@ -328,7 +325,7 @@ aws.s3::s3write_using(
 
 Les données cartographiques sont très volumineuses car très précises, mais aussi stables au cours du temps.
 
-Plutôt que de les ajouter aux bases précédentes, ce qui les alourdirait considérablement, on créé une fonction permettant de générer dynamiquement la base nécessaire.
+Plutôt que de les ajouter aux bases précédentes, ce qui les alourdirait considérablement, nous prévoyons de créer une fonction permettant de générer dynamiquement la base nécessaire.
 
 Difficulté : shapefile des communes considère PLM dans leur intégralité. Faut utiliser un second shapefile pour récupérer les arrondissements. Qu'on utilise seulement pour Paris, car seule ville dont les arrondissements sont présents dans la base.
 
