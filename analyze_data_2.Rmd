@@ -2,9 +2,23 @@
 # Importation des données
 panel_data <- load_parquet("panel_data.parquet")
 mca_data <- load_parquet("mca_data.parquet")
+map_data <- load_shapefile("FRANCE.shx")
 
 codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
 codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
+```
+
+```{r}
+# Définition des variables
+relative_outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "EC_ratio_T1", "EC_ratio_T2")
+
+absolute_outcomes <- c("part_T1", "part_T2", "GIns_ratio_T1", "DIns_ratio_T1", "GIns_ratio_T2", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
+
+panel_regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger")
+## Régresseurs abandonnés pour éviter la colinéarité : prop014, propnodip, pouvr
+## Ainsi que revmoy en attendant de compléter la série.
+
+mca_regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger")
 ```
 
 ```{r}
@@ -13,8 +27,8 @@ codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
 ## Elle comporte 5 paramètres :
 ### year
 ### region permet de restreindre la carte à une région
-#### La fonction utiliser les codes listés dans data_other/code_regions_Insee.csv
-#### La valeur 0 correspond à la France entière.
+#### La fonction utilise les codes listés dans data_other/code_regions_Insee.csv
+#### L'absence d'argument correspond à la France entière.
 ### mapped_var est le code de la variable à représenter
 ### mapped_var_name est le nom à afficher dans la légende
 ### base_width est un paramètre de résolution, de préférence >7 pour une région et >15 pour la France
@@ -22,32 +36,32 @@ codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
 ## Les cartes sont sauvegardées dans le répertoire output.
 ## Leurs noms sont générés automatiquement.
 
-draw_map <- function(year, region, mapped_var, mapped_var_name, base_width) {
+draw_map <- function(input_year, region, mapped_var, mapped_var_name, base_width) {
   # Chargement des données
-  map_data <- create_map_data(year)
+  carto <- subset(panel_data, year == input_year)
+  carto <- merge(map_data, carto, by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
   if (region != 0) {
-    map_data <- map_data[map_data$INSEE_REG == region, ]
-    map_data[[mapped_var]] <- round(map_data[[mapped_var]], 2)
+    carto <- subset(carto, INSEE_REG == region)
     reg_name <- codes_regions$LIBELLE[codes_regions$REG == region]
     reg_abrv <- codes_regions$ABRV[codes_regions$REG == region]
   } else {
     reg_name <- "France"
     reg_abrv <- "FR"
   }
-  
+
   # Création des chemins
-  title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n", reg_name, ", ", year)
-  output_file <- paste0("output/", mapped_var, "_", year, "_", reg_abrv, ".png")
+  title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n", reg_name, ", ", input_year)
+  output_file <- paste0("output/", mapped_var, "_", input_year, "_", reg_abrv, ".png")
   
   # Exportation d'une carte en haute résolution
   ## Calcul des dimensions
-  bbox <- st_bbox(map_data)
+  bbox <- st_bbox(carto)
   aspect_ratio <- diff(c(bbox$xmin, bbox$xmax)) / diff(c(bbox$ymin, bbox$ymax))
   base_height <- base_width / aspect_ratio
   font_size <- base_width * 2.2
   ## Création et enregistrement
   plot_png <- ggplot() +
-    geom_sf(data = map_data, aes(fill = .data[[mapped_var]])) +
+    geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
     scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 100)) +
     ggtitle(paste(title)) +
     theme_minimal() +
@@ -58,20 +72,25 @@ draw_map <- function(year, region, mapped_var, mapped_var_name, base_width) {
           legend.title = element_text(size = font_size * 0.8),
           legend.text = element_text(size = font_size * 0.7))
   ggsave(output_file, plot = plot_png, width = base_width, height = base_height, units = "in")
-
-  # Affichage d'une carte en résolution normale 
-  display_plot <- ggplot() +
-    geom_sf(data = map_data, aes(fill = .data[[mapped_var]])) +
-    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 100)) +
-    ggtitle(paste(title)) +
-    theme_minimal() +
-    theme(plot.title = element_text(hjust = 0.5),
-          axis.text = element_blank(),
-          panel.grid = element_blank(),
-          plot.title.position = "plot",
-          legend.title = element_text(),
-          legend.text = element_text())   
-  print(display_plot)
+  
+  # Affichage d'une carte en résolution normale
+  ## La carte est recalculée pour conserver l'échelle du texte.
+  ## Mais la fonction bugue inexplicablement pour la France.
+  ## Il faut redémarrer R, ce qui est très pénible.
+  ## D'où l'exclusion suivante.
+  if (region != 0) {
+    display_plot <- ggplot() +
+      geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
+      scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 100)) +
+      ggtitle(paste(title)) +
+      theme_minimal() +
+      theme(plot.title = element_text(hjust = 0.5),
+            axis.text = element_blank(),
+            panel.grid = element_blank(),
+            plot.title.position = "plot",
+            legend.title = element_text(),
+            legend.text = element_text())   
+      print(display_plot)}
 }
 ```
 
@@ -88,7 +107,7 @@ count_na <- function(x) mean(is.na(x)) * 100
 na_prop_table <- data.table(year = unique(panel_data$year))
 
 # Loop through each regressor
-for (regressor in regressors) {
+for (regressor in panel_regressors) {
   # Count NAs for each year and calculate proportions
   na_prop <- panel_data[, .(na_prop = count_na(get(regressor))), by = year]
   # Merge the results with the main table
@@ -158,26 +177,21 @@ draw_map(1965, 53, "ppropri", "Taux de propriétaires", 8)
 ```{r}
 # On convertit les données aux format pdata et on sélectionne les régresseurs
 panel_as_pdata <- pdata.frame(panel_data, index = c("codecommune", "year"))
-regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger")
-## Régresseurs abandonnés pour éviter la colinéarité : prop014, propnodip, pouvr
-## Ainsi que revmoy en attendant de compléter la série.
 
 # On ajuste le modèle pour les ratios relatifs = sur exprimés
 ## Possibilité d'utiliser within comme paramètre et d'éliminer le clustering.
-relative_outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "GD_ratio_T2", "EC_ratio_T1", "EC_ratio_T2")
 relative_results <- list()
 for (outcome in relative_outcomes) {
-  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
+  regression_formula <- as.formula(paste(outcome, "~", paste(panel_regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
   relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
 }
 stargazer(relative_results, type = "html", out = "output/panel_relative_results.html")
 
 # On ajuste le modèle pour les ratios relatifs = sur inscrits
-absolute_outcomes <- c("part_T1", "part_T2", "GIns_ratio_T1", "DIns_ratio_T1", "GIns_ratio_T2", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
 absolute_results <- list()
 for (outcome in absolute_outcomes) {
-  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
+  regression_formula <- as.formula(paste(outcome, "~", paste(panel_regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
   absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep")
 }
@@ -235,11 +249,8 @@ rm(stat_desc, summary)
 
 Corrélogramme
 
-```{r}
-regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger")
-relative_outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "EC_ratio_T1", "EC_ratio_T2")
-
-corr_variables <- c(regressors, relative_outcomes)
+```{r eval=FALSE}
+corr_variables <- c(mca_regressors, relative_outcomes)
 mca_corr_data <- mca_data[, ..corr_variables, with = FALSE]
 
 mca_corr_data <- mca_corr_data[, .SD, .SDcols = sapply(mca_corr_data, is.numeric)]
@@ -266,17 +277,7 @@ Cartes ?
 ## ACM...
 
 ```{r}
-install.packages("FactoMineR")
-install.packages("factoextra")
-library(FactoMineR)
-library(factoextra)
-```
-
-```{r}
-regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop014", "prop1539", "prop4059", "prop60p", "propf", "propnodip", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pouvr", "pchom", "petranger", "revmoy", "pcrimesdelits", "mmoyfortune", "pisf", "prsa", "type_comm")
-relative_outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "EC_ratio_T1", "EC_ratio_T2")
-
-variables_of_interest <- c(regressors, relative_outcomes)
+variables_of_interest <- c(mca_regressors, relative_outcomes)
 
 mca_data_subset <- mca_data[, ..variables_of_interest]
 mca_data_subset <- na.omit(mca_data_subset)

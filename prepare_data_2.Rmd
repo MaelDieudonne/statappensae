@@ -1,16 +1,16 @@
-Travail en cours pour traiter l'ensemble des élections présidentielles.
+**Données de panel**
 
-On construit la base en itérant à partir des résultats électoraux. On commence par créer une table de destination, intégrant l'ensemble des variables souhaitées. Puis pour chaque fichier électoral...
+Enjeu : construire une base unique à partir de plusieurs bases, avec des bases annuelles pour les résultats électoraux, et des bases globales au format long pour les régresseurs, ce qui rend impossible de les fusionner directement.
+
+Stratégie : itérer à partir des résultats électoraux. On commence par créer une table de destination avec l'ensemble des variables souhaitées. Puis pour chaque fichier électoral...
 
 1.  On recode les outcomes, à l'aide des informations sur les orientations politiques des candidats stockées dans une table dédiée.
 
-2.  On ajoute les contrôles de l'année correspondante.
+2.  On ajoute les contrôles de l'année correspondante (merge et renaming pour passer au format long)
 
-3.  On fusionne avec la table de destination (rbind pour s'ajouter aux données existantes).
+3.  On fusionne avec la table de destination (rbind pour s'ajouter aux données existantes en éliminant les variables superflues).
 
 Inconvénient de cette méthode : implique de charger simultanément toutes les bases, donc consomme beaucoup de mémoire (mais passe quand même, sous Win10, avec 16 Go de Ram). Avantage : simplifie beaucoup la sélection des variables pertinentes, et le passage du format wide au format long.
-
-**Données de panel**
 
 ```{r}
 # Chargement des données sur les orientations politiques des candidats
@@ -86,7 +86,7 @@ panel_data <- data.table(
 ```
 
 ```{r}
-# Fonction assurant le recodage des outcomes, l'ajout des régresseurs et la fusion avec la base de destination
+# Fonction assurant la création des outcomes, l'ajout des régresseurs et la fusion avec la base de destination
 recode_add_bind <- function(input_year) {
   tablename <- paste0("pres", input_year)
   dt <- get(tablename)
@@ -94,7 +94,7 @@ recode_add_bind <- function(input_year) {
   if (year %in% colnames(dt)) {dt[is.na(dt$year), year := input_year]}
   else {dt[, year := input_year]}
 
-# Outcomes
+# Création des outcomes
 ## Participation
   dt[, part_T1 := votants/inscrits]
   dt[, part_T2 := votantsT2/inscritsT2]
@@ -165,7 +165,7 @@ recode_add_bind <- function(input_year) {
     } 
   else {dt[, EIns_ratio_T2 := NA]}
 
-# Régresseurs
+# Ajout des régresseurs
 ## Propriétaires
   var_name_1 <- paste0("ppropri", input_year)
   dt[propri, "ppropri" := .(get(var_name_1)), on = "codecommune"]
@@ -208,7 +208,7 @@ recode_add_bind <- function(input_year) {
   else
     {dt[, "revmoy" := NA]}
 
-# Bind
+# Rbind
   cols_to_keep <- intersect(names(panel_data), names(dt))
   dt <- dt[, ..cols_to_keep]
   panel_data <- rbindlist(list(panel_data, dt))
@@ -217,7 +217,7 @@ recode_add_bind <- function(input_year) {
 ```
 
 ```{r}
-# Boucle sur les élections pour constituer les données de panel
+# Boucle sur les élections puis écriture du fichier
 for (year in unique(candidats$Annee)) {
   output_file <- paste0("pres", year) 
   input_file <- paste0("Elections_pres/pres", year, "comm.parquet")
@@ -234,8 +234,7 @@ write_parquet(panel_data, "data_main/panel_data.parquet")
 ## Suppression des résultats électoraux
 for (year in unique(candidats$Annee)) {
   tablename <- paste0("pres", year)
-  rm(list = tablename)
-}
+  rm(list = tablename)}
 
 ## Suppression des données de contrôle
 rm(ages, candidats, catsociopro, diplo, nation, pop_elec, popul, propri, reven)
@@ -256,9 +255,11 @@ aws.s3::put_object(
 )
 ```
 
-**Données pour l'ACM**
+**Données de coupe**
 
-Pour ajouter les régresseurs seulement disponibles en fin de période.
+Construction d'une base limitée à une année, mais intégrant toutes les données disponibles en fin de période : criminalité, fiscalité, rsa, mais aussi typologie des communes.
+
+On repart de la base précédente en isolant l'année 2017.
 
 ```{r}
 # Chargement des bases
@@ -325,21 +326,55 @@ aws.s3::s3write_using(
 
 **Cartes**
 
-Fonction qui fusionne les données avec les contours des communes pour permettre de tracer des cartes.
+Les données cartographiques sont très volumineuses car très précises, mais aussi stables au cours du temps.
 
-Données très volumineuses car très précises, et identiques pour toutes les années dans la base.
+Plutôt que de les ajouter aux bases précédentes, ce qui les alourdirait considérablement, on créé une fonction permettant de générer dynamiquement la base nécessaire.
 
-Donc au lieu de les ajouter de manière redondante aux bases précédentes, on créé une fonction pour générer à la demande la table nécessaire.
-
-Difficulté : données pour Paris sont présentées à l'échelle des arrondissements. Donc faut utiliser une seconde base géographique.
+Difficulté : shapefile des communes considère PLM dans leur intégralité. Faut utiliser un second shapefile pour récupérer les arrondissements. Qu'on utilise seulement pour Paris, car seule ville dont les arrondissements sont présents dans la base.
 
 On ajoute aussi les codes régionaux de l'Insee pour permettre de tracer des cartes à l'échelle régionale (la plus lisible).
 
 ```{r}
-create_map_data <- function(input_year) {
+background_province <- load_shapefile("COMMUNE.shx")
+background_province <- subset(background_province, select = -c(INSEE_ARR, INSEE_CAN, INSEE_DEP, SIREN_EPCI, STATUT))
+
+background_plm <- load_shapefile("ARRONDISSEMENT_MUNICIPAL.shx")
+background_plm$INSEE_REG <- ifelse(startsWith(background_plm$INSEE_ARM, "13"), 93,
+                                    ifelse(startsWith(background_plm$INSEE_ARM, "69"), 84,
+                                           ifelse(startsWith(background_plm$INSEE_ARM, "75"), 11, NA)))
+background_plm <- subset(background_plm, select = -INSEE_COM)
+setnames(background_plm, old = "INSEE_ARM", new = "INSEE_COM")
+
+map_data <- rbind(background_province, background_plm)
+map_data <- subset(map_data, select = -c(ID, NOM, NOM_M, POPULATION))
+st_crs(map_data) <- 9794
+
+write_sf(map_data, "data_other/shapefile/FRANCE.shp")
+```
+
+```{r eval=FALSE}
+# Téléversement sur le SSP Cloud
+aws.s3::s3sync(
+  path = "data_other/shapefile",
+  bucket = "maeldieudonne",
+  region = "",
+  prefix = "/diffusion/shapefile/",
+  direction = "upload",
+  multipart = TRUE,
+  create = TRUE
+)
+```
+
+
+
+
+
+```{r}
+# Legacy
+create_map_data_old <- function(input_year) {
   dt <- subset(panel_data, year == input_year)
   
-  # Contours des départements
+  # Contours des communes
   background_province <- load_shapefile("COMMUNE.shx")
   map_data_province <- merge(background_province, subset(dt, dep != 75), by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
   map_data_province <- subset(map_data_province, select = -c(INSEE_ARR, INSEE_CAN, INSEE_DEP, SIREN_EPCI, STATUT))
