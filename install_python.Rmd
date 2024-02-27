@@ -41,7 +41,18 @@ On vérifie que Python est bien détecté par R avec la commande ci-dessous. S'i
 py_config()
 ```
 
-On créé maintenant un environnement virtuel pour le projet, intégrant les packages nécessaires.
+Si l'on souhaite utiliser un environnement virtuel existant, en supposant qu'il est déjà actif, il faut installer les packages suivants.
+
+```{r eval=FALSE, include=FALSE}
+py_install('chardet')
+py_install('pandas')
+py_install('requests')
+py_install('s3fs')
+py_install('tqdm')
+py_install('pyarrow')
+```
+
+Il est toutefois préférable de créer un environnement virtuel dédié au projet, intégrant d'emblée les packages nécessaires.
 
 ```{r}
 virtualenv_create(
@@ -50,7 +61,7 @@ virtualenv_create(
   force = TRUE)
 ```
 
-Pour utiliser cet environnement, il est nécessaire de réinitialiser reticulate. Le code suivant le désinstalle puis le réinstalle. Il génère une invite à redémarrer R : c'est préférable.
+Pour utiliser cet environnement, il est nécessaire de réinitialiser reticulate. Le code suivant le désinstalle puis le réinstalle. Il génère une invite à redémarrer R : on peut s'en dispenser, sinon il faut exécuter à nouveau le notebook dependencies.Rmd
 
 ```{r}
 Sys.setenv(RETICULATE_PYTHON = "~/.virtualenvs/r-reticulate-statapp/bin/python")

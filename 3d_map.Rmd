@@ -1,7 +1,18 @@
 
 ```{r}
-install.packages("devtools")
-devtools::install_github("tylermorganwall/rayshader")
+# Importation des données
+panel_data <- load_parquet("panel_data.parquet")
+mca_data <- load_parquet("mca_data.parquet")
+map_data <- load_shapefile("FRANCE.shx")
+
+codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
+codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
+```
+
+```{r}
+library(devtools)
+devtools::install_github("tylermorganwall/rayshader", depencies = TRUE)
+library(rayshader)
 
 packages <- c(
   "doParallel",
@@ -17,8 +28,7 @@ packages <- c(
   "rayvertex",
   "rayrender",
   "rayshader",
-  "rgl",
-  "fasterize")
+  "rgl")
 
 installed_packages <- packages %in% rownames(installed.packages())
 if (any(installed_packages == FALSE)) {
@@ -33,11 +43,16 @@ rm(installed_packages, packages)
 ```{r}
 # Fonctionne seulement en local, pas depuis le datalab
 # Pas trouvé de solution pour avoir une légende pour chaque variable
+
+input_year <- 1981
+carto <- subset(panel_data, year == input_year)
+carto <- merge(map_data, carto, by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
+
 selected_dep <- "26"
-subset_map_data <- map_data[map_data$dep == selected_dep, ]
+subset_map_data <- carto[carto$dep == selected_dep, ]
 
 ggVktor <- ggplot(data=subset_map_data) +
-  geom_sf(aes(fill = part, height = ppropri1981)) +
+  geom_sf(aes(fill = part_T1, height = ppropri)) +
   scale_fill_viridis() +
   ggtitle("Participation et taux de propriété dans la Drôme") +
   theme_bw() +
@@ -48,7 +63,7 @@ ggVktor <- ggplot(data=subset_map_data) +
 
 plot_gg(
   ggVktor,
-  multicore = TRUE, 
+  multicore = FALSE, 
   shadow = FALSE,
   width = 8, 
   height = 8, 
