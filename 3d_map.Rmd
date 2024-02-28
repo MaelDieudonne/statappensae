@@ -1,18 +1,6 @@
-
-```{r}
-# Importation des données
-panel_data <- load_parquet("panel_data.parquet")
-mca_data <- load_parquet("mca_data.parquet")
-map_data <- load_shapefile("FRANCE.shx")
-
-codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
-codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
-```
-
-```{r}
-library(devtools)
-devtools::install_github("tylermorganwall/rayshader", depencies = TRUE)
-library(rayshader)
+```{r include=FALSE}
+# Préparation : il suffit normalement de charger le package rayshader, mais ses dépendances ne s'activent pas correctement, du moins sous macos.
+# On les active donc toutes.
 
 packages <- c(
   "doParallel",
@@ -31,9 +19,7 @@ packages <- c(
   "rgl")
 
 installed_packages <- packages %in% rownames(installed.packages())
-if (any(installed_packages == FALSE)) {
-  install.packages(packages[!installed_packages])
-}
+if (any(installed_packages == FALSE)) {install.packages(packages[!installed_packages])}
 
 invisible(lapply(packages, library, character.only = TRUE))
 
@@ -41,103 +27,45 @@ rm(installed_packages, packages)
 ```
 
 ```{r}
+# Importation des données
+panel_data <- load_parquet("panel_data.parquet")
+mca_data <- load_parquet("mca_data.parquet")
+map_data <- load_shapefile("FRANCE.shx")
+
+codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
+codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
+```
+
+```{r}
 # Fonctionne seulement en local, pas depuis le datalab
-# Pas trouvé de solution pour avoir une légende pour chaque variable
 
 input_year <- 1981
 carto <- subset(panel_data, year == input_year)
 carto <- merge(map_data, carto, by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
+carto <- subset(carto, dep == 26)
 
-selected_dep <- "26"
-subset_map_data <- carto[carto$dep == selected_dep, ]
-
-ggVktor <- ggplot(data=subset_map_data) +
+# Dans l'absolu, on voudrait légender les variables, mais cela provoque un bug connu de rayshader, qui désaligne les données d'altitude et de couleur.
+# https://github.com/tylermorganwall/rayshader/issues/224
+# https://github.com/tylermorganwall/rayshader/issues/284
+ggVktor <- ggplot(data=carto) +
   geom_sf(aes(fill = part_T1, height = ppropri)) +
-  scale_fill_viridis() +
+  scale_fill_viridis(name = "Participation") +
   ggtitle("Participation et taux de propriété dans la Drôme") +
-  theme_bw() +
-  guides(
-    fill = guide_colourbar(title = "Participation"),
-    height = guide_legend(title = "Taux de propriétaires")
-  )
+  theme_bw()
 
 plot_gg(
   ggVktor,
-  multicore = FALSE, 
-  shadow = FALSE,
+  clear = TRUE,
+  multicore = TRUE, 
+  shadow = TRUE,
   width = 8, 
   height = 8, 
   scale = 200,
   windowsize=c(1680,1050), 
   zoom = 0.60, 
   phi = 50,
-  sunangle = 120,
+  sunangle = 140,
   theta = 45)
 
-render_snapshot()
+render_highquality()
 ```
-
-
-
-
-```{r}
-df <- load_shapefile("ARRONDISSEMENT_MUNICIPAL.shx")
-
-df_sf <- st_as_sf(df, wkt = "geometry")
-# Create an empty raster with desired resolution and extent
-r <- raster(extent(df_sf), resolution = c(50, 50))  # Adjust resolution as needed
-rasterized <- rasterize(df_sf, r)
-
-raster_points <- raster::rasterToPoints(rasterized)
-
-# Extract values and coordinates
-values <- raster_points[,3]
-coordinates <- raster_points[,1:2]
-
-# Get the number of rows and columns in the raster
-nrows <- nrow(rasterized)
-ncols <- ncol(rasterized)
-
-# Create an empty matrix
-matrix_data <- matrix(NA, nrow = nrows, ncol = ncols)
-
-# Fill the matrix with raster values
-for (i in 1:length(values)) {
-  row_index <- as.integer((coordinates[i, 2] - extent(rasterized)[2]) / res(rasterized)[2]) + 1
-  col_index <- as.integer((coordinates[i, 1] - extent(rasterized)[1]) / res(rasterized)[1]) + 1
-  if (row_index > 0 && row_index <= nrows && col_index > 0 && col_index <= ncols) {
-    matrix_data[row_index, col_index] <- values[i]
-  }
-}
-```
-
-```{r}
-create_raster_data
-
-create_map_data <- function(input_year) {
-  dt <- subset(panel_data, year == input_year)
-  
-  # Contours des départements
-  background_province <- load_shapefile("COMMUNE.shx")
-  map_data_province <- merge(background_province, subset(dt, dep != 75), by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
-  map_data_province <- subset(map_data_province, select = -c(INSEE_ARR, INSEE_CAN, INSEE_DEP, SIREN_EPCI, STATUT))
-  
-  # Contour des arrondissements
-  background_plm <- load_shapefile("ARRONDISSEMENT_MUNICIPAL.shx")
-  ## Ajout du code région
-  background_plm$INSEE_REG <- ifelse(startsWith(background_plm$INSEE_COM, "13"), 93,
-                                    ifelse(startsWith(background_plm$INSEE_COM, "69"), 84,
-                                           ifelse(startsWith(background_plm$INSEE_COM, "75"), 11, NA)))
-
-  # Fusion pour les arrondissements parisiens
-  map_data_paris <- merge(background_plm, subset(dt, dep == 75), by.x = "INSEE_ARM", by.y = "codecommune", all.x = TRUE)
-  map_data_paris <- subset(map_data_paris, select = -INSEE_ARM)
-  
-  # Fusion globale
-  map_data <- rbind(map_data_province, map_data_paris)
-  st_crs(map_data) <- 9794
-
-  return(map_data)
-}
-```
-

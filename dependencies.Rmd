@@ -13,6 +13,7 @@ packages <- c(
   "httr",
   "mapview",
   "plm",
+  "reticulate",
   "sf",
   "stargazer",
   "viridis",

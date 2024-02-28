@@ -234,9 +234,8 @@ panel_data[, (variables_to_convert) := lapply(.SD, function(x) x * 100), .SDcols
 variables_to_convert <- c("popcomm", "popagglo", "revmoy")
 panel_data[, (variables_to_convert) := lapply(.SD, function(x) x / 1000), .SDcols = variables_to_convert]
 
-# Ecriture du fichier et nettoyage
+# Ecriture du fichier
 write_parquet(panel_data, "data_main/panel_data.parquet")
-rm(excluded_variables, variables_to_convert)
 ```
 
 ```{r}
@@ -252,6 +251,7 @@ rm(ages, candidats, catsociopro, diplo, nation, pop_elec, popul, propri, reven)
 ## Suppression des variables
 for (name in paste0("var_name_", 1:7)) {rm(list = name)}
 rm(i, input_file, name, tablename, output_file, suffixes, year)
+rm(excluded_variables, name, variables_to_convert)
 ```
 
 ```{r eval=FALSE}
@@ -261,8 +261,7 @@ aws.s3::put_object(
   object = "/diffusion/panel_data.parquet",
   bucket = "maeldieudonne",
   region = "",
-  multipart = TRUE
-)
+  multipart = TRUE)
 ```
 
 **Données de coupe**
@@ -339,8 +338,7 @@ aws.s3::s3write_using(
   FUN = arrow::write_parquet,
   object = "/diffusion/mca_data.parquet",
   bucket = "maeldieudonne",
-  opts = list("region" = "")
-)
+  opts = list("region" = ""))
 ```
 
 **Cartes**
@@ -378,6 +376,5 @@ aws.s3::s3sync(
   prefix = "/diffusion/shapefile/",
   direction = "upload",
   multipart = TRUE,
-  create = TRUE
-)
+  create = TRUE)
 ```
