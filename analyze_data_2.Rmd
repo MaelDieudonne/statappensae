@@ -11,16 +11,20 @@ codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
 
 ```{r}
 # Définition des variables
+
+## Outcomes
 relative_outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "GD_ratio_T2", "EC_ratio_T1", "EC_ratio_T2")
-
 absolute_outcomes <- c("part_T1", "part_T2", "GIns_ratio_T1", "DIns_ratio_T1", "GIns_ratio_T2", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
+### Pour l'ACP, on considère l'absence de candidat de gauche au second tour en 2017.
+mca_relative_outcomes <- relative_outcomes[relative_outcomes != "GD_ratio_T2"]
+mca_absolute_outcomes <- absolute_outcomes[absolute_outcomes != "GIns_ratio_T2"]
 
+## Régresseurs
 panel_regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger")
-## Régresseurs abandonnés pour éviter la colinéarité : prop014, propnodip, pouvr
-## Ainsi que revmoy en attendant de compléter la série
-
+### Régresseurs abandonnés pour éviter la colinéarité : prop014, propnodip, pouvr
+### Ainsi que revmoy en attendant de compléter la série
 mca_regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger", "revmoy", "pcrimesdelits", "mmoyfortune", "pisf", "prsa", "type_comm")
-## Régresseurs abandonnés pour complaire aux économètres : prefract1791, pclerge1791, pclerge1856, pmessalisants1950
+### Régresseurs abandonnés pour complaire aux économètres : prefract1791, pclerge1791, pclerge1856, pmessalisants1950
 ```
 
 ```{r}
@@ -202,13 +206,7 @@ rm(absolute_results, model_name, regression_formula, relative_results, outcome, 
 # Fusionner les ratios pour chaque tour ?
 ```
 
-# ACM
-
-```{r}
-# On adapate les outcomes devant l'absence de candidat de gauche au second tour.
-mca_relative_outcomes <- relative_outcomes[relative_outcomes != "GD_ratio_T2"]
-mca_absolute_outcomes <- absolute_outcomes[absolute_outcomes != "GIns_ratio_T2"]
-```
+# ACP
 
 ## Analyses descriptives
 
@@ -280,6 +278,7 @@ Cartes ?
 ## **Régression**
 
 Pour comparer avec les coefficients obtenus sur les données de panel.
+Les se sont calculées avec clustering départemental, mais cela ne semble pas les affecter.
 
 ```{r include=FALSE}
 # Pour traiter le type de commune comme une variable catégorielle. Pour mémoire :
@@ -293,7 +292,7 @@ relative_results <- list()
 for (outcome in mca_relative_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(mca_regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- lm(regression_formula, data = mca_data)
+  relative_results[[model_name]] <- lm.cluster(regression_formula, data = mca_data, cluster = "dep")
 }
 suppressWarnings(
   stargazer(relative_results, type = "html", out = "output/2017_relative_results.html")
@@ -303,7 +302,7 @@ relative_results <- list()
 for (outcome in mca_absolute_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(mca_regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- lm(regression_formula, data = mca_data)
+  relative_results[[model_name]] <- lm.cluster(regression_formula, data = mca_data, cluster = "dep")
 }
 suppressWarnings(
   stargazer(relative_results, type = "html", out = "output/2017_absolute_results.html")

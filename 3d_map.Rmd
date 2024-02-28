@@ -1,3 +1,4 @@
+
 ```{r include=FALSE}
 # Préparation : il suffit normalement de charger le package rayshader, mais ses dépendances ne s'activent pas correctement, du moins sous macos.
 # On les active donc toutes.
@@ -42,7 +43,7 @@ codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
 input_year <- 1981
 carto <- subset(panel_data, year == input_year)
 carto <- merge(map_data, carto, by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
-carto <- subset(carto, dep == 26)
+carto <- subset(carto, dep == 43)
 
 # Dans l'absolu, on voudrait légender les variables, mais cela provoque un bug connu de rayshader, qui désaligne les données d'altitude et de couleur.
 # https://github.com/tylermorganwall/rayshader/issues/224
@@ -50,7 +51,7 @@ carto <- subset(carto, dep == 26)
 ggVktor <- ggplot(data=carto) +
   geom_sf(aes(fill = part_T1, height = ppropri)) +
   scale_fill_viridis(name = "Participation") +
-  ggtitle("Participation et taux de propriété dans la Drôme") +
+  ggtitle("Participation et taux de propriété en Haute-Loire (1981)") +
   theme_bw()
 
 plot_gg(
@@ -67,5 +68,5 @@ plot_gg(
   sunangle = 140,
   theta = 45)
 
-render_highquality()
+render_highquality(samples = 256)
 ```

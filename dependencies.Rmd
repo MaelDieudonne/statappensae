@@ -12,6 +12,7 @@ packages <- c(
   "ggplot2",
   "httr",
   "mapview",
+  "miceadds",
   "plm",
   "reticulate",
   "sf",
