@@ -69,7 +69,7 @@ draw_map <- function(input_year, region, mapped_var, mapped_var_name, base_width
   ## Création et enregistrement
   plot_png <- ggplot() +
     geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
-    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 100)) +
+    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 1)) +
     ggtitle(paste(title)) +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5, size = font_size),
@@ -83,7 +83,7 @@ draw_map <- function(input_year, region, mapped_var, mapped_var_name, base_width
   # Affichage d'une carte en résolution normale
   display_plot <- ggplot() +
     geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
-    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 100)) +
+    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 1)) +
     ggtitle(paste(title)) +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5),
@@ -169,7 +169,7 @@ rm(col_npropri, col_nlogement, propri, sum_npropri, sum_nlogement, prop_ratio, p
 Cartes...
 
 ```{r}
-draw_map(1988, 0, "ppropri", "Taux de propriétaires", 8)
+draw_map(1988, 94, "ppropri", "Taux de propriétaires", 8)
 ```
 
 ## Panel...
