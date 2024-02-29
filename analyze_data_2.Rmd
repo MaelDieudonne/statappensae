@@ -324,6 +324,9 @@ variables_of_interest <- c(mca_regressors, "prop014", "propnodip", "pouvr", mca_
 mca_data_subset <- detailed_mca_data[, ..variables_of_interest]
 mca_data_subset <- na.omit(mca_data_subset)
 
+# On normalise les variables numériques
+mca_data_subset[, names(mca_data_subset)[sapply(mca_data_subset, is.numeric)] := lapply(.SD, scale), .SDcols = names(mca_data_subset)]
+
 # Création d'indicatrices pour les types de communes
 mca_data_subset$type_comm <- as.factor(mca_data_subset$type_comm)
 dummies <- model.matrix(~ type_comm - 1, data = mca_data_subset)
