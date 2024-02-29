@@ -2,7 +2,9 @@
 ```{r}
 # Importation des données
 panel_data <- load_parquet("panel_data.parquet")
+wide_panel_data <- load_parquet("wide_panel_data.parquet")
 mca_data <- load_parquet("mca_data.parquet")
+detailed_mca_data <- load_parquet("detailed_mca_data.parquet")
 map_data <- load_shapefile("FRANCE.shx")
 
 codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
@@ -18,6 +20,7 @@ absolute_outcomes <- c("part_T1", "part_T2", "GIns_ratio_T1", "DIns_ratio_T1", "
 ### Pour l'ACP, on considère l'absence de candidat de gauche au second tour en 2017.
 mca_relative_outcomes <- relative_outcomes[relative_outcomes != "GD_ratio_T2"]
 mca_absolute_outcomes <- absolute_outcomes[absolute_outcomes != "GIns_ratio_T2"]
+mca_detailed_outcomes <- grep("^pvoix", names(detailed_mca_data), value = TRUE)
 
 ## Régresseurs
 panel_regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger")
@@ -317,8 +320,8 @@ rm(model_name, outcome, regression_formula)
 # Sélection des variables
 ## On ajoute les modalités éliminées pour éviter la colinéarité dans les régressions.
 ## On supprime les valeurs manquantes.
-variables_of_interest <- c(mca_regressors, "prop014", "propnodip", "pouvr", mca_relative_outcomes)
-mca_data_subset <- mca_data[, ..variables_of_interest]
+variables_of_interest <- c(mca_regressors, "prop014", "propnodip", "pouvr", mca_detailed_outcomes)
+mca_data_subset <- detailed_mca_data[, ..variables_of_interest]
 mca_data_subset <- na.omit(mca_data_subset)
 
 # Création d'indicatrices pour les types de communes
