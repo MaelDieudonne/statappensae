@@ -312,7 +312,7 @@ aws.s3::put_object(
   multipart = TRUE)
 
 aws.s3::put_object(
-  "data_main/panel_data.parquet",
+  "data_main/wide_panel_data.parquet",
   object = "/diffusion/wide_panel_data.parquet",
   bucket = "maeldieudonne",
   region = "",
@@ -413,7 +413,7 @@ aws.s3::s3write_using(
   opts = list("region" = ""))
 
 aws.s3::s3write_using(
-  mca_data,
+  detailed_mca_data,
   FUN = arrow::write_parquet,
   object = "/diffusion/detailed_mca_data.parquet",
   bucket = "maeldieudonne",
