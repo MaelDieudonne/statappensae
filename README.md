@@ -8,6 +8,7 @@ Il est réalisé dans le cadre de l’enseignement de statistiques appliquées d
 
 Le code est conçu pour s’exécuter dans l’environnement [Onyxia](https://datalab.sspcloud.fr/) du Datalab de l’Insee ou localement, avec dans le premier cas, un stockage des données dans le SSP Cloud. Il est réparti entre plusieurs notebooks au format Rmd, à exécuter dans cet ordre :
 
+
 1.  Install_python *(nécessaire seulement pour exécuter le notebook n°3, dispensable si l'on récupère les données depuis le SSP Cloud)*
 2.  Dependencies
 3.  Fetch_data_main pour récupérer les données mises à disposition par les auteurs sur le [site compagnon](https://unehistoireduconflitpolitique.fr/) du livre

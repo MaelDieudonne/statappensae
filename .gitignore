@@ -39,6 +39,7 @@ po/*~
 rsconnect/
 # Output folder
 output/
-# Data folders
+
+# Data foler
 data_main/
-data_other/
+

@@ -1,0 +1,160 @@
+# Résultats électoraux
+
+```{r}
+candidats <- fread("data_other/candidats.csv", header = TRUE)
+
+pres1981 <- load_parquet("Elections_pres/pres1981comm.parquet")
+
+# == #
+# Il faudra ajuster ce code pour éviter de produire des valeurs infinies avec les ratios.
+# == #
+
+## Participation
+pres1981[, part := votants/inscrits]
+pres1981[, partT2 := votantsT2/inscritsT2]
+
+## Droite / gauche
+T1mask <- candidats[DrGau == "G", .(variable = paste0("voix", Candidat))]
+pres1981[, GD_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1mask$variable]
+T2mask <- candidats[DrGau == "G", .(variable = paste0("voixT2", Candidat))]
+T2candidates <- intersect(T2mask$variable, names(pres1981))
+pres1981[, GD_ratio_T2 := rowSums(.SD, na.rm = TRUE) / exprimesT2, .SDcols = T2candidates]
+
+## Libéralisme culturel / conservatisme moral
+T1mask <- candidats[LibCons == "L", .(variable = paste0("voix", Candidat))]
+pres1981[, lib_ratio_T1 := rowSums(.SD, na.rm = TRUE) / exprimes, .SDcols = T1mask$variable]
+
+# Nettoyage
+prefixes_to_drop <- c("exprimes", "inscrits", "nom", "nul", "pervote", "ppar", "pvoix", "pvote", "voix", "vot")
+pres1981 <- pres1981[, .SD, .SDcols = setdiff(names(pres1981), grep(paste0("^", paste(prefixes_to_drop, collapse = "|")), names(pres1981), value = TRUE))]
+pres1981 <- pres1981[, -c("plm", "dep2", "plmdoublon", "perpar", "year")]
+
+rm(candidats, T1mask, T2mask, T2candidates, prefixes_to_drop)
+```
+
+# Propriété immobilière
+
+-   npropri81 = nombre de ménages propriétaires dans la commune
+-   nlogement1981 = nombre total de logements dans la commune (propriétaires, locataires ou logés gratuitement) (résidences principales)
+-   ppropri1981 = proportion de ménages propriétaires de leur logement dans la commune
+
+```{r}
+propri <- load_parquet("Proprietaires/proprietairescommunes.parquet")
+```
+
+# Contrôles
+
+## 1. Population
+
+-   pop1981
+-   popagglo1981
+
+```{r}
+popul <- load_parquet("Taille_agglo_commune/popcommunes.parquet")
+```
+
+## 2. Âge
+
+-   age1981 = âge moyen de la commune
+-   prop0141981 = proportion de 0-14 ans dans la commune
+-   prop15391981 = proportion de 15-39 ans dans la commune
+-   prop40591981 = proportion de 40-59 ans dans la commune
+-   prop60p1981 = proportion de 60 ans et + dans la commune
+
+```{r}
+ages <- load_parquet("Age_csp/agesexcommunes.parquet")
+```
+
+## 3. Diplômes
+
+-   nodip1981 = nombre total de personnes 25+ sans diplôme ou dont le diplôme le plus élevé est le BEPC, le brevet des collèges, le BEP ou le CAP
+-   bac1981 = nombre total de personnes 25+ dont le diplôme le plus élevé est le baccalauréat général ou technologique
+-   sup1981 = nombre total de personnes 25+ diplômées du supérieur
+
+```{r}
+diplo <- load_parquet("Diplomes/diplomescommunes.parquet")
+
+# Recodages
+## Conversion du nombre de (non-)diplômés en proportion
+diplo[popul, c("pop1981") := .(i.pop1981), on = "codecommune"]
+diplo[, propnodip1981 := nodip1981/pop1981]
+diplo[, propbac1981 := bac1981/pop1981]
+diplo[, propsup1981 := sup1981/pop1981]
+```
+
+## 4. Religiosité
+
+-   prefract1791 = proportion de prêtres réfractaires en 1791
+-   nclerge1791 = nombre total des prêtres soumis au serment de 1791
+-   pclerge1856 : effectifs totaux du clergé (prêtres, religieux, religieuses) exprimés en proportion de la population totale
+-   pmessalisants1950 : effectifs totaux de personnes allant à la messe du dimanche en 1950 en proportion de la population totale
+
+```{r}
+religcomm <- load_parquet("Enseignement_prive/religiositecommunes.parquet")
+religdep <- load_parquet("Enseignement_prive/religiositedepartements.parquet")
+
+# Recodages
+## Ratio de nclerge1791 sur le nombre d'habitants, pour avoir une idée de la présence des institutions religieuses dans la commune.
+religcomm[popul, c("pop1791") := .(i.pop1791), on = "codecommune"]
+religcomm[, pclerge1791 := nclerge1791/pop1791]
+religcomm[, pclerge1791 := replace(pclerge1791, is.infinite(pclerge1791), NaN)]
+```
+
+## 5. CSP
+
+-   pagri1981 = proportion d'agriculteurs parmi les actifs 25-54 ans (=agri/pact)
+-   pindp1981 = proportion d'indépendants (artisans, commerçants, chefs d'entreprises) parmi les actifs 25-54 ans (=indp/pact)
+-   pcadr1981 = proportion de cadres et professions intellectuelles supérieures parmi les actifs 25-54 ans (=cadr/pact)
+-   ppint1981 = proportion de professions intermédiaires parmi les actifs 25-54 ans (=pint/pact)
+-   pempl1981 = proportions d'employés parmi les actifs 25-54 ans (=empl/pact)
+-   pouvr1981 = proportion d'ouvriers parmi les actifs 25-54 ans (=ouvr/pact)
+-   pchom1981 = proportion de chômeurs parmi les actifs 25-54 ans (=chom/pact)
+
+```{r}
+catsociopro <- load_parquet("CSP/cspcommunes.parquet")
+```
+
+## 6. Nationalités
+
+-   petranger1981 = proportion de personnes de nationalité étrangère
+
+```{r}
+nation <- load_parquet("Nationalites/etrangerscommunes.parquet")
+```
+
+## 7. Productions et revenus
+
+-   revmoy1981 = revenu moyen par habitant de la commune (exprimé en euros de 2022)
+
+```{r}
+reven <- load_parquet("Revenus/revcommunes.parquet")
+```
+
+# Construction de la base
+
+```{r}
+pres1981[propri, c("ppropri1981") :=
+             .(i.ppropri1981), on = "codecommune"]
+pres1981[popul, c("pop1981", "popagglo1981") :=
+             .(i.pop1981, i.popagglo1981), on = "codecommune"]
+pres1981[ages, c("age1981", "prop0141981", "prop15391981", "prop40591981", "prop60p1981") :=
+             .(i.age1981, i.prop0141981, i.prop15391981, i.prop40591981, i.prop60p1981), on = "codecommune"]
+pres1981[diplo, c("propnodip1981", "propbac1981", "propsup1981") :=
+             .(i.propnodip1981, i.propbac1981, propsup1981), on = "codecommune"]
+pres1981[religcomm, c("prefract1791", "pclerge1791") :=
+             .(i.prefract1791, i.pclerge1791), on = "codecommune"]
+pres1981[religdep, c("pclerge1856", "pmessalisants1950") :=
+             .(i.pclerge1856, i.pmessalisants1950), on = "dep"]
+pres1981[catsociopro, c("pagri1981", "pindp1981", "pcadr1981", "ppint1981", "pempl1981", "pouvr1981", "pchom1981") :=
+             .(i.pagri1981, i.pindp1981, i.pcadr1981, i.ppint1981, i.pempl1981, i.pouvr1981, i.pchom1981), on = "codecommune"]
+pres1981[nation, c("petranger1981") :=
+             .(i.petranger1981), on = "codecommune"]
+pres1981[reven, c("revmoy1981") :=
+             .(i.revmoy1981), on = "codecommune"]
+```
+
+```{r}
+# Optionnel : écriture de la base, si nous voulons éviter de la reconstruire à chaque fois.
+if (!dir.exists("data_main")) {dir.create("data_main")}
+write_parquet(pres1981, "data_main/pres1981.parquet")
+```

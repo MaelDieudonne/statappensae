@@ -1,4 +1,5 @@
 
+
 ```{r include=FALSE}
 # Préparation : il suffit normalement de charger le package rayshader, mais ses dépendances ne s'activent pas correctement, du moins sous macos.
 # On les active donc toutes.
@@ -68,5 +69,5 @@ plot_gg(
   sunangle = 140,
   theta = 45)
 
-render_highquality(samples = 256)
+render_snapshot()
 ```

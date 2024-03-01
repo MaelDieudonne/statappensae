@@ -57,7 +57,7 @@ panel_data <- data.table(
   EIns_ratio_T1 = numeric(),
   CIns_ratio_T1 = numeric(),
   EIns_ratio_T2 = numeric(),
-  CIns_ratio_T2 = numeric(),  
+  CIns_ratio_T2 = numeric(), 
   # Régresseurs
   ppropri = numeric(),
   popcomm = numeric(),
@@ -119,16 +119,16 @@ recode_add_bind <- function(input_year) {
   dt[is.infinite(GIns_ratio_T1), GIns_ratio_T1 := 1]
   dt[, DIns_ratio_T1 := rowSums(.SD, na.rm = TRUE) / inscrits, .SDcols = T1maskD$variable]
   dt[is.infinite(DIns_ratio_T1), DIns_ratio_T1 := 1]
-  ### Pour le second tour, le ratio de chaque orientation est seulement calculé si un candidat est présent. 
+  ### Pour le second tour, le ratio de chaque orientation est seulement calculé si un candidat est présent.
   if (length(T2candidateG) >= 1) {
     dt[, GIns_ratio_T2 := rowSums(.SD, na.rm = TRUE) / inscritsT2, .SDcols = T2candidateG]
     dt[is.infinite(GIns_ratio_T2), GIns_ratio_T2 := 1]
-    } 
+    }
   else {dt[, GIns_ratio_T2 := NA]}
   if (length(T2candidateD) >= 1) {
     dt[, DIns_ratio_T2 := rowSums(.SD, na.rm = TRUE) / inscritsT2, .SDcols = T2candidateD]
     dt[is.infinite(DIns_ratio_T2), DIns_ratio_T2 := 1]
-    } 
+    }
   else {dt[, DIns_ratio_T2 := NA]}
   ## Centre / extrêmes
   ### Identification des candidats
@@ -152,16 +152,16 @@ recode_add_bind <- function(input_year) {
   dt[is.infinite(CIns_ratio_T1), CIns_ratio_T1 := 1]
   dt[, EIns_ratio_T1 := rowSums(.SD, na.rm = TRUE) / inscrits, .SDcols = T1maskE$variable]
   dt[is.infinite(EIns_ratio_T1), EIns_ratio_T1 := 1]
-  ### Pour le second tour, le ratio de chaque orientation est seulement calculé si un candidat est présent. 
+  ### Pour le second tour, le ratio de chaque orientation est seulement calculé si un candidat est présent.
   if (length(T2candidateC) >= 1) {
     dt[, CIns_ratio_T2 := rowSums(.SD, na.rm = TRUE) / inscritsT2, .SDcols = T2candidateC]
     dt[is.infinite(CIns_ratio_T2), CIns_ratio_T2 := 1]
-    } 
+    }
   else {dt[, CIns_ratio_T2 := NA]}
   if (length(T2candidateE) >= 1) {
     dt[, EIns_ratio_T2 := rowSums(.SD, na.rm = TRUE) / inscritsT2, .SDcols = T2candidateE]
     dt[is.infinite(EIns_ratio_T2), EIns_ratio_T2 := 1]
-    } 
+    }
   else {dt[, EIns_ratio_T2 := NA]}
 
   # Ajout des régresseurs
@@ -218,7 +218,7 @@ recode_add_bind <- function(input_year) {
 ```{r}
 # Boucle sur les élections
 for (year in unique(candidats$Annee)) {
-  output_file <- paste0("pres", year) 
+  output_file <- paste0("pres", year)
   input_file <- paste0("Elections_pres/pres", year, "comm.parquet")
   assign(output_file, load_parquet(input_file))
   panel_data <- recode_add_bind(year)
@@ -245,10 +245,10 @@ colnames <- colnames(panel_data)
 cols_to_keep <- colnames[!grepl("T1$|T2$", colnames)]
 
 regressors_T1 <- panel_data[, ..cols_to_keep, drop = FALSE]
-regressors_T1$tour <- 0
+regressors_T1$tour <- 1
 regressors_T1$tour <- as.character(regressors_T1$tour)
 regressors_T2 <- panel_data[, ..cols_to_keep, drop = FALSE]
-regressors_T2$tour <- 1
+regressors_T2$tour <- 2
 regressors_T2$tour <- as.character(regressors_T2$tour)
 wide_panel_data <- rbind(regressors_T1, regressors_T2)
 
@@ -280,7 +280,7 @@ EIns_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.v
 EIns_panel_data$tour <- ifelse(!is.na(EIns_panel_data$tour), sub("^EIns_ratio_T", "", EIns_panel_data$tour), NA)
 wide_panel_data <- merge(wide_panel_data, EIns_panel_data, by = c("codecommune", "year", "tour"))
 
-write_parquet(panel_data, "data_main/wide_panel_data.parquet")
+write_parquet(wide_panel_data, "data_main/wide_panel_data.parquet")
 ```
 
 ```{r}
@@ -296,7 +296,7 @@ rm(ages, candidats, catsociopro, diplo, nation, pop_elec, popul, propri, reven)
 ## Suppression des variables
 for (name in paste0("var_name_", 1:7)) {rm(list = name)}
 rm(i, input_file, name, tablename, output_file, suffixes, year)
-rm(excluded_variables, name, variables_to_convert)
+rm(excluded_variables, variables_to_convert)
 
 ## Supression des tables intermédiaires dans la séparation des tours
 rm(colnames, cols_to_keep, regressors_T1, regressors_T2, part_panel_data, GD_panel_data, EC_panel_data, GIns_panel_data, DIns_panel_data, CIns_panel_data, EIns_panel_data)
@@ -312,7 +312,7 @@ aws.s3::put_object(
   multipart = TRUE)
 
 aws.s3::put_object(
-  "data_main/wide_panel_data.parquet",
+  "data_main/panel_data.parquet",
   object = "/diffusion/wide_panel_data.parquet",
   bucket = "maeldieudonne",
   region = "",
@@ -413,7 +413,7 @@ aws.s3::s3write_using(
   opts = list("region" = ""))
 
 aws.s3::s3write_using(
-  detailed_mca_data,
+  mca_data,
   FUN = arrow::write_parquet,
   object = "/diffusion/detailed_mca_data.parquet",
   bucket = "maeldieudonne",
