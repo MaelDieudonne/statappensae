@@ -16,7 +16,8 @@ Le code est conçu pour s’exécuter dans l’environnement [Onyxia](https://da
 *NB : ces deux notebooks s’achèvent pas des chunks destinés au téléversement sur le SSP Cloud. Il faut bien adapter le nom et le chemin du bucket, ou ne pas les exécuter pour rester en local.*
 
 5.  Prepare_data pour construire les bases
-6.  Analyze_data pour l’exploitation statistique
-7.  3D_map pour les cartes en 3D
+6.  Panel_analysis pour l’exploitation statistique des séries temporelles
+7.  Transversal_analysis pour un approfondissement de l'année 2017
+8.  3D_map pour les cartes en 3D
 
 Toutes les sorties sont placées dans le répertoire output, au format latex ou png. Les rapports sont disponibles dans le dossier latex.

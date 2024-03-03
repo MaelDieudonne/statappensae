@@ -80,7 +80,7 @@ panel_data <- data.table(
   pouvr = numeric (),
   pchom = numeric (),
   petranger = numeric(),
-  revmoy = numeric()
+  revratio = numeric()
   )
 ```
 
@@ -199,13 +199,9 @@ recode_add_bind <- function(input_year) {
   ## Étrangers
   var_name_1 <- paste0("petranger", input_year)
   dt[nation, "petranger" := .(get(var_name_1)), on = "codecommune"]
-  ## Revenus
-  ## La série commence en 1980.
-  var_name_1 <- paste0("revmoy", input_year)
-  if (var_name_1 %in% colnames(reven))
-    {dt[reven, "revmoy" := .(get(var_name_1)), on = "codecommune"]}
-  else
-    {dt[, "revmoy" := NA]}
+  ## Revenus communaux
+  var_name_1 <- paste0("revratio", input_year)
+  dt[reven, "revratio" := .(get(var_name_1)), on = "codecommune"]
 
   # Rbind
   cols_to_keep <- intersect(names(panel_data), names(dt))
@@ -226,12 +222,12 @@ for (year in unique(candidats$Annee)) {
 }
 
 # Conversion des proportions en pourcentages pour faciliter la lecture des résultats
-excluded_variables <- c("dep", "codecommune", "year", "popcomm", "popagglo", "age", "revmoy")
+excluded_variables <- c("dep", "codecommune", "year", "popcomm", "popagglo", "age", "revratio")
 variables_to_convert <- setdiff(names(panel_data), excluded_variables)
 panel_data[, (variables_to_convert) := lapply(.SD, function(x) x * 100), .SDcols = variables_to_convert]
 
 # Expression de la population et des revenus en milliers
-variables_to_convert <- c("popcomm", "popagglo", "revmoy")
+variables_to_convert <- c("popcomm", "popagglo")
 panel_data[, (variables_to_convert) := lapply(.SD, function(x) x / 1000), .SDcols = variables_to_convert]
 
 # Ecriture du fichier
@@ -245,42 +241,44 @@ colnames <- colnames(panel_data)
 cols_to_keep <- colnames[!grepl("T1$|T2$", colnames)]
 
 regressors_T1 <- panel_data[, ..cols_to_keep, drop = FALSE]
-regressors_T1$tour <- 0
-regressors_T1$tour <- as.character(regressors_T1$tour)
+regressors_T1$round <- 1
+regressors_T1$round <- as.character(regressors_T1$round)
 regressors_T2 <- panel_data[, ..cols_to_keep, drop = FALSE]
-regressors_T2$tour <- 1
-regressors_T2$tour <- as.character(regressors_T2$tour)
+regressors_T2$round <- 2
+regressors_T2$round <- as.character(regressors_T2$round)
 wide_panel_data <- rbind(regressors_T1, regressors_T2)
 
-part_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("part_T1", "part_T2"), variable.name = "tour", value.name = "part")
-part_panel_data$tour <- ifelse(!is.na(part_panel_data$tour), sub("^part_T", "", part_panel_data$tour), NA)
-wide_panel_data <- merge(wide_panel_data, part_panel_data, by = c("codecommune", "year", "tour"))
+part_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("part_T1", "part_T2"), variable.name = "round", value.name = "part")
+part_panel_data$round <- ifelse(!is.na(part_panel_data$round), sub("^part_T", "", part_panel_data$round), NA)
+wide_panel_data <- merge(wide_panel_data, part_panel_data, by = c("codecommune", "year", "round"))
 
-GD_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("GD_ratio_T1", "GD_ratio_T2"), variable.name = "tour", value.name = "GD_ratio")
-GD_panel_data$tour <- ifelse(!is.na(GD_panel_data$tour), sub("^GD_ratio_T", "", GD_panel_data$tour), NA)
-wide_panel_data <- merge(wide_panel_data, GD_panel_data, by = c("codecommune", "year", "tour"))
+GD_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("GD_ratio_T1", "GD_ratio_T2"), variable.name = "round", value.name = "GD_ratio")
+GD_panel_data$round <- ifelse(!is.na(GD_panel_data$round), sub("^GD_ratio_T", "", GD_panel_data$round), NA)
+wide_panel_data <- merge(wide_panel_data, GD_panel_data, by = c("codecommune", "year", "round"))
 
-EC_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("EC_ratio_T1", "EC_ratio_T2"), variable.name = "tour", value.name = "EC_ratio")
-EC_panel_data$tour <- ifelse(!is.na(EC_panel_data$tour), sub("^EC_ratio_T", "", EC_panel_data$tour), NA)
-wide_panel_data <- merge(wide_panel_data, EC_panel_data, by = c("codecommune", "year", "tour"))
+EC_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("EC_ratio_T1", "EC_ratio_T2"), variable.name = "round", value.name = "EC_ratio")
+EC_panel_data$round <- ifelse(!is.na(EC_panel_data$round), sub("^EC_ratio_T", "", EC_panel_data$round), NA)
+wide_panel_data <- merge(wide_panel_data, EC_panel_data, by = c("codecommune", "year", "round"))
 
-GIns_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("GIns_ratio_T1", "GIns_ratio_T2"), variable.name = "tour", value.name = "GIns_ratio")
-GIns_panel_data$tour <- ifelse(!is.na(GIns_panel_data$tour), sub("^GIns_ratio_T", "", GIns_panel_data$tour), NA)
-wide_panel_data <- merge(wide_panel_data, GIns_panel_data, by = c("codecommune", "year", "tour"))
+GIns_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("GIns_ratio_T1", "GIns_ratio_T2"), variable.name = "round", value.name = "GIns_ratio")
+GIns_panel_data$round <- ifelse(!is.na(GIns_panel_data$round), sub("^GIns_ratio_T", "", GIns_panel_data$round), NA)
+wide_panel_data <- merge(wide_panel_data, GIns_panel_data, by = c("codecommune", "year", "round"))
 
-DIns_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("DIns_ratio_T1", "DIns_ratio_T2"), variable.name = "tour", value.name = "DIns_ratio")
-DIns_panel_data$tour <- ifelse(!is.na(DIns_panel_data$tour), sub("^DIns_ratio_T", "", DIns_panel_data$tour), NA)
-wide_panel_data <- merge(wide_panel_data, DIns_panel_data, by = c("codecommune", "year", "tour"))
+DIns_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("DIns_ratio_T1", "DIns_ratio_T2"), variable.name = "round", value.name = "DIns_ratio")
+DIns_panel_data$round <- ifelse(!is.na(DIns_panel_data$round), sub("^DIns_ratio_T", "", DIns_panel_data$round), NA)
+wide_panel_data <- merge(wide_panel_data, DIns_panel_data, by = c("codecommune", "year", "round"))
 
-CIns_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("CIns_ratio_T1", "CIns_ratio_T2"), variable.name = "tour", value.name = "CIns_ratio")
-CIns_panel_data$tour <- ifelse(!is.na(CIns_panel_data$tour), sub("^CIns_ratio_T", "", CIns_panel_data$tour), NA)
-wide_panel_data <- merge(wide_panel_data, CIns_panel_data, by = c("codecommune", "year", "tour"))
+CIns_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("CIns_ratio_T1", "CIns_ratio_T2"), variable.name = "round", value.name = "CIns_ratio")
+CIns_panel_data$round <- ifelse(!is.na(CIns_panel_data$round), sub("^CIns_ratio_T", "", CIns_panel_data$round), NA)
+wide_panel_data <- merge(wide_panel_data, CIns_panel_data, by = c("codecommune", "year", "round"))
 
-EIns_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("EIns_ratio_T1", "EIns_ratio_T2"), variable.name = "tour", value.name = "EIns_ratio")
-EIns_panel_data$tour <- ifelse(!is.na(EIns_panel_data$tour), sub("^EIns_ratio_T", "", EIns_panel_data$tour), NA)
-wide_panel_data <- merge(wide_panel_data, EIns_panel_data, by = c("codecommune", "year", "tour"))
+EIns_panel_data = melt(panel_data, id.vars = c("codecommune", "year"), measure.vars = c("EIns_ratio_T1", "EIns_ratio_T2"), variable.name = "round", value.name = "EIns_ratio")
+EIns_panel_data$round <- ifelse(!is.na(EIns_panel_data$round), sub("^EIns_ratio_T", "", EIns_panel_data$round), NA)
+wide_panel_data <- merge(wide_panel_data, EIns_panel_data, by = c("codecommune", "year", "round"))
 
-write_parquet(panel_data, "data_main/wide_panel_data.parquet")
+wide_panel_data[, round := ifelse(round == 1, 0, ifelse(round == 2, 1, round))]
+
+write_parquet(wide_panel_data, "data_main/wide_panel_data.parquet")
 ```
 
 ```{r}
@@ -296,7 +294,7 @@ rm(ages, candidats, catsociopro, diplo, nation, pop_elec, popul, propri, reven)
 ## Suppression des variables
 for (name in paste0("var_name_", 1:7)) {rm(list = name)}
 rm(i, input_file, name, tablename, output_file, suffixes, year)
-rm(excluded_variables, name, variables_to_convert)
+rm(excluded_variables, variables_to_convert)
 
 ## Supression des tables intermédiaires dans la séparation des tours
 rm(colnames, cols_to_keep, regressors_T1, regressors_T2, part_panel_data, GD_panel_data, EC_panel_data, GIns_panel_data, DIns_panel_data, CIns_panel_data, EIns_panel_data)
@@ -312,7 +310,7 @@ aws.s3::put_object(
   multipart = TRUE)
 
 aws.s3::put_object(
-  "data_main/wide_panel_data.parquet",
+  "data_main/panel_data.parquet",
   object = "/diffusion/wide_panel_data.parquet",
   bucket = "maeldieudonne",
   region = "",
@@ -327,10 +325,11 @@ On construit également une base restreinte à une année, mais intégrant toute
 # Chargement des bases
 crim <- load_parquet("CSP/crimesdelitscommunes.parquet")
 isf <- load_parquet("Capital_immobilier/isfcommunes.parquet")
+reven <- load_parquet("Revenus/revcommunes.parquet")
 rsa <- load_parquet("CSP/rsacommunes.parquet")
 vbbm <- load_parquet("Taille_agglo_commune/popcommunesvbbm.parquet")
 
-## Correction des codes communes dans la base RSA (traités comme des nombres donc avec suppression des zéros initiaux)
+# Correction des codes communes dans la base RSA (traités comme des nombres donc avec suppression des zéros initiaux)
 rsa$codecommune <- as.character(rsa$codecommune)
 rsa$codecommune <- ifelse(nchar(rsa$dep) == 1, paste0("0", rsa$codecommune), rsa$codecommune)
 
@@ -340,6 +339,10 @@ mca_data[crim, "pcrimesdelits" := i.pcrimesdelits2016, on = "codecommune"]
 mca_data[isf, c("mmoyfortune", "pisf") := .(mmoyfortune2017, pisf2017), on = "codecommune"]
 mca_data[rsa, "prsa" := i.prsa2017, on = "codecommune"]
 mca_data[vbbm, "type_comm" := i.vbbm2017, on = "codecommune"]
+
+# Suppression du revenu commmunal estimé, remplacé par sa valeur réelle
+mca_data <- mca_data[, revratio := NULL]
+mca_data[reven, "revmoy" := i.revmoy2017, on = "codecommune"]
 
 ## Les données fiscales sont disponibles uniquement pour les communes de plus de 20 000 habitants comptant au moins 50 contribuables assujettis à l'ISF (soit 374 communes rassemblant 22,3 millions d’habitants en 2017).
 ## Les valeurs manquantes sont remplacées par des valeurs nulles.
@@ -355,7 +358,7 @@ mca_data[, mmoyfortune := mmoyfortune / 1000]
 
 # Ecriture du fichier et nettoyage
 write_parquet(mca_data, "data_main/mca_data.parquet")
-rm(crim, isf, rsa, vbbm)
+rm(crim, isf, reven, rsa, vbbm)
 ```
 
 ```{r}
@@ -383,7 +386,7 @@ mca_data[, (variables_to_convert) := lapply(.SD, function(x) x * 100), .SDcols =
 
 # Ecriture du fichier et nettoyage
 write_parquet(mca_data, "data_main/mca_data.parquet")
-rm(popul, religcomm, religdep)
+rm(popul, religcomm, religdep, variables_to_convert)
 ```
 
 ```{r}
@@ -399,7 +402,7 @@ detailed_mca_data <- mca_data[, ..cols_to_keep, with = FALSE]
 
 detailed_mca_data <- merge(detailed_mca_data, pres_2017, by = "codecommune")
 
-write_parquet(panel_data, "data_main/detailed_mca_data.parquet")
+write_parquet(detailed_mca_data, "data_main/detailed_mca_data.parquet")
 rm(cols_to_drop, cols_to_keep, pres_2017)
 ```
 
@@ -413,7 +416,7 @@ aws.s3::s3write_using(
   opts = list("region" = ""))
 
 aws.s3::s3write_using(
-  detailed_mca_data,
+  mca_data,
   FUN = arrow::write_parquet,
   object = "/diffusion/detailed_mca_data.parquet",
   bucket = "maeldieudonne",

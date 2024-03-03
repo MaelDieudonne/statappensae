@@ -1,0 +1,183 @@
+```{r include=FALSE}
+# Importation des données
+panel_data <- load_parquet("panel_data.parquet")
+wide_panel_data <- load_parquet("wide_panel_data.parquet")
+mca_data <- load_parquet("mca_data.parquet")
+detailed_mca_data <- load_parquet("detailed_mca_data.parquet")
+map_data <- load_shapefile("FRANCE.shx")
+
+codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
+codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
+```
+
+```{r}
+# Définition des variables
+## Outcomes
+relative_outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "GD_ratio_T2", "EC_ratio_T1", "EC_ratio_T2")
+absolute_outcomes <- c("part_T1", "part_T2", "GIns_ratio_T1", "DIns_ratio_T1", "GIns_ratio_T2", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
+
+## Régresseurs
+panel_regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger", "revratio")
+### Modalités supprimées pour éviter la colinéarité : prop014, propnodip, pouvr
+```
+
+**Analyse des valeurs manquantes**
+
+Commencer par vérifier s'il y a des NA pour l'année et le codecommune ?
+
+Tableau présentant la proportion de NA par régresseur et par an, *à colorer façon heatmap ?*
+
+```{r}
+count_na <- function(x) mean(is.na(x)) * 100
+
+na_prop_table <- data.table(year = unique(panel_data$year))
+
+for (regressor in panel_regressors) {
+  na_prop <- panel_data[, .(na_prop = count_na(get(regressor))), by = year]
+  na_prop_table <- merge(na_prop_table, na_prop, by = "year", all.x = TRUE)
+  setnames(na_prop_table, "na_prop", regressor)
+}
+
+na_prop_table[] <- lapply(na_prop_table, round_and_remove_zeros)
+print(na_prop_table)
+
+rm(count_na, na_prop, na_prop_table, regressor)
+```
+
+**Analyses descriptives**
+
+Evolution historique des principaux outcomes et du taux de propriétaires.
+
+Il faudra vérifier pourquoi on n'obtient pas les mêmes chiffres avec ppropri et npropri/nlogements. Car le graph de ppropri est calculé par la moyenne sur les communes, plutôt que la moyenne pondérée par la population ?
+
+```{r}
+# Exemple grossier avec le taux de propriétaires
+ppropri <- aggregate(ppropri ~ year, data = panel_data, FUN = mean)
+ggplot(ppropri, aes(x = year, y = ppropri)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Année", y = "%", title = "Taux de propriétaires de leur résidence principale, 1965-2022")
+rm(ppropri)
+```
+
+```{r}
+# Calcul du taux agrégé de propriétaires
+propri <- load_parquet("Proprietaires/proprietairescommunes.parquet")
+
+propri_tot <- data.table(year = numeric(), sum_npropri = numeric(), sum_nlogement = numeric(), prop_ratio = numeric())
+for (year in 1960:2022) {
+  col_npropri <- paste0("npropri", year)
+  col_nlogement <- paste0("nlogement", year)
+  sum_npropri <- sum(propri[[col_npropri]], na.rm = TRUE)
+  sum_nlogement <- sum(propri[[col_nlogement]], na.rm = TRUE)
+  prop_ratio <- sum_npropri / sum_nlogement
+  propri_tot <- rbind(propri_tot, data.table(year = year, sum_npropri = sum_npropri, sum_nlogement = sum_nlogement, prop_ratio = prop_ratio))
+}
+
+# Graph
+plot <- ggplot(propri_tot, aes(x = year, y = prop_ratio)) +
+  geom_line(color = "skyblue") +
+  geom_point(color = "skyblue") +
+  labs(title = "Proportion de propriétaires, 1960-2022",
+       x = "Année",
+       y = "Proportion de propriétaires") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+print(plot)
+ggsave("output/ppropri_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
+
+# Nettoyage
+rm(col_npropri, col_nlogement, propri, sum_npropri, sum_nlogement, prop_ratio, propri_tot, year, plot)
+```
+
+Cartes...
+
+```{r}
+draw_map(1988, 94, "ppropri", "Taux de propriétaires", 8)
+```
+
+**Panel**
+
+Première tentative : panel simple, en différences premières, avec clustering au niveau départemental et variance hétéroscédastique.
+
+```{r include=FALSE}
+# On convertit les données aux format pdata et on sélectionne les régresseurs
+panel_as_pdata <- pdata.frame(panel_data, index = c("codecommune", "year"))
+
+# On ajuste le modèle pour les ratios relatifs = sur exprimés
+## Possibilité d'utiliser within comme paramètre et d'éliminer le clustering.
+relative_results <- list()
+for (outcome in relative_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(panel_regressors, collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+}
+suppressWarnings(
+  stargazer(relative_results, type = "html", out = "output/panel_relative_results.html")
+)
+
+# On ajuste le modèle pour les ratios relatifs = sur inscrits
+absolute_results <- list()
+for (outcome in absolute_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(panel_regressors, collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep")
+}
+suppressWarnings(
+  stargazer(absolute_results, type = "html", out = "output/panel_absolute_results.html")
+)
+
+rm(absolute_results, model_name, regression_formula, relative_results, outcome, panel_as_pdata)
+```
+
+Deuxième tentative : on introduit des dummies annuelles.
+
+```{r include=FALSE}
+panel_as_pdata <- pdata.frame(panel_data, index = c("codecommune", "year"))
+time_dummies <- model.matrix(~ year - 1, data = panel_as_pdata)
+panel_as_pdata <- cbind(panel_as_pdata, time_dummies)
+
+relative_results <- list()
+for (outcome in relative_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(colnames(time_dummies), collapse = "+"), "+", paste(panel_regressors, collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "group", vcov = "HC1")
+}
+suppressWarnings(
+  stargazer(relative_results, type = "html", out = "output/panel_relative_results_year.html")
+)
+
+relative_results <- list()
+for (outcome in absolute_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(colnames(time_dummies), collapse = "+"), "+", paste(panel_regressors, collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "group", vcov = "HC1")
+}
+suppressWarnings(
+  stargazer(relative_results, type = "html", out = "output/panel_absolute_results_year.html")
+)
+```
+
+Troisième tentative : on traite les tours comme des élections séparées, en conservant les dummies annuelles.
+
+```{r include=FALSE}
+wide_relative_outcomes <- c("part", "GD_ratio", "EC_ratio")
+wide_panel_regressors <- c("round", panel_regressors)
+
+wide_panel_data$year_round <- with(wide_panel_data, paste(year, round, sep="_"))
+wide_panel_as_pdata <- pdata.frame(wide_panel_data, index = c("codecommune", "year_round"))
+time_dummies <- model.matrix(~ year - 1, data = wide_panel_as_pdata)
+wide_panel_as_pdata <- cbind(wide_panel_as_pdata, time_dummies)
+
+relative_results <- list()
+for (outcome in wide_relative_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(colnames(time_dummies), collapse = "+"), "+", paste(wide_panel_regressors, collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", cluster = "group", vcov = "HC1")
+}
+
+suppressWarnings(
+  stargazer(relative_results, type = "html", out = "output/panel_relative_results_year_wide.html")
+)
+```
