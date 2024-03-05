@@ -181,3 +181,30 @@ suppressWarnings(
   stargazer(relative_results, type = "html", out = "output/panel_relative_results_year_wide.html")
 )
 ```
+
+Quatrième tentative : dummies annuelles + interactions avec ppropri
+
+```{r include=FALSE}
+panel_as_pdata <- pdata.frame(panel_data, index = c("codecommune", "year"))
+time_dummies <- model.matrix(~ year - 1, data = panel_as_pdata)
+panel_as_pdata <- cbind(panel_as_pdata, time_dummies)
+
+relative_results <- list()
+for (outcome in relative_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(colnames(time_dummies), collapse = "+"), "+", paste(panel_regressors, collapse = "+"), "+", paste("ppropri *", colnames(time_dummies), collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "group", vcov = "HC1")
+}
+suppressWarnings(
+  stargazer(relative_results, type = "html", out = "output/panel_relative_results_year.html")
+)
+
+relative_results <- list()
+for (outcome in absolute_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(colnames(time_dummies), collapse = "+"), "+", paste(panel_regressors, collapse = "+"), "+", paste("ppropri *", colnames(time_dummies), collapse = "+")))
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "group", vcov = "HC1")
+}
+suppressWarnings(
+  stargazer(relative_results, type = "html", out = "output/panel_absolute_results_year.html")
+)
+```
