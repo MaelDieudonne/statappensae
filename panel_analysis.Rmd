@@ -2,8 +2,6 @@
 # Importation des données
 panel_data <- load_parquet("panel_data.parquet")
 wide_panel_data <- load_parquet("wide_panel_data.parquet")
-mca_data <- load_parquet("mca_data.parquet")
-detailed_mca_data <- load_parquet("detailed_mca_data.parquet")
 map_data <- load_shapefile("FRANCE.shx")
 
 codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
@@ -247,5 +245,33 @@ subset_data <- panel_data[panel_data$year == 1981, ]
 regression_formula <- as.formula(paste("part_T1", "~", paste(panel_regressors, collapse = "+")))
 model <- lm(regression_formula, data = subset_data)
 summary(model)
+```
+
+**Classification**
+
+```{r}
+panel_data <- load_parquet("panel_data.parquet")
+
+# Expression des populations et du ratio de revenu sur une échelle de 1 à 100
+min_max_scale <- function(x) {
+  return ((x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)) * 100)
+}
+panel_data$popcomm <- min_max_scale(panel_data$popcomm)
+panel_data$popagglo <- min_max_scale(panel_data$popagglo)
+panel_data$revratio <- min_max_scale(panel_data$revratio)
+
+variables <- c("part_T1", "part_T2", "GD_ratio_T1", panel_regressors)
+
+data_for_clustering <- panel_data[, ..variables]
+data_for_clustering <- na.omit(data_for_clustering)
+
+# K-means
+set.seed(123)
+k <- 5
+kmeans_result <- kmeans(data_for_clustering, centers = k)
+
+print(kmeans_result)
+print(kmeans_result$centers)
+table(kmeans_result$cluster)
 ```
 

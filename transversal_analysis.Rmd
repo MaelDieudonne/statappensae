@@ -1,7 +1,5 @@
 ```{r include=FALSE}
 # Importation des données
-panel_data <- load_parquet("panel_data.parquet")
-wide_panel_data <- load_parquet("wide_panel_data.parquet")
 mca_data <- load_parquet("mca_data.parquet")
 detailed_mca_data <- load_parquet("detailed_mca_data.parquet")
 map_data <- load_shapefile("FRANCE.shx")
@@ -51,8 +49,7 @@ for (col in names(mca_data)) {if (!(col %in% c("dep", "codecommune", "codecommun
 stat_desc <- rbind(stat_desc, summary)
 }}
 
-# Simplification des valeurs et enregistrement du tableau
-stat_desc[] <- lapply(stat_desc, round_and_remove_zeros)
+stat_desc[] <- data.frame(lapply(stat_desc, tidy_table))
 print(xtable(stat_desc, type = "latex"), file = "output/stat_desc_acm.tex")
 print(stat_desc)
 
@@ -125,6 +122,9 @@ rm(model_name, outcome, regression_formula)
 ```
 
 **ACP**
+
+Est-ce que le code normalise vraiment les variables ?
+The scale function standardizes the values in each column (i.e., it subtracts the mean and divides by the standard deviation).
 
 ```{r}
 # Sélection des variables

@@ -19,7 +19,7 @@ candidats <- fread("data_other/candidats.csv", header = TRUE)
 # Chargement des régresseurs
 propri <- load_parquet("Proprietaires/proprietairescommunes.parquet")
 popul <- load_parquet("Taille_agglo_commune/popcommunes.parquet")
-pop_elec <- load_parquet("Taille_agglo_commune/popcommuneselecteurs.parquet")
+# pop_elec <- load_parquet("Taille_agglo_commune/popcommuneselecteurs.parquet")
 ages <- load_parquet("Age_csp/agesexcommunes.parquet")
 catsociopro <- load_parquet("CSP/cspcommunes.parquet")
 nation <- load_parquet("Nationalites/etrangerscommunes.parquet")
@@ -61,7 +61,6 @@ panel_data <- data.table(
   ppropri = numeric(),
   popcomm = numeric(),
   popagglo = numeric (),
-  pinscript = numeric (),
   age = numeric (),
   prop014 = numeric (),
   prop1539 = numeric (),
@@ -82,6 +81,8 @@ panel_data <- data.table(
   revratio = numeric()
   )
 ```
+
+Nous avons renoncé à estimer le taux d'inscription sur les listes électorales. Il existe deux possibilités pour le faire : diviser le nombre d'inscrit par la population communale, ou par la population électorale estimée par les auteurs d'après les données socio-démographique. Mais chacune engendre de nombreuses valeurs supérieures à 1, souvent de beaucoup, ce qui les rend difficilement interprétable.
 
 ```{r}
 # Fonction assurant la création des outcomes, l'ajout des régresseurs et la fusion avec la base de destination
@@ -171,12 +172,6 @@ recode_add_bind <- function(input_year) {
   var_name_1 <- paste0("pop", input_year)
   var_name_2 <- paste0("popagglo", input_year)
   dt[popul, c("popcomm", "popagglo") := .(get(var_name_1), get(var_name_2)), on = "codecommune"]
-  ## Taux d'inscription sur les listes électorales
-  var_name_1 <- paste0("electeurs", input_year)
-  dt[pop_elec, "nb_electeurs" := .(get(var_name_1)), on = "codecommune"]
-  dt[, "pinscript" := inscrits / nb_electeurs]
-  dt[is.infinite(pinscript), pinscript := NA]
-  dt[, nb_electeurs := NULL]
   ## Âge et sexe
   suffixes <- c("age", "prop014", "prop1539", "prop4059", "prop60p", "propf")
   for (suffix in suffixes) {
@@ -219,7 +214,17 @@ for (year in unique(candidats$Annee)) {
   panel_data <- recode_add_bind(year)
   cat("Data generated for year", year, "\n")
 }
+```
 
+```{r}
+# Étonnamment une trentaine de valeurs >1 apparaissent pour la proportion de chômeurs.
+# Elles ne semblent pas présentes dans la table initiale, dont les valeurs ne font l'objet d'aucune transformation.
+# Faute d'explication, et devant leur faible nombre, on les remplace par des NA.
+
+panel_data[pchom > 1, pchom := NA]
+```
+
+```{r}
 # Conversion des proportions en pourcentages pour faciliter la lecture des résultats
 excluded_variables <- c("dep", "codecommune", "year", "popcomm", "popagglo", "age", "revratio")
 variables_to_convert <- setdiff(names(panel_data), excluded_variables)
@@ -288,10 +293,10 @@ for (year in unique(candidats$Annee)) {
   rm(list = tablename)}
 
 ## Suppression des données de contrôle
-rm(ages, candidats, catsociopro, diplo, nation, pop_elec, popul, propri, reven)
+rm(ages, candidats, catsociopro, diplo, nation, popul, propri, reven)
 
 ## Suppression des variables
-for (name in paste0("var_name_", 1:7)) {rm(list = name)}
+for (name in paste0("var_name_", 1:6)) {rm(list = name)}
 rm(i, input_file, name, tablename, output_file, suffixes, year)
 rm(excluded_variables, variables_to_convert)
 
@@ -349,7 +354,7 @@ mca_data[is.na(mmoyfortune), mmoyfortune := 0]
 mca_data[is.na(pisf), pisf := 0]
 
 # Conversion des ratios en pourcentages
-variables_to_convert <- c("pcrimesdelits", "pisf", "prsa")
+variables_to_convert <- c("pisf", "prsa")
 mca_data[, (variables_to_convert) := lapply(.SD, function(x) x * 100), .SDcols = variables_to_convert]
 
 # Expression de la fortune moyenne des contribuables soumis à l'ISF en milliers

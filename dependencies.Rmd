@@ -101,12 +101,8 @@ load_shapefile <- function(filename) {
 
 ```{r}
 # Pour formater les nombres dans les tableaux
-round_and_remove_zeros <- function(x) {
-  if (is.numeric(x)) {
-    rounded_value <- round(x, digits = 3)
-    result <- ifelse(rounded_value != 0, gsub("\\.?0+$", "", as.character(rounded_value)), "0")
-    return(result)} 
-  else {return(x)}
+tidy_table <- function(x) {
+  formatC(x, format = "f", digits = 3, drop0trailing = TRUE)
 }
 ```
 
