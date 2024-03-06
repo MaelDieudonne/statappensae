@@ -270,7 +270,7 @@ panel_data$popcomm <- min_max_scale(panel_data$popcomm)
 panel_data$popagglo <- min_max_scale(panel_data$popagglo)
 panel_data$revratio <- min_max_scale(panel_data$revratio)
 
-variables <- c("part_T1", "part_T2", "GD_ratio_T1", panel_regressors)
+variables <- c("part_T1", "part_T2", "GD_ratio_T1", "year", panel_regressors, "prop014", "propnodip", "pouvr")
 
 data_for_clustering <- panel_data[, ..variables]
 data_for_clustering <- na.omit(data_for_clustering)
@@ -284,4 +284,3 @@ print(kmeans_result)
 print(kmeans_result$centers)
 table(kmeans_result$cluster)
 ```
-
