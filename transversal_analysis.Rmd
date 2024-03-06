@@ -13,7 +13,9 @@ codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
 ## Outcomes
 mca_relative_outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "EC_ratio_T1", "EC_ratio_T2")
 mca_absolute_outcomes <- c("part_T1", "part_T2", "DIns_ratio_T1", "GIns_ratio_T2", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
+
 mca_detailed_outcomes <- grep("^pvoix", names(detailed_mca_data), value = TRUE)
+mca_detailed_outcomes <- c(mca_detailed_outcomes, "part_T1", "part_T2")
 
 ## Régresseurs
 mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger", "revmoy", "pcrimesdelits", "mmoyfortune", "pisf", "prsa", "type_comm")
@@ -149,6 +151,50 @@ result <- PCA(mca_data_subset, graph = TRUE)
 fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 50))
 print(result$var$contrib)
 
+var <- get_pca_var(result)
+corrplot(var$contrib, is.corr = FALSE)
+corrplot(var$cos2, is.corr = FALSE)
+
 # Nettoyage
 rm(dummies, mca_data_subset, result, variables_of_interest)
 ```
+
+```{r}
+# Sélection des variables
+## On ajoute les modalités éliminées pour éviter la colinéarité dans les régressions.
+## On supprime les valeurs manquantes.
+variables_of_interest <- c(mca_regressors, "prop014", "propnodip", "pouvr", mca_detailed_outcomes)
+
+mca_data_subset <- detailed_mca_data[, ..variables_of_interest]
+mca_data_subset <- na.omit(mca_data_subset)
+
+# On normalise les variables numériques
+mca_data_subset[, names(mca_data_subset)[sapply(mca_data_subset, is.numeric)] := lapply(.SD, scale), .SDcols = names(mca_data_subset)]
+
+# Création d'indicatrices pour les types de communes
+mca_data_subset$type_comm <- as.factor(mca_data_subset$type_comm)
+dummies <- model.matrix(~ type_comm - 1, data = mca_data_subset)
+colnames(dummies) <- paste("type_comm", levels(mca_data_subset$type_comm), sep = "_")
+mca_data_subset <- cbind(mca_data_subset, dummies)
+mca_data_subset$type_comm <- NULL
+
+outcome_variables <- mca_data_subset[, ..mca_detailed_outcomes]
+pca_result <- prcomp(outcome_variables, scale. = TRUE)
+var <- get_pca_var(pca_result)
+projected_data <- predict(pca_result, newdata = mca_data_subset)
+
+# Axes
+fviz_screeplot(pca_result, addlabels = TRUE, ylim = c(0, 50))
+## Contribution des variables
+print(pca_result$rotation[, 1:5])
+corrplot(var$contrib, is.corr = FALSE)
+## Qualité de représentation des variables
+corrplot(var$cos2, is.corr = FALSE)
+
+fviz_pca_var(pca_result, axes = c(1, 2), geom = c("arrow", "text"), col.var = "blue", 
+             fill.var = "transparent", alpha.var = 0.8)
+
+fviz_pca_var(pca_result, axes = c(1, 3), geom = c("arrow", "text"), col.var = "red", 
+             fill.var = "transparent", alpha.var = 0.8)
+```
+

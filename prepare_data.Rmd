@@ -402,13 +402,14 @@ cols_to_keep <- grep("^pvoix.*[^ratio]$", names(pres_2017), value = TRUE)
 cols_to_keep <- c("codecommune", cols_to_keep)
 pres_2017 <- pres_2017[, ..cols_to_keep, with = FALSE]
 
-cols_to_drop <- c("part_T1", "part_T2", "GD_ratio_T1", "GD_ratio_T2", "EC_ratio_T1", "EC_ratio_T2", "GIns_ratio_T1", "DIns_ratio_T1", "GIns_ratio_T2", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
+cols_to_drop <- c("GD_ratio_T1", "GD_ratio_T2", "EC_ratio_T1", "EC_ratio_T2", "GIns_ratio_T1", "DIns_ratio_T1", "GIns_ratio_T2", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
 cols_to_keep <- setdiff(names(mca_data), cols_to_drop)
 detailed_mca_data <- mca_data[, ..cols_to_keep, with = FALSE]
 
 detailed_mca_data <- merge(detailed_mca_data, pres_2017, by = "codecommune")
 
 write_parquet(detailed_mca_data, "data_main/detailed_mca_data.parquet")
+
 rm(cols_to_drop, cols_to_keep, pres_2017)
 ```
 
