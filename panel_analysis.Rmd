@@ -15,7 +15,7 @@ relative_outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "GD_ratio_T2", "EC_r
 absolute_outcomes <- c("part_T1", "part_T2", "GIns_ratio_T1", "DIns_ratio_T1", "GIns_ratio_T2", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
 
 ## Régresseurs
-panel_regressors <- c("ppropri", "popcomm", "popagglo", "pinscript", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger", "revratio")
+panel_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger", "revratio")
 ### Modalités supprimées pour éviter la colinéarité : prop014, propnodip, pouvr
 ```
 
@@ -36,7 +36,7 @@ for (regressor in panel_regressors) {
   setnames(na_prop_table, "na_prop", regressor)
 }
 
-na_prop_table[] <- lapply(na_prop_table, round_and_remove_zeros)
+na_prop_table[] <- lapply(na_prop_table, tidy_table)
 print(na_prop_table)
 
 rm(count_na, na_prop, na_prop_table, regressor)
@@ -132,41 +132,61 @@ rm(absolute_results, model_name, regression_formula, relative_results, outcome, 
 Deuxième tentative : on introduit des dummies annuelles.
 
 ```{r include=FALSE}
-panel_as_pdata <- pdata.frame(panel_data, index = c("codecommune", "year"))
-time_dummies <- model.matrix(~ year - 1, data = panel_as_pdata)
-panel_as_pdata <- cbind(panel_as_pdata, time_dummies)
+time_dummies <- model.matrix(~ year - 1, data = panel_data)
+panel_as_pdata <- pdata.frame(cbind(panel_data, time_dummies), index = c("codecommune", "year"))
+
+regressors <- c(panel_regressors, colnames(time_dummies))
 
 relative_results <- list()
 for (outcome in relative_outcomes) {
-  regression_formula <- as.formula(paste(outcome, "~", paste(colnames(time_dummies), collapse = "+"), "+", paste(panel_regressors, collapse = "+")))
+  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "group", vcov = "HC1")
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
 }
 suppressWarnings(
-  stargazer(relative_results, type = "html", out = "output/panel_relative_results_year.html")
+  stargazer(relative_results, type = "html", out = "output/panel_relative_results_with_time_dummies.html")
 )
 
-relative_results <- list()
+absolute_results <- list()
 for (outcome in absolute_outcomes) {
-  regression_formula <- as.formula(paste(outcome, "~", paste(colnames(time_dummies), collapse = "+"), "+", paste(panel_regressors, collapse = "+")))
+  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "group", vcov = "HC1")
+  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
 }
 suppressWarnings(
-  stargazer(relative_results, type = "html", out = "output/panel_absolute_results_year.html")
+  stargazer(absolute_results, type = "html", out = "output/absolute_results_with_time_dummies.html")
 )
 ```
 
-Troisième tentative : on traite les tours comme des élections séparées, en conservant les dummies annuelles.
+Troisième tentative : dummies annuelles + interactions avec ppropri
 
-```{r include=FALSE}
+```{r}
+time_dummies <- model.matrix(~ year - 1, data = panel_data)
+panel_as_pdata <- pdata.frame(cbind(panel_data, time_dummies), index = c("codecommune", "year"))
+
+regressors <- c(panel_regressors, colnames(time_dummies))
+
+relative_results <- list()
+for (outcome in relative_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+"), "+", paste("ppropri *", colnames(time_dummies), collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+}
+suppressWarnings(
+  stargazer(relative_results, type = "html", out = "output/panel_relative_results_with_time_dummies_and _interactions.html")
+)
+```
+
+Quatrième tentative : on traite les tours comme des élections séparées, en conservant les dummies annuelles.
+
+```{r}
 wide_relative_outcomes <- c("part", "GD_ratio", "EC_ratio")
 wide_panel_regressors <- c("round", panel_regressors)
 
 wide_panel_data$year_round <- with(wide_panel_data, paste(year, round, sep="_"))
-wide_panel_as_pdata <- pdata.frame(wide_panel_data, index = c("codecommune", "year_round"))
-time_dummies <- model.matrix(~ year - 1, data = wide_panel_as_pdata)
-wide_panel_as_pdata <- cbind(wide_panel_as_pdata, time_dummies)
+
+time_dummies <- model.matrix(~ year - 1, data = wide_panel_data)
+wide_panel_as_pdata <- pdata.frame(cbind(wide_panel_data, time_dummies), index = c("codecommune", "year_round"))
 
 relative_results <- list()
 for (outcome in wide_relative_outcomes) {
@@ -174,36 +194,8 @@ for (outcome in wide_relative_outcomes) {
   model_name <- paste0(outcome, "_model")
   relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", cluster = "group", vcov = "HC1")
 }
-
 suppressWarnings(
-  stargazer(relative_results, type = "html", out = "output/panel_relative_results_year_wide.html")
-)
-```
-
-Quatrième tentative : dummies annuelles + interactions avec ppropri
-
-```{r include=FALSE}
-panel_as_pdata <- pdata.frame(panel_data, index = c("codecommune", "year"))
-time_dummies <- model.matrix(~ year - 1, data = panel_as_pdata)
-panel_as_pdata <- cbind(panel_as_pdata, time_dummies)
-
-relative_results <- list()
-for (outcome in relative_outcomes) {
-  regression_formula <- as.formula(paste(outcome, "~", paste(colnames(time_dummies), collapse = "+"), "+", paste(panel_regressors, collapse = "+"), "+", paste("ppropri *", colnames(time_dummies), collapse = "+")))
-  model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "group", vcov = "HC1")
-}
-suppressWarnings(
-  stargazer(relative_results, type = "html", out = "output/panel_relative_results_year.html")
-)
-
-relative_results <- list()
-for (outcome in absolute_outcomes) {
-  regression_formula <- as.formula(paste(outcome, "~", paste(colnames(time_dummies), collapse = "+"), "+", paste(panel_regressors, collapse = "+"), "+", paste("ppropri *", colnames(time_dummies), collapse = "+")))
-  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "group", vcov = "HC1")
-}
-suppressWarnings(
-  stargazer(relative_results, type = "html", out = "output/panel_absolute_results_year.html")
+  stargazer(relative_results, type = "html", out = "output/panel_wide_relative_results_with_time_dummies.html")
 )
 ```
 

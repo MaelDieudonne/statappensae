@@ -220,8 +220,10 @@ for (year in unique(candidats$Annee)) {
 # Étonnamment une trentaine de valeurs >1 apparaissent pour la proportion de chômeurs.
 # Elles ne semblent pas présentes dans la table initiale, dont les valeurs ne font l'objet d'aucune transformation.
 # Faute d'explication, et devant leur faible nombre, on les remplace par des NA.
-
 panel_data[pchom > 1, pchom := NA]
+
+# Une entrée dépourvue de valeur pour le codecommune apparaît aussi : on la supprime.
+panel_data <- panel_data[nchar(panel_data$codecommune) >= 5, ]
 ```
 
 ```{r}
