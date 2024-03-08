@@ -95,7 +95,43 @@ Cartes...
 draw_map(1988, 94, "ppropri", "Taux de propriétaires", 8)
 ```
 
-**Panel avec tous séparés**
+**Tentative de régression quantile**
+
+```{r}
+install.packages("rqpd", repos="http://R-Forge.R-project.org")
+library(rqpd)
+```
+
+```{r}
+panel_data$codecommune_year <- with(panel_data, paste(codecommune, year, sep="_"))
+
+regression_formula <- as.formula(paste("part_T1", "~ year +", paste(panel_regressors, collapse = "+"), "| codecommune"))
+print(regression_formula)
+
+results <- rqpd(
+  part_T1 ~ popcomm + popagglo + age + prop1539 + 
+    prop4059 + prop60p + propf + propbac + propsup + pagri + 
+    pindp + pcadr + ppint + pempl + pchom + petranger + revratio | 
+    codecommune,
+  rq(ppropri, tau = 0.25),
+  panel = panel(),
+  data = panel_data, 
+  tau = 0.5,
+  na.omit)
+print.rqpd(results)
+
+
+regression_formula <- as.formula(paste("part_T1 ~ ppropri + popcomm | codecommune"))
+results <- rqpd(
+  regression_formula, 
+  panel = panel(method="pfe", taus=1:3/4, tauw=c(.25,.5,.25), lambda=1, cre="m", ztol=1e-5), 
+  data = panel_data, 
+  na.omit)
+print.rqpd(results)
+summary.rqpd(results)
+```
+
+**Panel avec tours séparés**
 
 Première tentative : panel simple, en différences premières, avec clustering au niveau départemental et variance hétéroscédastique.
 
@@ -222,7 +258,6 @@ suppressWarnings(
 La valeur du R2 pour 1981 semble plus faible que celle obtenue pour la note de mi-parcours. Ou je me souviens mal ?
 
 ```{r}
-# Régression pour chaque année
 regression_formula <- as.formula(paste("part_T1", "~", paste(panel_regressors, collapse = "+")))
 
 coefs_df <- data.frame(year = integer(), coefficient = numeric())
@@ -255,6 +290,40 @@ subset_data <- panel_data[panel_data$year == 1981, ]
 regression_formula <- as.formula(paste("part_T1", "~", paste(panel_regressors, collapse = "+")))
 model <- lm(regression_formula, data = subset_data)
 summary(model)
+```
+
+Régressions pseudo-quantiles (considérant les quantiles d'un régresseur plutôt que de l'outcome)
+
+```{r}
+coefs_df <- data.frame(year = integer(), quantile = character(), coefficient = numeric())
+R2_df <- data.frame(year = integer(), quantile = character(), R2 = numeric())
+
+regression_formula <- as.formula(paste("part_T1", "~", paste(panel_regressors, collapse = "+")))
+
+for (yr in unique(panel_data$year)) {
+  panel_subset <- panel_data[panel_data$year == yr, ]
+  quantiles <- quantile(panel_subset$ppropri, probs = seq(0, 1, by = 0.33), na.rm = TRUE)
+  for (i in 1:(length(quantiles) - 1)) {
+    quantile_subset <- panel_subset[panel_subset$ppropri >= quantiles[i] & panel_subset$ppropri <= quantiles[i + 1], ]
+    model <- lm(regression_formula, data = quantile_subset)
+    coefs_df <- rbind(coefs_df, data.frame(year = yr, quantile = paste(i), coefficient = model$coef["ppropri"]))
+    R2_df <- rbind(R2_df, data.frame(year = yr, quantile = paste(i), R2 = summary(model)$adj.r.squared))
+  }
+}
+
+ggplot(coefs_df, aes(x = factor(year), y = coefficient, color = quantile, group = quantile)) +
+  geom_line() +
+  labs(title = "Coefficients of ppropri by Quantile",
+       x = "Year",
+       y = "Coefficient") +
+  theme_minimal()
+
+ggplot(R2_df, aes(x = factor(year), y = R2, color = quantile, group = quantile)) +
+  geom_line() +
+  labs(title = "R-squared Values by Quantile",
+       x = "Year",
+       y = "R-squared") +
+  theme_minimal()
 ```
 
 **Classification**
