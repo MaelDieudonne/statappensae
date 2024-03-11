@@ -95,7 +95,292 @@ Cartes...
 draw_map(1988, 94, "ppropri", "Taux de propriétaires", 8)
 ```
 
-**Tentative de régression quantile**
+**Panel (avec tours séparés)**
+
+On commence par des panels simples, en différences premières, avec clustering au niveau départemental et variance hétéroscédastique.
+
+```{r include=FALSE}
+panel_as_pdata <- pdata.frame(panel_data, index = c("codecommune", "year"))
+
+relative_results <- list()
+for (outcome in relative_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(panel_regressors, collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+}
+suppressWarnings(stargazer(relative_results, type = "html", out = "output/relative_panel_basic.html"))
+
+absolute_results <- list()
+for (outcome in absolute_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(panel_regressors, collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep")
+}
+suppressWarnings(stargazer(absolute_results, type = "html", out = "output/absolute_panel_basic.html"))
+
+rm(absolute_results, model_name, regression_formula, relative_results, outcome, panel_as_pdata)
+```
+
+On obtient des R2 très faibles, entre 0,5 et 2,8 %, et les coefficients de ppropri, bien que significatifs, ne sont pas toujours du signe attendu. Pour remédier à ces problèmes, on essaye d'introduire des dummies annuelles.
+
+```{r include=FALSE}
+time_dummies <- model.matrix(~ year - 1, data = panel_data)
+panel_as_pdata <- pdata.frame(cbind(panel_data, time_dummies), index = c("codecommune", "year"))
+
+regressors <- c(panel_regressors, colnames(time_dummies))
+
+relative_results <- list()
+for (outcome in relative_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+}
+suppressWarnings(stargazer(relative_results, type = "html", out = "output/relative_panel_timedummies.html"))
+
+absolute_results <- list()
+for (outcome in absolute_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+}
+suppressWarnings(stargazer(absolute_results, type = "html", out = "output/absolute_panel_timedummies.html"))
+```
+
+On obtient une très forte amélioration du R2, entre 21,6 et 63,9 %. Les effets de ppropri cessent d'être significatifs sur la participation. Ils le restent sur les autres outcomes, mais n'acquièrent pas de signification évidente (effet positif sur le vote à gauche, positif sur le vote au centre au T1 et négatif au T2). On teste l'hypothèse que les effets de ppropri évoluent au cours du temps en introduisant des interactions avec les dummies annuelles.
+
+```{r include=FALSE}
+time_dummies <- model.matrix(~ year - 1, data = panel_data)
+panel_as_pdata <- pdata.frame(cbind(panel_data, time_dummies), index = c("codecommune", "year"))
+
+regressors <- c(panel_regressors[panel_regressors != "ppropri"], colnames(time_dummies))
+
+relative_results <- list()
+for (outcome in relative_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+"), "+", paste("ppropri *", colnames(time_dummies), collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+}
+suppressWarnings(stargazer(relative_results, type = "html", out = "output/relative_panel_timedummies_interactions.html"))
+
+absolute_results <- list()
+for (outcome in absolute_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+"), "+", paste("ppropri *", colnames(time_dummies), collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+}
+suppressWarnings(stargazer(absolute_results, type = "html", out = "output/absolute_panel_timedummies_interactions.html"))
+```
+
+Les R2 n'évoluent pas. Pratiquement tous les sous-coefficients de ppropri sont significatifs, mais ils fluctuent d'une manière qui les rend difficilement interprétables.
+
+**Panel avec tours confondus**
+
+```{r}
+wide_relative_outcomes <- c("part", "GD_ratio", "EC_ratio")
+wide_panel_regressors <- c("round", panel_regressors)
+wide_panel_data$year_round <- with(wide_panel_data, paste(year, round, sep="_"))
+wide_panel_as_pdata <- pdata.frame(wide_panel_data, index = c("codecommune", "year_round"))
+```
+
+Première tentative simple : comme précédemment, on obtient des R2 très faibles, bien que marginalement meilleurs.
+
+```{r include=FALSE}
+relative_results <- list()
+for (outcome in wide_relative_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(wide_panel_regressors, collapse = "+")))
+  print(regression_formula)
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+}
+suppressWarnings(stargazer(relative_results, type = "html", out = "output/relative_widepanel_basic.html"))
+```
+
+Seconde tentative avec dummies temporelles. **code à reprendre**
+
+```{r include=FALSE}
+time_dummies <- model.matrix(~ year - 1, data = wide_panel_data)
+wide_panel_as_pdata <- cbind(wide_panel_as_pdata, time_dummies, index = c("codecommune", "year_round"))
+
+relative_results <- list()
+for (outcome in wide_relative_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(wide_panel_regressors, collapse = "+"), "+ time_dummies"))
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+}
+suppressWarnings(stargazer(relative_results, type = "html", out = "output/relative_widepanel_timedummies.html"))
+```
+
+Troisième tentative avec dummies temporelles et interactions. **code à reprendre**
+
+```{r include=FALSE}
+time_dummies <- model.matrix(~ year - 1, data = wide_panel_data)
+wide_panel_as_pdata <- cbind(wide_panel_as_pdata, time_dummies, index = c("codecommune", "year_round"))
+
+relative_results <- list()
+for (outcome in wide_relative_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(wide_panel_regressors, collapse = "+"), "+ time_dummies", "+", paste("ppropri * time_dummies", collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+}
+suppressWarnings(stargazer(relative_results, type = "html", out = "output/relative_widepanel_timedummies_interactions.html"))
+```
+
+```{r include=FALSE}
+time_dummies <- model.matrix(~ year - 1, data = wide_panel_data)
+wide_panel_as_pdata <- pdata.frame(cbind(wide_panel_data, time_dummies), index = c("codecommune", "year"))
+
+regressors <- c(wide_panel_regressors[wide_panel_regressors != "ppropri"], colnames(time_dummies))
+
+relative_results <- list()
+for (outcome in wide_relative_outcomes) {
+  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+"), "+", paste("ppropri *", colnames(time_dummies), collapse = "+")))
+  model_name <- paste0(outcome, "_model")
+  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+}
+suppressWarnings(stargazer(relative_results, type = "html", out = "output/relative_widepanel_timedummies_interactions.html"))
+```
+
+**Régressions annuelles**
+
+On peut confirmer le constat d'une variabilité des effets de ppropri en réalisant des régressions années par années, et en traçant l'évolution de son coefficient. La différence avec les panels précédents est que les coefficients des autres variables sont désormais libres au cours du temps ?
+
+Tentative avec part_T1
+
+```{r}
+regression_formula <- as.formula(paste("part_T1", "~", paste(panel_regressors, collapse = "+")))
+
+coefs_df <- data.frame(year = integer(), coefficient = numeric())
+R2_df <- data.frame(year = integer(), R2 = numeric())
+
+for (yr in unique(panel_data$year)) {
+  subset_data <- panel_data[panel_data$year == yr, ]
+  model <- lm(regression_formula, data = subset_data)
+  coefs_df <- rbind(coefs_df, data.frame(year = yr, coefficient = model$coef["ppropri"]))
+  R2_df <- rbind(R2_df, data.frame(year = yr, R2 = summary(model)$adj.r.squared))
+}
+
+rownames(coefs_df) <- NULL
+colnames(coefs_df)[colnames(coefs_df) == "coefficient"] <- "ppropri"
+
+# Graph
+ggplot(coefs_df, aes(x = year, y = ppropri)) +
+  geom_line(color = "blue") +
+  labs(x = "Year", y = "Coefficient of propri on part_T1") +
+  theme_minimal()
+
+ggplot(R2_df, aes(x = year, y = R2)) +
+  geom_line(color = "red") +
+  labs(x = "Year", y = "Adjusted R2") +
+  theme_minimal()
+```
+
+Code à reprendre pour étudier l'ensemble des outcomes.
+
+```{r}
+results <- data.frame(year = integer(), "part_T1" = numeric(), "part_T2" = numeric(), "GD_ratio_T1" = numeric(), "GD_ratio_T2" = numeric(), "EC_ratio_T1" = numeric(), "EC_ratio_T2" = numeric(), "R2_aj" = numeric())
+
+for (outcome in relative_outcomes) {
+  for (yr in unique(panel_data$year)) {
+    subset_data <- panel_data[panel_data$year == yr, ]
+    if (nrow(subset_data) > 0) {
+      regression_formula <- as.formula(paste(outcome, "~", paste(panel_regressors, collapse = "+")))
+      model <- lm(regression_formula, data = subset_data)
+      results <- rbind(results, cbind(year = yr, coef_ppropri = coef(model)["ppropri"]))
+  }
+}
+```
+
+Régressions pseudo-quantiles (considérant les quantiles d'un régresseur plutôt que de l'outcome)
+
+```{r}
+coefs_df <- data.frame(year = integer(), quantile = character(), coefficient = numeric())
+R2_df <- data.frame(year = integer(), quantile = character(), R2 = numeric())
+regression_formula <- as.formula(paste("part_T1", "~", paste(panel_regressors, collapse = "+")))
+
+# Possibilité 1 : considérer la distribution relative avec les quantiles années par année
+for (yr in unique(panel_data$year)) {
+  panel_subset <- panel_data[panel_data$year == yr, ]
+  quantiles <- quantile(panel_subset$ppropri, probs = seq(0, 1, by = 0.5), na.rm = TRUE)
+  for (i in 1:(length(quantiles) - 1)) {
+    quantile_subset <- panel_subset[panel_subset$ppropri >= quantiles[i] & panel_subset$ppropri <= quantiles[i + 1], ]
+    model <- lm(regression_formula, data = quantile_subset)
+    coefs_df <- rbind(coefs_df, data.frame(year = yr, quantile = paste(i), coefficient = model$coef["ppropri"]))
+    R2_df <- rbind(R2_df, data.frame(year = yr, quantile = paste(i), R2 = summary(model)$adj.r.squared))
+  }
+}
+
+# Possibilité 2 : considérer les niveaux absolus
+ppropri_ranges <- list("<60" = c(0, 60),
+                       "60-70" = c(60, 70),
+                       "70-80" = c(70, 80),
+                       "80-90" = c(80, 90),
+                       ">90" = c(90, Inf))
+
+ppropri_ranges <- list("<90" = c(0, 90),
+                       "90-95" = c(90, 95),                       
+                       ">95" = c(95, Inf))
+for (yr in unique(panel_data$year)) {
+  panel_subset <- panel_data[panel_data$year == yr, ]
+  for (range_name in names(ppropri_ranges)) {
+    range_values <- ppropri_ranges[[range_name]]
+    subset_name <- paste(range_name)
+    quantile_subset <- panel_subset[panel_subset$ppropri >= range_values[1] & panel_subset$ppropri < range_values[2], ]
+    if (nrow(quantile_subset) > 0) {
+      model <- lm(regression_formula, data = quantile_subset)
+      coefs_df <- rbind(coefs_df, data.frame(year = yr, quantile = subset_name, coefficient = model$coef["ppropri"]))
+      R2_df <- rbind(R2_df, data.frame(year = yr, quantile = subset_name, R2 = summary(model)$adj.r.squared))
+    }
+  }
+}
+
+ggplot(coefs_df, aes(x = factor(year), y = coefficient, color = quantile, group = quantile)) +
+  geom_line() +
+  labs(title = "Coefficients of ppropri by Quantile",
+       x = "Year",
+       y = "Coefficient") +
+  theme_minimal()
+
+ggplot(R2_df, aes(x = factor(year), y = R2, color = quantile, group = quantile)) +
+  geom_line() +
+  labs(title = "R-squared Values by Quantile",
+       x = "Year",
+       y = "R-squared") +
+  theme_minimal()
+```
+
+Régressions quantiles : code à reprendre
+
+```{r}
+library(quantreg)
+```
+
+```{r}
+quantiles <- c(0.2, 0.4, 0.6, 0.8)
+
+coefs_df <- data.frame(year = integer(), coefficient = numeric(), quantile = numeric())
+R2_df <- data.frame(year = integer(), R2 = numeric(), quantile = numeric())
+
+regression_formula <- as.formula(paste("part_T1", "~", paste(panel_regressors, collapse = "+")))
+
+for (yr in unique(panel_data$year)) {
+  subset_data <- panel_data[panel_data$year == yr, ]
+  for (q in quantiles) {
+    model <- rq(regression_formula, data = subset_data, tau = q)
+    coefs_df <- rbind(coefs_df, data.frame(year = yr, coefficient = coef(model)["ppropri"], quantile = q))
+  }
+}
+
+ggplot(coefs_df, aes(x = year, y = coefficient, color = factor(quantile))) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Coefficients of 'ppropri' Across Time for Different Quantile Levels",
+       x = "Year", y = "Coefficient") +
+  theme_minimal() +
+  scale_color_discrete(name = "Quantile")
+```
+
+
+**Tentative de régression quantile en panel**
 
 ```{r}
 install.packages("rqpd", repos="http://R-Forge.R-project.org")
@@ -121,7 +406,7 @@ results <- rqpd(
 print.rqpd(results)
 
 
-regression_formula <- as.formula(paste("part_T1 ~ ppropri + popcomm | codecommune"))
+regression_formula <- as.formula(paste("part_T1 ~ ppropri + popcomm | codecommune_year"))
 results <- rqpd(
   regression_formula, 
   panel = panel(method="pfe", taus=1:3/4, tauw=c(.25,.5,.25), lambda=1, cre="m", ztol=1e-5), 
@@ -131,200 +416,7 @@ print.rqpd(results)
 summary.rqpd(results)
 ```
 
-**Panel avec tours séparés**
 
-Première tentative : panel simple, en différences premières, avec clustering au niveau départemental et variance hétéroscédastique.
-
-```{r include=FALSE}
-panel_as_pdata <- pdata.frame(panel_data, index = c("codecommune", "year"))
-
-relative_results <- list()
-for (outcome in relative_outcomes) {
-  regression_formula <- as.formula(paste(outcome, "~", paste(panel_regressors, collapse = "+")))
-  model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
-}
-suppressWarnings(
-  stargazer(relative_results, type = "html", out = "output/relative_results.html")
-)
-
-absolute_results <- list()
-for (outcome in absolute_outcomes) {
-  regression_formula <- as.formula(paste(outcome, "~", paste(panel_regressors, collapse = "+")))
-  model_name <- paste0(outcome, "_model")
-  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep")
-}
-suppressWarnings(
-  stargazer(absolute_results, type = "html", out = "output/absolute_results.html")
-)
-
-rm(absolute_results, model_name, regression_formula, relative_results, outcome, panel_as_pdata)
-```
-
-Deuxième tentative : on introduit des dummies annuelles.
-
-```{r include=FALSE}
-time_dummies <- model.matrix(~ year - 1, data = panel_data)
-panel_as_pdata <- pdata.frame(cbind(panel_data, time_dummies), index = c("codecommune", "year"))
-
-regressors <- c(panel_regressors, colnames(time_dummies))
-
-relative_results <- list()
-for (outcome in relative_outcomes) {
-  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
-  model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
-}
-suppressWarnings(
-  stargazer(relative_results, type = "html", out = "output/relative_results_with_time_dummies.html")
-)
-
-absolute_results <- list()
-for (outcome in absolute_outcomes) {
-  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
-  model_name <- paste0(outcome, "_model")
-  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
-}
-suppressWarnings(
-  stargazer(absolute_results, type = "html", out = "output/absolute_results_with_time_dummies.html")
-)
-```
-
-Troisième tentative : dummies annuelles + interactions avec ppropri
-
-```{r include=FALSE}
-time_dummies <- model.matrix(~ year - 1, data = panel_data)
-panel_as_pdata <- pdata.frame(cbind(panel_data, time_dummies), index = c("codecommune", "year"))
-
-regressors <- c(panel_regressors, colnames(time_dummies))
-
-relative_results <- list()
-for (outcome in relative_outcomes) {
-  regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+"), "+", paste("ppropri *", colnames(time_dummies), collapse = "+")))
-  model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
-}
-suppressWarnings(
-  stargazer(relative_results, type = "html", out = "output/relative_results_with_time_dummies_and_interactions.html")
-)
-```
-
-**Panel avec tours confondus**
-
-```{r}
-wide_relative_outcomes <- c("part", "GD_ratio", "EC_ratio")
-wide_panel_regressors <- c("round", panel_regressors)
-
-wide_panel_data$year_round <- with(wide_panel_data, paste(year, round, sep="_"))
-```
-
-Première tentative simple
-
-```{r include=FALSE}
-wide_panel_as_pdata <- pdata.frame(wide_panel_data, index = c("codecommune", "year_round"))
-
-relative_results <- list()
-for (outcome in wide_relative_outcomes) {
-  regression_formula <- as.formula(paste(outcome, "~", paste(wide_panel_regressors, collapse = "+")))
-  print(regression_formula)
-  model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
-}
-suppressWarnings(
-  stargazer(relative_results, type = "html", out = "output/wide_relative_results.html")
-)
-```
-
-Seconde tentative avec dummies temporelles
-
-```{r include=FALSE}
-dummies <- factor(wide_panel_data$year)
-
-wide_panel_as_pdata$time_dummies <- time_dummies
-
-relative_results <- list()
-for (outcome in wide_relative_outcomes) {
-  regression_formula <- as.formula(paste(outcome, "~", paste(wide_panel_regressors, collapse = "+"), "+ time_dummies"))
-  model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
-}
-suppressWarnings(
-  stargazer(relative_results, type = "html", out = "output/wide_relative_results_with_time_dummies.html")
-)
-```
-
-**Régressions annuelles**
-
-La valeur du R2 pour 1981 semble plus faible que celle obtenue pour la note de mi-parcours. Ou je me souviens mal ?
-
-```{r}
-regression_formula <- as.formula(paste("part_T1", "~", paste(panel_regressors, collapse = "+")))
-
-coefs_df <- data.frame(year = integer(), coefficient = numeric())
-R2_df <- data.frame(year = integer(), R2 = numeric())
-
-for (yr in unique(panel_data$year)) {
-  subset_data <- panel_data[panel_data$year == yr, ]
-  model <- lm(regression_formula, data = subset_data)
-  coefs_df <- rbind(coefs_df, data.frame(year = yr, coefficient = model$coef["ppropri"]))
-  R2_df <- rbind(R2_df, data.frame(year = yr, R2 = summary(model)$adj.r.squared))
-}
-
-rownames(coefs_df) <- NULL
-colnames(coefs_df)[colnames(coefs_df) == "coefficient"] <- "ppropri"
-
-# Graph
-ggplot(coefs_df, aes(x = year, y = ppropri)) +
-  geom_line(color = "blue") +
-  labs(x = "Year", y = "Coefficient of propri") +
-  theme_minimal()
-
-ggplot(R2_df, aes(x = year, y = R2)) +
-  geom_line(color = "red") +
-  labs(x = "Year", y = "Adjusted R2") +
-  theme_minimal()
-```
-
-```{r}
-subset_data <- panel_data[panel_data$year == 1981, ]
-regression_formula <- as.formula(paste("part_T1", "~", paste(panel_regressors, collapse = "+")))
-model <- lm(regression_formula, data = subset_data)
-summary(model)
-```
-
-Régressions pseudo-quantiles (considérant les quantiles d'un régresseur plutôt que de l'outcome)
-
-```{r}
-coefs_df <- data.frame(year = integer(), quantile = character(), coefficient = numeric())
-R2_df <- data.frame(year = integer(), quantile = character(), R2 = numeric())
-
-regression_formula <- as.formula(paste("part_T1", "~", paste(panel_regressors, collapse = "+")))
-
-for (yr in unique(panel_data$year)) {
-  panel_subset <- panel_data[panel_data$year == yr, ]
-  quantiles <- quantile(panel_subset$ppropri, probs = seq(0, 1, by = 0.33), na.rm = TRUE)
-  for (i in 1:(length(quantiles) - 1)) {
-    quantile_subset <- panel_subset[panel_subset$ppropri >= quantiles[i] & panel_subset$ppropri <= quantiles[i + 1], ]
-    model <- lm(regression_formula, data = quantile_subset)
-    coefs_df <- rbind(coefs_df, data.frame(year = yr, quantile = paste(i), coefficient = model$coef["ppropri"]))
-    R2_df <- rbind(R2_df, data.frame(year = yr, quantile = paste(i), R2 = summary(model)$adj.r.squared))
-  }
-}
-
-ggplot(coefs_df, aes(x = factor(year), y = coefficient, color = quantile, group = quantile)) +
-  geom_line() +
-  labs(title = "Coefficients of ppropri by Quantile",
-       x = "Year",
-       y = "Coefficient") +
-  theme_minimal()
-
-ggplot(R2_df, aes(x = factor(year), y = R2, color = quantile, group = quantile)) +
-  geom_line() +
-  labs(title = "R-squared Values by Quantile",
-       x = "Year",
-       y = "R-squared") +
-  theme_minimal()
-```
 
 **Classification**
 
