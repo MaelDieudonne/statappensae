@@ -52,7 +52,7 @@ print(na_prop_table)
 rm(count_na, na_prop, na_prop_table, outcome)
 ```
 
-Tableau présentant la proportion de valeurs manquantes par outcome et par an.
+Tableau présentant la proportion de valeurs manquantes par régresseur et par an.
 
 ```{r}
 count_na <- function(x) mean(is.na(x)) * 100
@@ -74,6 +74,8 @@ rm(count_na, na_prop, na_prop_table, regressor)
 **Analyses descriptives - outcomes**
 
 **Analyses descriptives - taux de propriétaires**
+
+Nous pouvons d'abord représenter l'évolution du taux national de propriétaires, calculé sur l'ensemble de la population française. Il n'est cependant pas le plus pertinent, car nous allons raisonner à l'échelle des communes plutôt que des individus. Représentons donc aussi l'évolution de la proportion moyenne de propriétaires dans chaque commune.
 
 ```{r}
 propri <- load_parquet("Proprietaires/proprietairescommunes.parquet")
@@ -99,78 +101,26 @@ plot <- ggplot(propri_df, aes(x = year)) +
        color = "") +
   scale_color_manual(values = c("prop_ratio" = "skyblue", "ppropri" = "orange"),
                      labels = c("prop_ratio" = "Taux national", "ppropri" = "Taux communal moyen")) +
-  theme_minimal()+
+  theme_minimal() +
   theme(
     plot.title = element_text(hjust = 0.5)
   )
-
 print(plot)
+ggsave("output/taux_proprietaires_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
+
+rm(propri, propri_df, year, col_npropri, col_nlogement, col_ppropri, sum_npropri, sum_nlogement, average_ppropri, prop_ratio)
 ```
 
-On peut d'abord représenter l'évolution du taux national de propriétaires.
+La différence entre les deux courbes atteste que les propriétaires de leur résidence principale sont proportionnellement plus nombreux dans les communes de faible taille. Pour caractériser davantage cette situation, représentons l'évolution des déciles du taux communal de propriétaires. On observe une certaine convergence, avec un ratio D1/D10 qui passe de 0,5 à 0,66 sur la période.
 
 ```{r}
-propri <- load_parquet("Proprietaires/proprietairescommunes.parquet")
-
-propri_tot <- data.table(year = numeric(), sum_npropri = numeric(), sum_nlogement = numeric(), prop_ratio = numeric())
-for (year in 1960:2022) {
-  col_npropri <- paste0("npropri", year)
-  col_nlogement <- paste0("nlogement", year)
-  sum_npropri <- sum(propri[[col_npropri]], na.rm = TRUE)
-  sum_nlogement <- sum(propri[[col_nlogement]], na.rm = TRUE)
-  prop_ratio <- sum_npropri / sum_nlogement
-  propri_tot <- rbind(propri_tot, data.table(year = year, sum_npropri = sum_npropri, sum_nlogement = sum_nlogement, prop_ratio = prop_ratio))
-}
-
-# Graph
-plot <- ggplot(propri_tot, aes(x = year, y = prop_ratio)) +
-  geom_line(color = "skyblue") +
-  geom_point(color = "skyblue") +
-  labs(title = "Proportion de propriétaires en France, 1960-2022",
-       x = "Année",
-       y = "Proportion de propriétaires") +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5))
-
-print(plot)
-ggsave("output/ppropri_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
-
-# Nettoyage
-rm(col_npropri, col_nlogement, propri, sum_npropri, sum_nlogement, prop_ratio, propri_tot, year, plot)
-```
-
-Ce graphique n'est pas le plus pertinent ici, car nous raisonnons à l'échelle des communes et non des individus. Représentons donc l'évolution du taux communal moyen de propriétaires.
-
-```{r}
-propri <- load_parquet("Proprietaires/proprietairescommunes.parquet")
-
-propri_share <- data.table(year = numeric(), ppropri = numeric())
-for (year in 1960:2022) {
-  var_name <- paste0("ppropri", year)
-  average <- mean(propri[[var_name]], na.rm = TRUE)
-  propri_share <- rbind(propri_share, data.table(year = year, ppropri = average))
-}
-
-plot <- ggplot(propri_share, aes(x = year, y = ppropri)) +
-  geom_line(color = "skyblue") +
-  geom_point(color = "skyblue") +
-  labs(title = "Taux communal moyen de propriétaires, 1965-2022",
-       x = "Année",
-       y = "%") +
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5))
-print(plot)
-
-rm(propri, propri_share, year, var_name, average)
-```
-
-Etude de la distribution / évolution des déciles
-
-```{r}
+nb_quantiles <- 11
 quantiles_list <- list()
+
 for (yr in unique(panel_data$year)) {
   panel_subset <- panel_data[panel_data$year == yr, ]
-  quantiles <- quantile(panel_subset$ppropri, probs = seq(0, 1, length.out = 10), na.rm = TRUE)
+  quantiles <- quantile(panel_subset$ppropri, probs = seq(0, 1, length.out = nb_quantiles), na.rm = TRUE)
+  names(quantiles) <- paste0("D", 1:nb_quantiles)
   quantiles_list[[as.character(yr)]] <- quantiles
 }
 
@@ -178,12 +128,23 @@ quantiles_df <- do.call(rbind, quantiles_list)
 quantiles_df <- data.frame(year = as.integer(row.names(quantiles_df)), quantiles_df)
 quantiles_df <- melt(quantiles_df, id.vars = "year", variable.name = "quintile")
 names(quantiles_df) <- c("year", "quintile", "ppropri")
-quantiles_df <- quantiles_df[quantiles_df$quintile != "X0." & quantiles_df$quintile != "X100.", ]
+quantiles_df <- quantiles_df[quantiles_df$quintile != "D1" & quantiles_df$quintile != paste0("D", nb_quantiles), ]
 
-ggplot(quantiles_df, aes(x = year, y = ppropri, color = as.factor(quintile), group = quintile)) +
+plot <- ggplot(quantiles_df, aes(x = year, y = ppropri, color = as.factor(quintile), group = quintile)) +
   geom_line() +
-  labs(x = "Year", y = "%", color = "Quintile") +
-  ggtitle("Déciles du taux communal moyen de propriétaire")
+  labs(title = "Déciles du taux communal moyen de propriétaires",
+       x = "Year", 
+       y = "%", 
+       color = "Déciles") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  )
+
+print(plot)
+ggsave("output/deciles_taux_proprietaires_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
+
+rm(nb_quantiles, quantiles_list, yr, panel_subset, quantiles, quantiles_df)
 ```
 
 Cartes...
