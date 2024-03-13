@@ -73,6 +73,20 @@ rm(count_na, na_prop, na_prop_table, regressor)
 
 **Analyses descriptives - outcomes**
 
+```{r}
+for (outcome in relative_outcomes) {
+  data <- aggregate(as.formula(paste(outcome, " ~ year")), data = panel_data, FUN = mean)
+  plot <- ggplot(data, aes(x = year, y = !!as.name(outcome))) +
+    geom_line(color = "skyblue") +
+    geom_point(color = "skyblue") +
+    labs(x = "Année", y = "%", title = outcome)
+  print(plot)
+}
+
+rm(data, plot)
+```
+
+
 **Analyses descriptives - taux de propriétaires**
 
 Nous pouvons d'abord représenter l'évolution du taux national de propriétaires, calculé sur l'ensemble de la population française. Il n'est cependant pas le plus pertinent, car nous allons raisonner à l'échelle des communes plutôt que des individus. Représentons donc aussi l'évolution de la proportion moyenne de propriétaires dans chaque commune.
