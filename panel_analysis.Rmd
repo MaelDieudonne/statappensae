@@ -83,9 +83,8 @@ for (outcome in relative_outcomes) {
   print(plot)
 }
 
-rm(data, plot)
+rm(outcome, data, plot)
 ```
-
 
 **Analyses descriptives - taux de propriétaires**
 
@@ -159,6 +158,21 @@ print(plot)
 ggsave("output/deciles_taux_proprietaires_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
 
 rm(nb_quantiles, quantiles_list, yr, panel_subset, quantiles, quantiles_df)
+```
+
+Étudions la corrélation du taux de propriétaires avec les autres régresseurs. Certains résultats sont peu surprenants : les propriétaires sont comparativement plus nombreux dans les communes dont les habitants sont plus âgés, et moins nombreux dans les communes plus petites et dont les habitants comptent davantage d'étrangers. Les corrélations avec le diplôme et la catégorie socio-professionnelles sont plus ambigues, avec une corrélation plus forte avec la proportion de diplômés du bac que du supérieur, et de professions intermédiaires que de cadres. On peut supposer que les diplômés du supérieur et les cadres résident davantage dans les grandes villes, ce qui freine leur accession à la propriété malgré leurs revenus supérieurs.
+
+```{r}
+panel_data_complete <- na.omit(panel_data[, c("ppropri", panel_regressors), with = FALSE])
+correlation_results <- sapply(panel_data_complete[, -1, drop = FALSE], function(x) cor(panel_data_complete$ppropri, x))
+correlation_results <- correlation_results * 100
+correlation_df <- data.frame(Variable = names(correlation_results), Correlation = correlation_results)
+correlation_df <- correlation_df[order(correlation_df$Correlation, decreasing = TRUE), ]
+
+correlation_df[] <- lapply(correlation_df, tidy_table)
+print(correlation_df)
+
+rm(panel_data_complete, correlation_results, correlation_df)
 ```
 
 Cartes...
