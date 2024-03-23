@@ -1,10 +1,16 @@
 **Packages et librairies**
 
+```{r eval=FALSE}
+# Installation alternative d'arrow pour MacOs
+install.packages('arrow', repos = c('https://apache.r-universe.dev', 'https://cloud.r-project.org'))
+```
+
 ```{r include=FALSE}
 packages <- c(
   "archive",
   "arrow",
   "aws.s3",
+  "cluster",
   "corrplot",
   "data.table",
   "factoextra",

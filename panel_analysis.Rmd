@@ -127,7 +127,7 @@ rm(propri, propri_df, year, col_npropri, col_nlogement, col_ppropri, sum_npropri
 La différence entre les deux courbes atteste que les propriétaires de leur résidence principale sont proportionnellement plus nombreux dans les communes de faible taille. Pour caractériser davantage cette situation, représentons l'évolution des déciles du taux communal de propriétaires. On observe une certaine convergence, avec un ratio D1/D10 qui passe de 0,5 à 0,66 sur la période.
 
 ```{r}
-nb_quantiles <- 11
+nb_quantiles <- 10
 quantiles_list <- list()
 
 for (yr in unique(panel_data$year)) {
@@ -366,7 +366,7 @@ relative_results <- list()
 for (outcome in wide_relative_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "within", cluster = "dep", vcov = "HC1")
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
@@ -420,11 +420,11 @@ Régressions pseudo-quantiles (considérant les quantiles de ppropri plutôt que
 # Possibilité 1 : considérer la distribution relative avec les quantiles années par année
 coefs_df <- data.frame(year = integer(), quantile = character(), coefficient = numeric())
 R2_df <- data.frame(year = integer(), quantile = character(), R2 = numeric())
-regression_formula <- as.formula(paste("part_T1", "~", paste(panel_regressors, collapse = "+")))
+regression_formula <- as.formula(paste("GD_ratio_T1", "~", paste(panel_regressors, collapse = "+")))
 
 for (yr in unique(panel_data$year)) {
   panel_subset <- panel_data[panel_data$year == yr, ]
-  quantiles <- quantile(panel_subset$ppropri, probs = seq(0, 1, by = 0.5), na.rm = TRUE)
+  quantiles <- quantile(panel_subset$ppropri, probs = seq(0, 1, by = 0.25), na.rm = TRUE)
   for (i in 1:(length(quantiles) - 1)) {
     quantile_subset <- panel_subset[panel_subset$ppropri >= quantiles[i] & panel_subset$ppropri <= quantiles[i + 1], ]
     model <- lm(regression_formula, data = quantile_subset)
@@ -563,8 +563,6 @@ summary.rqpd(results)
 **Classification**
 
 ```{r}
-panel_data <- load_parquet("panel_data.parquet")
-
 # Expression des populations et du ratio de revenu sur une échelle de 1 à 100
 min_max_scale <- function(x) {
   return ((x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)) * 100)
