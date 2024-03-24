@@ -316,6 +316,8 @@ Cluster le plus petit en nombre de communes.
 6 = banlieues et villes pauvres ?
 3 = petites communes appartenant à de grosses agglomérations, avec beaucoup de cadres et de professions intermédiaires, et de diplômés du supérieur. Communes très riches, comptant le moins d'étrangers et d'allocataires du RSA. Présentent la participation la plus élevée, un vote à gauche moyen, et un vote protestataire faible. Correspondent aux beaux quartiers hors des centres, banlieues aisées, périrubain riche ?
 
+NB : les données sur le RSA sont manquantes pour la Corse. Celle-ci est donc exclue de la classification !
+
 ```{r}
 draw_map_cluster <- function(region, base_width) {
   carto <- merge(map_data, data_for_clustering, by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
@@ -384,6 +386,6 @@ draw_map_cluster <- function(region, base_width) {
     print(display_plot)
 }
 
-draw_map_cluster(76, 8)
+draw_map_cluster(84, 8)
 ```
 
