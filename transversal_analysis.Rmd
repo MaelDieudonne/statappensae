@@ -304,30 +304,17 @@ print(means)
 Ici, les résultats sont plus intéressants, avec des clusters qui se différencient plus nettement ; les clusters 2 et 6 en particulier, avec des taux de propriétaires très en-dessous de la moyenne, mais l'un (n°6) qui vote beaucoup aux extrêmes, l'autre (n°2) qui vote davantage au centre. 
 Essayons d'identifier / caractériser ces clusters.
 
-1. Semble aussi du rural ouvrier, mais contrairement au 5, sans tendance forte aux comportements protestaires.
+Trois appartiennent à l'univers rural (avec le même taux de propriétaires) ; représentent environ 20 000 communes
+4 = campagne paysanne, avec les plus petites communes, une proportion très élevée d'agriculteurs, une population plus âgée et moins diplômée qu'ailleurs. Cluster présentant le plus fort taux de propriétaires, participation dans la moyenne, vote à gauche le plus faible, ainsi que le vote protestataire au T1. Cluster le plus petit, correspondant à la droite rurale traditionnelle ?
+1 et 5 = campagne ouvrière, avec toujours de petites communes et agglomérations, mais une population beaucoup plus ouvrière.
+Cluster 1 = population âgée, avec un peu plus de chômeurs et d'étrangers, plus de crimes et délits, ainsi que de bénéficiaires du RSA.
+Cluster 5 = population plus jeune. Vote à gauche faible, vote protestataire élevé. Univers pavillonnaire ?
 
-2. Agglomération parisienne et centre des métropoles, sans doute possible grâce à popagglo. Avec le plus faible taux de propriétaires, une population plus jeune et nettement plus diplômée qu'ailleurs, avec la plus grande proportion de cadres et celle d'ouvriers parmi les plus faibles. Avec aussi la situation économique la plus contrastée, associant le revenu communal moyen et la proportion de contribuables soumis à l'ISF les plus élevés, mais aussi la seconde plus importante proportion d'allocataires du RSA. Cluster où la participation est la plus faible, le vote à gauche le plus fort, et le vote protestataire le plus faible.
+Trois appartiennent à l'univers urbain (avec des taux variables de propriétaires) ; représentent environ 13 000 communes
+2 = Agglomération parisienne et centre des métropoles, sans doute possible grâce à popagglo. Avec le plus faible taux de propriétaires, une population plus jeune et nettement plus diplômée qu'ailleurs, avec la plus grande proportion de cadres et celle d'ouvriers parmi les plus faibles. Avec aussi la situation économique la plus contrastée, associant le revenu communal moyen et la proportion de contribuables soumis à l'ISF les plus élevés, mais aussi la seconde plus importante proportion d'allocataires du RSA. Cluster où la participation est la plus faible, le vote à gauche le plus fort, et le vote protestataire le plus faible.
 Cluster le plus petit en nombre de communes.
-
-3. 
-
-petites communes de grosses agglos,
-beaucoup de cadres et de professions intermédiaires, de diplômés du supérieur
-très riches, le moins d'étrangers et d'allocataires du RSA
-
-banlieues aisées / périrubain riche ?
-
-participation la plus élevée
-vote à gauche moyen
-vote protestataire faible
-
-4. Campagnes rurales, avec les plus petites communes, une proportion très élevée d'agriculteurs, une population plus âgée et moins diplômée qu'ailleurs. Cluster présentant le plus fort taux de propriétaires, participation dans la moyenne, vote à gauche le plus faible, ainsi que le vote protestataire au T1. Domaine de la droite traditionnelle ?
-Petit cluster aussi.
-
-5. Assez comparable au cluster précédent, donc rural aussi, mais plus jeune et beaucoup plus ouvrier. Même participation, même faiblesse du vote à gauche, en revanche, vote de protestation très élevé.
-
-6. Banlieues pauvres ?
-
+6 = banlieues et villes pauvres ?
+3 = petites communes appartenant à de grosses agglomérations, avec beaucoup de cadres et de professions intermédiaires, et de diplômés du supérieur. Communes très riches, comptant le moins d'étrangers et d'allocataires du RSA. Présentent la participation la plus élevée, un vote à gauche moyen, et un vote protestataire faible. Correspondent aux beaux quartiers hors des centres, banlieues aisées, périrubain riche ?
 
 ```{r}
 draw_map_cluster <- function(region, base_width) {
@@ -341,14 +328,44 @@ draw_map_cluster <- function(region, base_width) {
     reg_name <- "France"
     reg_abrv <- "FR"
   }
-  title <- paste0("Clusters\n", reg_name)
 
+  output_file <- paste0("output/clusters_2017_", reg_abrv, ".png")
+  title <- paste0("Clusters en ", reg_name)
   legend_labels <- c("1" = "Rural mixte",
                      "2" = "Centre des grandes villes",
                      "3" = "Périurbain aisé",
                      "4" = "Rural à dominante paysanne",
                      "5" = "Rural à dominante ouvrière",
                      "6" = "Banlieues et villes pauvres")
+  legend_colors <- c("1" = "green",
+                     "2" = "blue",
+                     "3" = "skyblue",
+                     "4" = "darkgreen",
+                     "5" = "lightgreen",
+                     "6" = "brown")
+  
+  # Exportation d'une carte en haute résolution
+  ## Calcul des dimensions
+  bbox <- st_bbox(carto)
+  aspect_ratio <- diff(c(bbox$xmin, bbox$xmax)) / diff(c(bbox$ymin, bbox$ymax))
+  base_height <- base_width / aspect_ratio
+  font_size <- base_width * 2.2
+  ## Création et enregistrement
+  plot_png <- ggplot() +
+    geom_sf(data = carto, aes(fill = .data[["cluster"]])) +
+    ggtitle(paste(title)) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5, size = font_size),
+          axis.text = element_blank(),
+          panel.grid = element_blank(),
+          plot.title.position = "plot",
+          legend.title = element_text(size = font_size * 0.8),
+          legend.text = element_text(size = font_size * 0.7)) +
+    scale_fill_manual(values = legend_colors,
+                      breaks = names(legend_labels),
+                      labels = legend_labels,
+                      name = NULL)
+  ggsave(output_file, plot = plot_png, width = base_width, height = base_height, units = "in")
   
   display_plot <- ggplot() +
     geom_sf(data = carto, aes(fill = .data[["cluster"]])) +
@@ -360,17 +377,13 @@ draw_map_cluster <- function(region, base_width) {
           plot.title.position = "plot",
           legend.title = element_text(),
           legend.text = element_text()) +
-    scale_fill_manual(values = c("1" = "green",
-                                "2" = "blue",
-                                "3" = "skyblue",
-                                "4" = "darkgreen",
-                                "5" = "lightgreen",
-                                "6" = "brown"),
+    scale_fill_manual(values = legend_colors,
                       breaks = names(legend_labels),
-                      labels = legend_labels)
+                      labels = legend_labels,
+                      name = NULL)
     print(display_plot)
 }
 
-draw_map_cluster(53, 8)
+draw_map_cluster(76, 8)
 ```
 
