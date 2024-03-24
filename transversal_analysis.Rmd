@@ -188,7 +188,7 @@ On commence ar utiliser les résultats électoraux détaillés.
 
 ```{r}
 # Préparation des données
-variables <- c(mca_detailed_outcomes, mca_regressors)
+variables <- c(mca_detailed_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
 data_for_clustering <- detailed_mca_data[, ..variables]
 data_for_clustering <- na.omit(data_for_clustering)
 data_for_clustering <- scale(data_for_clustering)
@@ -223,7 +223,7 @@ plot(2:15, silhouette_avg[2:15], type = "b", xlab = "Number of Clusters (k)", yl
 Les résultats sont décourageants. Les valeurs de Silhouette sont faibles, et décroissent continûment. On retient donc la valeur de 4.
 
 ```{r}
-variables <- c(mca_detailed_outcomes, mca_regressors)
+variables <- c(mca_detailed_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
 data_for_clustering <- detailed_mca_data[, ..variables]
 data_for_clustering <- na.omit(data_for_clustering)
 data_for_clustering <- scale(data_for_clustering)
@@ -250,7 +250,7 @@ Les résultats ne sont pas vraiment exploitables, les clusters semblent extrême
 
 ```{r}
 # Préparation des données
-variables <- c(mca_relative_outcomes, mca_regressors)
+variables <- c(mca_relative_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
 data_for_clustering <- mca_data[, ..variables]
 data_for_clustering <- na.omit(data_for_clustering)
 data_for_clustering <- scale(data_for_clustering)
@@ -287,30 +287,52 @@ set.seed(123)
 kmeans_result <- kmeans(data_for_clustering, centers = 6)
 cluster_assignments <- kmeans_result$cluster
 
-variables <- c("codecommune", mca_relative_outcomes, mca_regressors)
+variables <- c("codecommune", mca_relative_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
 data_for_clustering <- mca_data[, ..variables]
 data_for_clustering <- na.omit(data_for_clustering)
 
 data_for_clustering$cluster <- kmeans_result$cluster
 data_for_clustering <- as.data.table(data_for_clustering)
 
-means <- data_for_clustering[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = c(mca_relative_outcomes, mca_regressors)]
-
+means <- data_for_clustering[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = c(mca_relative_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")]
+counts <- data_for_clustering[, .N, by = cluster]
+means <- merge(means, counts, by = "cluster")
 means[] <- data.frame(lapply(means, tidy_table))
 print(means)
 ```
 
-Ici, les résultats sont plus intéressants, avec des clusters qui se différencient plus nettement.
-Clusters 3 et 6 en particulier, avec des taux de propriétaires très en-dessous de la moyenne, mais l'un (n°6) qui vote beaucoup aux extrêmes, l'autre (n°3) qui vote davantage au centre. 
-Cluster 3 = clairement agglomération parisienne.
-Cluster 6 = périurbain ?
-Cluster 4 = campagnes, beaucoup d'agriculteurs, âge très supérieur à la moyenne... vote à droite, mais pas aux extrêmes.
+Ici, les résultats sont plus intéressants, avec des clusters qui se différencient plus nettement ; les clusters 2 et 6 en particulier, avec des taux de propriétaires très en-dessous de la moyenne, mais l'un (n°6) qui vote beaucoup aux extrêmes, l'autre (n°2) qui vote davantage au centre. 
+Essayons d'identifier / caractériser ces clusters.
+
+1. Semble aussi du rural ouvrier, mais contrairement au 5, sans tendance forte aux comportements protestaires.
+
+2. Agglomération parisienne et centre des métropoles, sans doute possible grâce à popagglo. Avec le plus faible taux de propriétaires, une population plus jeune et nettement plus diplômée qu'ailleurs, avec la plus grande proportion de cadres et celle d'ouvriers parmi les plus faibles. Avec aussi la situation économique la plus contrastée, associant le revenu communal moyen et la proportion de contribuables soumis à l'ISF les plus élevés, mais aussi la seconde plus importante proportion d'allocataires du RSA. Cluster où la participation est la plus faible, le vote à gauche le plus fort, et le vote protestataire le plus faible.
+Cluster le plus petit en nombre de communes.
+
+3. 
+
+petites communes de grosses agglos,
+beaucoup de cadres et de professions intermédiaires, de diplômés du supérieur
+très riches, le moins d'étrangers et d'allocataires du RSA
+
+banlieues aisées / périrubain riche ?
+
+participation la plus élevée
+vote à gauche moyen
+vote protestataire faible
+
+4. Campagnes rurales, avec les plus petites communes, une proportion très élevée d'agriculteurs, une population plus âgée et moins diplômée qu'ailleurs. Cluster présentant le plus fort taux de propriétaires, participation dans la moyenne, vote à gauche le plus faible, ainsi que le vote protestataire au T1. Domaine de la droite traditionnelle ?
+Petit cluster aussi.
+
+5. Assez comparable au cluster précédent, donc rural aussi, mais plus jeune et beaucoup plus ouvrier. Même participation, même faiblesse du vote à gauche, en revanche, vote de protestation très élevé.
+
+6. Banlieues pauvres ?
+
 
 ```{r}
-draw_map_cluster(11, "cluster", "Cluster", 8)
-
-draw_map_cluster <- function(region, mapped_var, mapped_var_name, base_width) {
+draw_map_cluster <- function(region, base_width) {
   carto <- merge(map_data, data_for_clustering, by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
+  carto[["cluster"]] <- factor(carto[["cluster"]])
   if (region != 0) {
     carto <- subset(carto, INSEE_REG == region)
     reg_name <- codes_regions$LIBELLE[codes_regions$REG == region]
@@ -319,10 +341,17 @@ draw_map_cluster <- function(region, mapped_var, mapped_var_name, base_width) {
     reg_name <- "France"
     reg_abrv <- "FR"
   }
-  title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n", reg_name)
+  title <- paste0("Clusters\n", reg_name)
+
+  legend_labels <- c("1" = "Rural mixte",
+                     "2" = "Centre des grandes villes",
+                     "3" = "Périurbain aisé",
+                     "4" = "Rural à dominante paysanne",
+                     "5" = "Rural à dominante ouvrière",
+                     "6" = "Banlieues et villes pauvres")
+  
   display_plot <- ggplot() +
-    geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
-    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 1)) +
+    geom_sf(data = carto, aes(fill = .data[["cluster"]])) +
     ggtitle(paste(title)) +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5),
@@ -330,8 +359,18 @@ draw_map_cluster <- function(region, mapped_var, mapped_var_name, base_width) {
           panel.grid = element_blank(),
           plot.title.position = "plot",
           legend.title = element_text(),
-          legend.text = element_text())   
+          legend.text = element_text()) +
+    scale_fill_manual(values = c("1" = "green",
+                                "2" = "blue",
+                                "3" = "skyblue",
+                                "4" = "darkgreen",
+                                "5" = "lightgreen",
+                                "6" = "brown"),
+                      breaks = names(legend_labels),
+                      labels = legend_labels)
     print(display_plot)
 }
+
+draw_map_cluster(53, 8)
 ```
 
