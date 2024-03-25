@@ -184,7 +184,7 @@ fviz_pca_var(pca_result, axes = c(1, 3), geom = c("arrow", "text"), col.var = "r
 
 **K-means**
 
-On commence ar utiliser les résultats électoraux détaillés.
+On commence par utiliser les résultats électoraux détaillés.
 
 ```{r}
 # Préparation des données
@@ -197,52 +197,62 @@ data_for_clustering <- scale(data_for_clustering)
 ```{r}
 # Détermination du nombre de clusters optimal : méthode elbow
 set.seed(123)
-wcss <- numeric(length = 15)
-for (i in 1:15) {
+wcss <- numeric(length = 20)
+for (i in 1:20) {
   kmeans_model <- kmeans(data_for_clustering, centers = i)
   wcss[i] <- kmeans_model$tot.withinss
 }
 
-plot(1:15, wcss, type = "b", xlab = "Number of Clusters", ylab = "Within-Cluster Sum of Squares (WCSS)")
+plot(1:20, wcss, type = "b", xlab = "Number of Clusters", ylab = "Within-Cluster Sum of Squares (WCSS)")
 ```
 
-Le point d'inflexion le plus flagrant est atteint pour k=9. Comme il s'agit d'une valeur déjà élevée, on pourrait éventuellement retenir k=4.
+Le point d'inflexion le plus flagrant est atteint pour k=4.
 
 ```{r}
 # Détermination du nombre de clusters optimal : méthode silhouette
 set.seed(123)
-silhouette_avg <- numeric(length = 15)
-for (i in 2:15) {
+silhouette_avg <- numeric(length = 20)
+for (i in 2:20) {
   kmeans_model <- kmeans(data_for_clustering, centers = i)
   sil <- silhouette(kmeans_model$cluster, dist(data_for_clustering))
   silhouette_avg[i - 1] <- mean(sil[, 3])
 }
-plot(2:15, silhouette_avg[2:15], type = "b", xlab = "Number of Clusters (k)", ylab = "Average Silhouette Width")
+plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters (k)", ylab = "Average Silhouette Width")
 ```
 
-Les résultats sont décourageants. Les valeurs de Silhouette sont faibles, et décroissent continûment. On retient donc la valeur de 4.
+Ici, on obtient bien une courbe en cloche, avec un sommet atteint pour k=3. Les valeurs de Silhouette sont toutefois plus faibles qu'il faudrait.
 
 ```{r}
-variables <- c(mca_detailed_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
-data_for_clustering <- detailed_mca_data[, ..variables]
-data_for_clustering <- na.omit(data_for_clustering)
-data_for_clustering <- scale(data_for_clustering)
+# Les deux lignes ci-dessous permettent de réaliser le clustering sur les seuls résultats électoraux. Mais on obtient des résultats moins faciles à interpréter...
+# data_for_clustering <- as.data.table(data_for_clustering)
+# data_for_clustering <- data_for_clustering[, ..mca_detailed_outcomes]
 
 set.seed(123)
-kmeans_result <- kmeans(data_for_clustering, centers = 5)
+kmeans_result <- kmeans(data_for_clustering, centers = 6)
 cluster_assignments <- kmeans_result$cluster
 
-variables <- c("codecommune", mca_detailed_outcomes, mca_regressors)
+variables <- c("codecommune", mca_detailed_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
 data_for_clustering <- detailed_mca_data[, ..variables]
 data_for_clustering <- na.omit(data_for_clustering)
 
 data_for_clustering$cluster <- kmeans_result$cluster
 data_for_clustering <- as.data.table(data_for_clustering)
+data_for_clustering$type_comm <- as.factor(data_for_clustering$type_comm)
 
-means <- data_for_clustering[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = c(mca_detailed_outcomes, mca_regressors)]
+counts <- data_for_clustering[, .N, by = .(cluster, type_comm)]
+total_counts <- data_for_clustering[, .N, by = cluster]
+modality_share <- merge(counts, total_counts, by = "cluster")
+modality_share[, share := N.x / N.y]
+modality_share[, c("N.x", "N.y") := NULL]
+modality_share <- dcast(modality_share, cluster ~ type_comm, value.var = "share")
+setnames(modality_share, c("cluster", "% villages", "% bourgs", "% banlieues", "% métropoles"))
 
+variables <- c(mca_detailed_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
+variables <- setdiff(variables, "type_comm")
+means <- data_for_clustering[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = variables]
+
+means <- merge(means, modality_share, by = "cluster")
 means[] <- data.frame(lapply(means, tidy_table))
-
 print(means)
 ```
 
@@ -259,28 +269,28 @@ data_for_clustering <- scale(data_for_clustering)
 ```{r}
 # Détermination du nombre de clusters optimal : méthode elbow
 set.seed(123)
-wcss <- numeric(length = 15)
-for (i in 1:15) {
+wcss <- numeric(length = 20)
+for (i in 1:20) {
   kmeans_model <- kmeans(data_for_clustering, centers = i)
   wcss[i] <- kmeans_model$tot.withinss
 }
 
-plot(1:15, wcss, type = "b", xlab = "Number of Clusters", ylab = "Within-Cluster Sum of Squares (WCSS)")
+plot(1:20, wcss, type = "b", xlab = "Number of Clusters", ylab = "Within-Cluster Sum of Squares (WCSS)")
 ```
-A nouveau, pas de points d'inflexion évident. On pourrait choisr k=3, 5 ou 8.
+A nouveau, pas de points d'inflexion vraiment flagrant. On pourrait choisir k=5.
 
 ```{r}
 # Détermination du nombre de clusters optimal : méthode silhouette
 set.seed(123)
-silhouette_avg <- numeric(length = 15)
-for (i in 2:15) {
+silhouette_avg <- numeric(length = 20)
+for (i in 2:20) {
   kmeans_model <- kmeans(data_for_clustering, centers = i)
   sil <- silhouette(kmeans_model$cluster, dist(data_for_clustering))
   silhouette_avg[i - 1] <- mean(sil[, 3])
 }
-plot(2:15, silhouette_avg[2:15], type = "b", xlab = "Number of Clusters (k)", ylab = "Average Silhouette Width")
+plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters (k)", ylab = "Average Silhouette Width")
 ```
-Résultats pas très encourageants non plus... On retient finalement k=6.
+Résultats pas très encourageants non plus... Les valeurs de Silhouette on été divisées par 10 par rapport au clustering sur les résultats détaillés. On retient finalement k=6.
 
 ```{r}
 set.seed(123)
@@ -293,10 +303,21 @@ data_for_clustering <- na.omit(data_for_clustering)
 
 data_for_clustering$cluster <- kmeans_result$cluster
 data_for_clustering <- as.data.table(data_for_clustering)
+data_for_clustering$type_comm <- as.factor(data_for_clustering$type_comm)
 
-means <- data_for_clustering[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = c(mca_relative_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")]
-counts <- data_for_clustering[, .N, by = cluster]
-means <- merge(means, counts, by = "cluster")
+counts <- data_for_clustering[, .N, by = .(cluster, type_comm)]
+total_counts <- data_for_clustering[, .N, by = cluster]
+modality_share <- merge(counts, total_counts, by = "cluster")
+modality_share[, share := N.x / N.y]
+modality_share[, c("N.x", "N.y") := NULL]
+modality_share <- dcast(modality_share, cluster ~ type_comm, value.var = "share")
+setnames(modality_share, c("cluster", "% villages", "% bourgs", "% banlieues", "% métropoles"))
+
+variables <- c(mca_relative_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
+variables <- setdiff(variables, "type_comm")
+means <- data_for_clustering[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = variables]
+
+means <- merge(means, modality_share, by = "cluster")
 means[] <- data.frame(lapply(means, tidy_table))
 print(means)
 ```
@@ -386,6 +407,6 @@ draw_map_cluster <- function(region, base_width) {
     print(display_plot)
 }
 
-draw_map_cluster(84, 8)
+draw_map_cluster(93, 8)
 ```
 
