@@ -136,13 +136,15 @@ mca_data_subset <- cbind(mca_data_subset, dummies)
 mca_data_subset$type_comm <- NULL
 
 # Analyse
-result <- PCA(mca_data_subset, graph = TRUE)
+result <- PCA(mca_data_subset, quanti.sup=mca_regressors,graph = TRUE)
 fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 50))
 print(result$var$contrib)
 
 var <- get_pca_var(result)
 corrplot(var$contrib, is.corr = FALSE)
 corrplot(var$cos2, is.corr = FALSE)
+
+plot.PCA(result, axes=c(1,2), choix="ind", habillage=1)
 
 # Nettoyage
 rm(dummies, mca_data_subset, result, variables_of_interest)
@@ -223,9 +225,13 @@ plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters (k)", yl
 Ici, on obtient bien une courbe en cloche, avec un sommet atteint pour k=3. Les valeurs de Silhouette sont toutefois plus faibles qu'il faudrait.
 
 ```{r}
-# Les deux lignes ci-dessous permettent de réaliser le clustering sur les seuls résultats électoraux. Mais on obtient des résultats moins faciles à interpréter...
-# data_for_clustering <- as.data.table(data_for_clustering)
-# data_for_clustering <- data_for_clustering[, ..mca_detailed_outcomes]
+# Les deux lignes ci-dessous permettent de réaliser le clustering sur les seuls régresseurs. Mais on obtient des résultats moins faciles à interpréter...
+
+## J'ai enlevé popagglo pour éviter que les résultats ne soient trop déformés en région parisienne.
+
+data_for_clustering <- as.data.table(data_for_clustering)
+mca_regressors <- c("ppropri", "popcomm", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger", "revmoy", "pcrimesdelits", "mmoyfortune", "pisf", "prsa", "type_comm")
+data_for_clustering <- data_for_clustering[, ..mca_regressors]
 
 set.seed(123)
 kmeans_result <- kmeans(data_for_clustering, centers = 6)
@@ -290,6 +296,7 @@ for (i in 2:20) {
 }
 plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters (k)", ylab = "Average Silhouette Width")
 ```
+
 Résultats pas très encourageants non plus... Les valeurs de Silhouette on été divisées par 10 par rapport au clustering sur les résultats détaillés. On retient finalement k=6.
 
 ```{r}
@@ -407,6 +414,7 @@ draw_map_cluster <- function(region, base_width) {
     print(display_plot)
 }
 
-draw_map_cluster(93, 8)
+for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {
+  draw_map_cluster(i, 8)
+}
 ```
-

@@ -505,7 +505,7 @@ quantiles <- c(0.2, 0.4, 0.6, 0.8)
 coefs_df <- data.frame(year = integer(), coefficient = numeric(), quantile = numeric())
 R2_df <- data.frame(year = integer(), R2 = numeric(), quantile = numeric())
 
-regression_formula <- as.formula(paste("part_T1", "~", paste(panel_regressors, collapse = "+")))
+regression_formula <- as.formula(paste("EC_ratio_T1", "~", paste(panel_regressors, collapse = "+")))
 
 for (yr in unique(panel_data$year)) {
   subset_data <- panel_data[panel_data$year == yr, ]
