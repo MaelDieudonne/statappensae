@@ -33,42 +33,36 @@ print(sum(is.na(panel_data$codecommune)))
 print(sum(is.na(panel_data$year)))
 ```
 
-Tableau présentant la proportion de valeurs manquantes par outcome et par an.
+Tableaux présentant la proportion de valeurs manquantes par outcome relatif, puis par régresseur, et par an.
 
 ```{r}
 count_na <- function(x) mean(is.na(x)) * 100
-na_prop_table <- data.table(year = unique(panel_data$year))
 
-for (outcome in relative_outcomes) {
-  na_prop <- panel_data[, .(na_prop = count_na(get(outcome))), by = year]
-  na_prop_table <- merge(na_prop_table, na_prop, by = "year", all.x = TRUE)
-  setnames(na_prop_table, "na_prop", outcome)
+na_table <- function(variable_names, file_name) {
+  na_prop_table <- data.table(year = unique(panel_data$year))
+  for (name in variable_names) {
+    na_prop <- panel_data[, .(na_prop = count_na(get(name))), by = year]
+    na_prop_table <- merge(na_prop_table, na_prop, by = "year", all.x = TRUE)
+    setnames(na_prop_table, "na_prop", name)
+  }
+  
+  na_prop_table[] <- lapply(na_prop_table, tidy_table)
+  na_prop_table <- replace(na_prop_table, na_prop_table == 100, NA)
+  
+  numeric_columns <- names(na_prop_table)[-1]
+  na_prop_table[, numeric_columns] <- lapply(na_prop_table[, ..numeric_columns], as.numeric)
+  max_value <- max(subset(na_prop_table, select = -year), na.rm = TRUE)
+  bins <- seq(0, max_value, by = max_value/9)
+  na_prop_table <- gt(na_prop_table)
+  na_prop_table <- data_color(na_prop_table, method = "bin", bins = bins, columns = !starts_with("year"), direction = "row", palette ="Oranges", na_color = "lightgrey")
+  gtsave(na_prop_table, filename = paste0(file_name, ".tex"), path = "output")
 }
 
-na_prop_table[] <- lapply(na_prop_table, tidy_table)
-na_prop_table <- replace(na_prop_table, na_prop_table == 100, NA)
-print(na_prop_table)
+na_table(relative_outcomes, "relative_outcomes_NA")
 
-rm(count_na, na_prop, na_prop_table, outcome)
-```
-
-Tableau présentant la proportion de valeurs manquantes par régresseur et par an.
-
-```{r}
-count_na <- function(x) mean(is.na(x)) * 100
-na_prop_table <- data.table(year = unique(panel_data$year))
-
-for (regressor in panel_regressors) {
-  na_prop <- panel_data[, .(na_prop = count_na(get(regressor))), by = year]
-  na_prop_table <- merge(na_prop_table, na_prop, by = "year", all.x = TRUE)
-  setnames(na_prop_table, "na_prop", regressor)
-}
-
-na_prop_table[] <- lapply(na_prop_table, tidy_table)
-na_prop_table <- replace(na_prop_table, na_prop_table == 100, NA)
-print(na_prop_table)
-
-rm(count_na, na_prop, na_prop_table, regressor)
+regressors <- c(panel_regressors, "prop014", "propnodip", "pouvr")
+na_table(regressors, "regressors_NA")
+rm(regressors)
 ```
 
 **Analyses descriptives - outcomes**

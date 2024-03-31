@@ -86,9 +86,7 @@ dev.off()
 rm(corr_variables, correlation_matrix, mca_corr_data)
 ```
 
-**Régression**
-
-Pour comparer avec les coefficients obtenus sur les données de panel. Les se sont calculées avec clustering départemental, mais cela ne semble pas les affecter.
+**Régression linéaire simple**
 
 ```{r include=FALSE}
 # Pour traiter le type de commune comme une variable catégorielle. Pour mémoire :
@@ -105,7 +103,7 @@ for (outcome in mca_relative_outcomes) {
   relative_results[[model_name]] <- lm(regression_formula, data = mca_data)
 }
 suppressWarnings(stargazer(relative_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output/2017_relative_results.html"))
+suppressWarnings(stargazer(relative_results, type = "latex", out = "output/2017_relative_results.tex"))
 
 absolute_results <- list()
 for (outcome in mca_absolute_outcomes) {
@@ -114,12 +112,106 @@ for (outcome in mca_absolute_outcomes) {
   absolute_results[[model_name]] <- lm(regression_formula, data = mca_data)
 }
 suppressWarnings(stargazer(absolute_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output/2017_absolute_results.html"))
+suppressWarnings(stargazer(relative_results, type = "latex", out = "output/2017_absolute_results.tex"))
 
 rm(model_name, outcome, regression_formula)
 ```
 
 **ACP**
+
+```{r}
+# Préparation : ajout des modalités éliminées pour éviter la colinéarité dans les régressions, suppression des valeurs manquantes
+variables_of_interest <- c(mca_detailed_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
+mca_data_subset <- detailed_mca_data[, ..variables_of_interest]
+mca_data_subset <- na.omit(mca_data_subset)
+
+# Analyse
+quant_regressors <- setdiff(variables_of_interest, mca_detailed_outcomes)
+result <- PCA(mca_data_subset, scale.unit = TRUE, quanti.sup=quant_regressors, quali.sup = "type_comm")
+var <- get_pca_var(result)
+
+# Résultats
+## Histogramme de la contribution des axes à la variance totale
+fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 50)) 
+## Contribution des variables aux axes (comportements électoraux seulement)
+print(result$var$contrib)
+corrplot(var$contrib, is.corr = FALSE)
+## Corrélation des variables aux axes (régresseurs inclus)
+## Semble correspondre beaucoup à la qualité de représentation des variables
+
+## Qualité de représentation des variables
+corrplot(var$cos2, is.corr = FALSE) 
+## Projection 
+plot.PCA(result, axes=c(1,2), choix="var")
+plot.PCA(result, axes=c(1,3), choix="var")
+plot.PCA(result, axes=c(2,3), choix="var")
+
+# Nettoyage
+# rm(dummies, mca_data_subset, result, variables_of_interest, quant_regressors)
+```
+
+```{r}
+print(result$quali.sup)
+
+coeffs <- result$var$cor
+labels <- rownames(result$var$cor)
+axis_df <- data.frame(labels, coeffs, row.names = NULL)
+colnames(axis_df) <- c("Variables", "Axe 1", "Axe 2", "Axe 3", "Axe 4", "Axe 5")
+axis_tbl <- gt(axis_df)
+data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="RdYlGn")
+
+coeffs <- result$quanti.sup$cor
+labels <- rownames(result$quanti.sup$cor)
+axis_df <- data.frame(labels, coeffs, row.names = NULL)
+colnames(axis_df) <- c("Variables", "Axe 1", "Axe 2", "Axe 3", "Axe 4", "Axe 5")
+axis_tbl <- gt(axis_df)
+data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="RdYlGn")
+
+corrplot(result$quanti.sup$cor, is.corr = FALSE)
+```
+
+```{r}
+axis <- dimdesc(result, axes=c(1:5))
+
+correlation_values <- axis$Dim.1$quanti[, "correlation"]
+labels <- rownames(axis$Dim.1$quanti)
+axis_df <- data.frame(labels, correlation_values, row.names = NULL)
+colnames(axis_df) <- c("Variables", "Axe 1")
+
+correlation_values <- axis$Dim.1$quanti[, "correlation"]
+labels <- rownames(axis$Dim.1$quanti)
+axis_df <- data.frame(labels, correlation_values, row.names = NULL)
+colnames(axis_df) <- c("Variables", "Axe 1")
+
+correlation_values <- axis$Dim.2$quanti[, "correlation"]
+labels <- rownames(axis$Dim.2$quanti)
+df <- data.frame(labels, correlation_values, row.names = NULL)
+colnames(df) <- c("Variables", "Axe 2")
+axis_df <- merge(axis_df, df, by = "Variables", all = TRUE)
+
+correlation_values <- axis$Dim.3$quanti[, "correlation"]
+labels <- rownames(axis$Dim.3$quanti)
+df <- data.frame(labels, correlation_values, row.names = NULL)
+colnames(df) <- c("Variables", "Axe 3")
+axis_df <- merge(axis_df, df, by = "Variables", all = TRUE)
+
+correlation_values <- axis$Dim.4$quanti[, "correlation"]
+labels <- rownames(axis$Dim.4$quanti)
+df <- data.frame(labels, correlation_values, row.names = NULL)
+colnames(df) <- c("Variables", "Axe 4")
+axis_df <- merge(axis_df, df, by = "Variables", all = TRUE)
+
+correlation_values <- axis$Dim.5$quanti[, "correlation"]
+labels <- rownames(axis$Dim.5$quanti)
+df <- data.frame(labels, correlation_values, row.names = NULL)
+colnames(df) <- c("Variables", "Axe 5")
+axis_df <- merge(axis_df, df, by = "Variables", all = TRUE)
+
+rm(df)
+
+axis_tbl <- gt(axis_df)
+data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="RdYlGn")
+```
 
 ```{r}
 # Ajout des modalités éliminées pour éviter la colinéarité dans les régressions, suppression des valeurs manquantes, normalisation des variables numériques
@@ -283,6 +375,7 @@ for (i in 1:20) {
 
 plot(1:20, wcss, type = "b", xlab = "Number of Clusters", ylab = "Within-Cluster Sum of Squares (WCSS)")
 ```
+
 A nouveau, pas de points d'inflexion vraiment flagrant. On pourrait choisir k=5.
 
 ```{r}
@@ -329,20 +422,11 @@ means[] <- data.frame(lapply(means, tidy_table))
 print(means)
 ```
 
-Ici, les résultats sont plus intéressants, avec des clusters qui se différencient plus nettement ; les clusters 2 et 6 en particulier, avec des taux de propriétaires très en-dessous de la moyenne, mais l'un (n°6) qui vote beaucoup aux extrêmes, l'autre (n°2) qui vote davantage au centre. 
-Essayons d'identifier / caractériser ces clusters.
+Ici, les résultats sont plus intéressants, avec des clusters qui se différencient plus nettement ; les clusters 2 et 6 en particulier, avec des taux de propriétaires très en-dessous de la moyenne, mais l'un (n°6) qui vote beaucoup aux extrêmes, l'autre (n°2) qui vote davantage au centre. Essayons d'identifier / caractériser ces clusters.
 
-Trois appartiennent à l'univers rural (avec le même taux de propriétaires) ; représentent environ 20 000 communes
-4 = campagne paysanne, avec les plus petites communes, une proportion très élevée d'agriculteurs, une population plus âgée et moins diplômée qu'ailleurs. Cluster présentant le plus fort taux de propriétaires, participation dans la moyenne, vote à gauche le plus faible, ainsi que le vote protestataire au T1. Cluster le plus petit, correspondant à la droite rurale traditionnelle ?
-1 et 5 = campagne ouvrière, avec toujours de petites communes et agglomérations, mais une population beaucoup plus ouvrière.
-Cluster 1 = population âgée, avec un peu plus de chômeurs et d'étrangers, plus de crimes et délits, ainsi que de bénéficiaires du RSA.
-Cluster 5 = population plus jeune. Vote à gauche faible, vote protestataire élevé. Univers pavillonnaire ?
+Trois appartiennent à l'univers rural (avec le même taux de propriétaires) ; représentent environ 20 000 communes 4 = campagne paysanne, avec les plus petites communes, une proportion très élevée d'agriculteurs, une population plus âgée et moins diplômée qu'ailleurs. Cluster présentant le plus fort taux de propriétaires, participation dans la moyenne, vote à gauche le plus faible, ainsi que le vote protestataire au T1. Cluster le plus petit, correspondant à la droite rurale traditionnelle ? 1 et 5 = campagne ouvrière, avec toujours de petites communes et agglomérations, mais une population beaucoup plus ouvrière. Cluster 1 = population âgée, avec un peu plus de chômeurs et d'étrangers, plus de crimes et délits, ainsi que de bénéficiaires du RSA. Cluster 5 = population plus jeune. Vote à gauche faible, vote protestataire élevé. Univers pavillonnaire ?
 
-Trois appartiennent à l'univers urbain (avec des taux variables de propriétaires) ; représentent environ 13 000 communes
-2 = Agglomération parisienne et centre des métropoles, sans doute possible grâce à popagglo. Avec le plus faible taux de propriétaires, une population plus jeune et nettement plus diplômée qu'ailleurs, avec la plus grande proportion de cadres et celle d'ouvriers parmi les plus faibles. Avec aussi la situation économique la plus contrastée, associant le revenu communal moyen et la proportion de contribuables soumis à l'ISF les plus élevés, mais aussi la seconde plus importante proportion d'allocataires du RSA. Cluster où la participation est la plus faible, le vote à gauche le plus fort, et le vote protestataire le plus faible.
-Cluster le plus petit en nombre de communes.
-6 = banlieues et villes pauvres ?
-3 = petites communes appartenant à de grosses agglomérations, avec beaucoup de cadres et de professions intermédiaires, et de diplômés du supérieur. Communes très riches, comptant le moins d'étrangers et d'allocataires du RSA. Présentent la participation la plus élevée, un vote à gauche moyen, et un vote protestataire faible. Correspondent aux beaux quartiers hors des centres, banlieues aisées, périrubain riche ?
+Trois appartiennent à l'univers urbain (avec des taux variables de propriétaires) ; représentent environ 13 000 communes 2 = Agglomération parisienne et centre des métropoles, sans doute possible grâce à popagglo. Avec le plus faible taux de propriétaires, une population plus jeune et nettement plus diplômée qu'ailleurs, avec la plus grande proportion de cadres et celle d'ouvriers parmi les plus faibles. Avec aussi la situation économique la plus contrastée, associant le revenu communal moyen et la proportion de contribuables soumis à l'ISF les plus élevés, mais aussi la seconde plus importante proportion d'allocataires du RSA. Cluster où la participation est la plus faible, le vote à gauche le plus fort, et le vote protestataire le plus faible. Cluster le plus petit en nombre de communes. 6 = banlieues et villes pauvres ? 3 = petites communes appartenant à de grosses agglomérations, avec beaucoup de cadres et de professions intermédiaires, et de diplômés du supérieur. Communes très riches, comptant le moins d'étrangers et d'allocataires du RSA. Présentent la participation la plus élevée, un vote à gauche moyen, et un vote protestataire faible. Correspondent aux beaux quartiers hors des centres, banlieues aisées, périrubain riche ?
 
 NB : les données sur le RSA sont manquantes pour la Corse. Celle-ci est donc exclue de la classification !
 
