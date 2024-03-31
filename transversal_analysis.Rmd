@@ -134,13 +134,19 @@ var <- get_pca_var(result)
 ## Histogramme de la contribution des axes à la variance totale
 fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 50)) 
 ## Contribution des variables aux axes (comportements électoraux seulement)
-print(result$var$contrib)
-corrplot(var$contrib, is.corr = FALSE)
+## print(result$var$contrib) ## Pour afficher les résultats bruts
+coeffs <- result$var$contrib
+labels <- rownames(result$var$contrib)
+axis_df <- data.frame(labels, coeffs, row.names = NULL)
+colnames(axis_df) <- c("Variables", "Axe 1", "Axe 2", "Axe 3", "Axe 4", "Axe 5")
+axis_tbl <- gt(axis_df)
+data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="Oranges")
 ## Corrélation des variables aux axes (régresseurs inclus)
-## Semble correspondre beaucoup à la qualité de représentation des variables
-
+corrplot(var$contrib, is.corr = FALSE)
+corrplot(result$quanti.sup$cor, is.corr = FALSE)
 ## Qualité de représentation des variables
 corrplot(var$cos2, is.corr = FALSE) 
+corrplot(result$quanti.sup$cos2, is.corr = FALSE)
 ## Projection 
 plot.PCA(result, axes=c(1,2), choix="var")
 plot.PCA(result, axes=c(1,3), choix="var")
@@ -151,14 +157,17 @@ plot.PCA(result, axes=c(2,3), choix="var")
 ```
 
 ```{r}
+# A supprimer
+
 print(result$quali.sup)
 
-coeffs <- result$var$cor
-labels <- rownames(result$var$cor)
+coeffs <- result$var$contrib
+labels <- rownames(result$var$contrib)
 axis_df <- data.frame(labels, coeffs, row.names = NULL)
 colnames(axis_df) <- c("Variables", "Axe 1", "Axe 2", "Axe 3", "Axe 4", "Axe 5")
 axis_tbl <- gt(axis_df)
 data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="RdYlGn")
+data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="Oranges")
 
 coeffs <- result$quanti.sup$cor
 labels <- rownames(result$quanti.sup$cor)
@@ -171,6 +180,7 @@ corrplot(result$quanti.sup$cor, is.corr = FALSE)
 ```
 
 ```{r}
+# A supprimer
 axis <- dimdesc(result, axes=c(1:5))
 
 correlation_values <- axis$Dim.1$quanti[, "correlation"]
@@ -451,7 +461,7 @@ draw_map_cluster <- function(region, base_width) {
                      "4" = "Rural à dominante paysanne",
                      "5" = "Rural à dominante ouvrière",
                      "6" = "Banlieues et villes pauvres")
-  legend_colors <- c("1" = "green",
+  legend_colors <- c("1" = "limegreen",
                      "2" = "blue",
                      "3" = "skyblue",
                      "4" = "darkgreen",
