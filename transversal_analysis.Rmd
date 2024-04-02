@@ -73,16 +73,7 @@ mca_corr_data <- mca_corr_data[complete.cases(mca_corr_data)]
 correlation_matrix <- cor(mca_corr_data)
 
 png(filename = "output/corrplot.png", width = 2200, height = 1800)
-corrplot(
-  correlation_matrix,
-  type = "upper",
-  method = "color",
-  order = "FPC",
-  tl.cex = 3.5,
-  tl.srt = 60,
-  tl.col = "darkgrey",
-  cl.cex = 3.5
-)
+corrplot(correlation_matrix, type = "upper", method = "color", order = "FPC", tl.cex = 3.5, tl.srt = 60, tl.col = "darkgrey", cl.cex = 3.5)
 dev.off()
 
 rm(corr_variables, correlation_matrix, mca_corr_data)
@@ -116,7 +107,7 @@ for (outcome in mca_absolute_outcomes) {
 suppressWarnings(stargazer(absolute_results, type = "text"))
 suppressWarnings(stargazer(relative_results, type = "latex", out = "output/2017_absolute_results.tex"))
 
-rm(model_name, outcome, regression_formula)
+rm(absolute_results, model_name, outcome, regression_formula, relative_results)
 ```
 
 **ACP**
@@ -221,14 +212,16 @@ corrplot(result$var$contrib, title = "Contribution des variables à l'inertie de
 ## Corrélation des variables aux axes
 ## Avec à nouveau deux représentations possibles...
 ## Des corrplots
-corrplot(result$var$coord[, 1:3], title = "Corrélation des variables aux axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$var$coord[1:15, 1:3], title = "Corrélation des outcomes aux axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$var$coord[16:44, 1:3], title = "Corrélation des régresseurs aux axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 ## Des projections sur les plans factoriels
-plot.PCA(result, axes = c(1,2), choix = "var", select = "cos2 7", title = "Projection sur les axes 1 et 2")
-plot.PCA(result, axes=c(1,3), choix="var", select = "cos2 7", title = "Projection sur les axes 1 et 3")
-plot.PCA(result, axes=c(2,3), choix="var", select = "cos2 7", title = "Projection sur les axes 2 et 3")
+plot.PCA(result, axes = c(1,2), choix = "var", select = "cos2 13", title = "Projection sur les axes 1 et 2")
+plot.PCA(result, axes=c(1,3), choix="var", select = "cos2 13", title = "Projection sur les axes 1 et 3")
+plot.PCA(result, axes=c(2,3), choix="var", select = "cos2 13", title = "Projection sur les axes 2 et 3")
 
 ## Qualité de représentation des variables
-corrplot(result$var$cos2[, 1:3], title = "Qualité de représentation des variables", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$var$cos2[1:15, 1:3], title = "Qualité de représentation des outcomes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$var$cos2[16:44, 1:3], title = "Qualité de représentation des régresseurs", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 
 # Nettoyage
 rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, result, variables_of_interest)
@@ -236,119 +229,90 @@ rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, result, variable
 
 **K-means**
 
-On commence par utiliser les résultats électoraux détaillés.
+On inverse l'approche : on construit un espace socio-démographique, sur lequel on projette les comportements politiques
 
 ```{r}
-# Préparation des données
-variables <- c(mca_detailed_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
-data_for_clustering <- detailed_mca_data[, ..variables]
-data_for_clustering <- na.omit(data_for_clustering)
-data_for_clustering <- scale(data_for_clustering)
-```
-
-```{r}
-# Détermination du nombre de clusters optimal : méthode elbow
+# Détermination du nombre de clusters optimal
 set.seed(123)
+
+## Préparation des données
+## On élimine popagglo pour éviter qu'elle ne déforme trop les résultats en région parisienne
+regressors <- setdiff(full_mca_regressors, "popagglo")
+mca_data_subset <- detailed_mca_data[, ..regressors]
+mca_data_subset <- na.omit(mca_data_subset)
+mca_data_subset <- scale(mca_data_subset)
+
+## Méthode elbow
 wcss <- numeric(length = 20)
 for (i in 1:20) {
-  kmeans_model <- kmeans(data_for_clustering, centers = i)
+  kmeans_model <- kmeans(mca_data_subset, centers = i)
   wcss[i] <- kmeans_model$tot.withinss
 }
 
 plot(1:20, wcss, type = "b", xlab = "Number of Clusters", ylab = "Within-Cluster Sum of Squares (WCSS)")
-```
 
-Le point d'inflexion le plus flagrant est atteint pour k=4.
-
-```{r}
-# Détermination du nombre de clusters optimal : méthode silhouette
-set.seed(123)
+## Méthode silhouette
 silhouette_avg <- numeric(length = 20)
 for (i in 2:20) {
-  kmeans_model <- kmeans(data_for_clustering, centers = i)
-  sil <- silhouette(kmeans_model$cluster, dist(data_for_clustering))
+  kmeans_model <- kmeans(mca_data_subset, centers = i)
+  sil <- silhouette(kmeans_model$cluster, dist(mca_data_subset))
   silhouette_avg[i - 1] <- mean(sil[, 3])
 }
 plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters (k)", ylab = "Average Silhouette Width")
+
+rm(regressors, mca_data_subset, kmeans_model, wcss, silhouette_avg, sil)
 ```
 
-Ici, on obtient bien une courbe en cloche, avec un sommet atteint pour k=3. Les valeurs de Silhouette sont toutefois plus faibles qu'il faudrait.
+Les résultats invitent à choisir k = 6 ou 7. On choisit finalement 6, qui produit les clusters les plus simples à interpréter ?
 
 ```{r}
-# Les deux lignes ci-dessous permettent de réaliser le clustering sur les seuls régresseurs. Mais on obtient des résultats moins faciles à interpréter...
-
-## J'ai enlevé popagglo pour éviter que les résultats ne soient trop déformés en région parisienne.
-
-data_for_clustering <- as.data.table(data_for_clustering)
-mca_regressors <- c("ppropri", "popcomm", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger", "revmoy", "pcrimesdelits", "mmoyfortune", "pisf", "prsa", "type_comm")
-data_for_clustering <- data_for_clustering[, ..mca_regressors]
-
 set.seed(123)
-kmeans_result <- kmeans(data_for_clustering, centers = 6)
-cluster_assignments <- kmeans_result$cluster
 
-variables <- c("codecommune", mca_detailed_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
-data_for_clustering <- detailed_mca_data[, ..variables]
-data_for_clustering <- na.omit(data_for_clustering)
-
-data_for_clustering$cluster <- kmeans_result$cluster
-data_for_clustering <- as.data.table(data_for_clustering)
-data_for_clustering$type_comm <- as.factor(data_for_clustering$type_comm)
-
-counts <- data_for_clustering[, .N, by = .(cluster, type_comm)]
-total_counts <- data_for_clustering[, .N, by = cluster]
-modality_share <- merge(counts, total_counts, by = "cluster")
-modality_share[, share := N.x / N.y]
-modality_share[, c("N.x", "N.y") := NULL]
-modality_share <- dcast(modality_share, cluster ~ type_comm, value.var = "share")
-setnames(modality_share, c("cluster", "% villages", "% bourgs", "% banlieues", "% métropoles"))
-
-variables <- c(mca_detailed_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
-variables <- setdiff(variables, "type_comm")
-means <- data_for_clustering[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = variables]
-
-means <- merge(means, modality_share, by = "cluster")
-means[] <- data.frame(lapply(means, tidy_table))
-print(means)
-```
-
-Les résultats ne sont pas vraiment exploitables, les clusters semblent extrêment similaires (ce qui est cohérent avec les faibles valeurs de Silhouette). On recommence avec les résultats électoraux agrégés.
-
-```{r}
 # Préparation des données
-variables <- c(mca_relative_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
-data_for_clustering <- mca_data[, ..variables]
-data_for_clustering <- na.omit(data_for_clustering)
-data_for_clustering <- scale(data_for_clustering)
+## Sélection des variables
+regressors <- c("codecommune", full_mca_regressors)
+regressors <- setdiff(regressors, "popagglo")
+mca_data_subset <- detailed_mca_data[, ..regressors]
+mca_data_subset <- na.omit(mca_data_subset)
+## Création d'indicatrices pour les types de communes
+mca_data_subset$type_comm <- as.factor(mca_data_subset$type_comm)
+dummies <- model.matrix(~ type_comm - 1, data = mca_data_subset)
+colnames(dummies) <- paste0("type_comm_", 1:ncol(dummies))
+mca_data_subset <- cbind(mca_data_subset, dummies)
+mca_data_subset$type_comm <- NULL
+## Normalisation
+regressors <- c(full_mca_regressors, paste0("type_comm_", 1:4))
+regressors <- setdiff(regressors, c("popagglo", "type_comm"))
+mca_data_subset_scaled <- mca_data_subset[, ..regressors]
+mca_data_subset_scaled <- scale(mca_data_subset_scaled)
+
+# Détermination des clusters et ajout des variables électorales
+kmeans_result <- kmeans(mca_data_subset_scaled, centers = 6)
+mca_data_subset$cluster <- kmeans_result$cluster
+columns <- c("codecommune", "cluster", paste0("type_comm_", 1:4))
+cluster_data <- mca_data_subset[, ..columns, drop = FALSE]
+cluster_data <- merge(cluster_data, mca_data, by = "codecommune")
+
+# Analyse des résultats
+variables_of_interest <- c(mca_relative_outcomes, full_mca_regressors, paste0("type_comm_", 1:4))
+variables_of_interest <- setdiff(variables_of_interest, "type_comm")
+means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = variables_of_interest]
+means[, paste0("type_comm_", 1:4)] <- lapply(means[, paste0("type_comm_", 1:4)], as.numeric)
+means[, paste0("type_comm_", 1:4)] <- means[, paste0("type_comm_", 1:4)] * 100
+
+means_tbl <- gt(means)
+means_tbl <- fmt_number(means_tbl, decimals = 1, drop_trailing_zeros = TRUE)
+means_tbl <- tab_header(means_tbl, "Moyenne des variables par cluster", subtitle = NULL, preheader = NULL)
+data_color(means_tbl, method = "numeric", direction = "column", palette ="YlGnBu", )
+
+
+## Faudrait encore...
+# Transposer le tableau
+# Insérer une ligne correspondant à la moyenne dans l'échantillon
+# Améliorer la coloration en la calculant comme l'écart par rapport à la moyenne ?
 ```
 
-```{r}
-# Détermination du nombre de clusters optimal : méthode elbow
-set.seed(123)
-wcss <- numeric(length = 20)
-for (i in 1:20) {
-  kmeans_model <- kmeans(data_for_clustering, centers = i)
-  wcss[i] <- kmeans_model$tot.withinss
-}
-
-plot(1:20, wcss, type = "b", xlab = "Number of Clusters", ylab = "Within-Cluster Sum of Squares (WCSS)")
-```
-
-A nouveau, pas de points d'inflexion vraiment flagrant. On pourrait choisir k=5.
-
-```{r}
-# Détermination du nombre de clusters optimal : méthode silhouette
-set.seed(123)
-silhouette_avg <- numeric(length = 20)
-for (i in 2:20) {
-  kmeans_model <- kmeans(data_for_clustering, centers = i)
-  sil <- silhouette(kmeans_model$cluster, dist(data_for_clustering))
-  silhouette_avg[i - 1] <- mean(sil[, 3])
-}
-plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters (k)", ylab = "Average Silhouette Width")
-```
-
-Résultats pas très encourageants non plus... Les valeurs de Silhouette on été divisées par 10 par rapport au clustering sur les résultats détaillés. On retient finalement k=6.
+Première version : clustering sur l'ensemble des variable avec k=6.
 
 ```{r}
 set.seed(123)
