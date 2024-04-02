@@ -39,7 +39,8 @@ rm(installed_packages, packages)
 
 ```{r}
 if (!dir.exists("data_main")) {dir.create("data_main")}
-if (!dir.exists("output")) {dir.create("output")}
+if (!dir.exists("output_panel")) {dir.create("output_panel")}
+if (!dir.exists("output_transversal")) {dir.create("output_transversal")}
 ```
 
 **Fonctions**
