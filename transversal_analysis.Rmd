@@ -291,25 +291,35 @@ kmeans_result <- kmeans(mca_data_subset_scaled, centers = 6)
 mca_data_subset$cluster <- kmeans_result$cluster
 columns <- c("codecommune", "cluster", paste0("type_comm_", 1:4))
 cluster_data <- mca_data_subset[, ..columns, drop = FALSE]
-cluster_data <- merge(cluster_data, mca_data, by = "codecommune")
+cluster_data <- merge(cluster_data, detailed_mca_data, by = "codecommune")
 
 # Analyse des résultats
-variables_of_interest <- c(mca_relative_outcomes, full_mca_regressors, paste0("type_comm_", 1:4))
+variables_of_interest <- c(mca_detailed_outcomes, full_mca_regressors, paste0("type_comm_", 1:4))
 variables_of_interest <- setdiff(variables_of_interest, "type_comm")
 means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = variables_of_interest]
+global_means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), .SDcols = variables_of_interest]
+global_means$cluster <- "mean"
+means <- rbind(means, global_means)
 means[, paste0("type_comm_", 1:4)] <- lapply(means[, paste0("type_comm_", 1:4)], as.numeric)
 means[, paste0("type_comm_", 1:4)] <- means[, paste0("type_comm_", 1:4)] * 100
+means$cluster <- as.character(means$cluster)
 
-means_tbl <- gt(means)
-means_tbl <- fmt_number(means_tbl, decimals = 1, drop_trailing_zeros = TRUE)
+t_means <- t(means)
+t_means <- data.frame(matrix = rownames(t_means), t_means, row.names = NULL)
+# rownames(t_means) <- t_means$matrix
+# t_means <- t_means[, -1]
+colnames(t_means) <- t_means[1, ]
+t_means <- t_means[-1, ]
+t_means[setdiff(names(t_means), "cluster")] <- lapply(t_means[setdiff(names(t_means), "cluster")], as.numeric)
+
+means_tbl <- gt(t_means)
+means_tbl <- fmt_number(means_tbl, decimals = 3, drop_trailing_zeros = TRUE)
 means_tbl <- tab_header(means_tbl, "Moyenne des variables par cluster", subtitle = NULL, preheader = NULL)
-data_color(means_tbl, method = "numeric", direction = "column", palette ="YlGnBu", )
-
+data_color(means_tbl, columns = !matches("cluster"), direction = "row", palette ="YlGnBu", )
 
 ## Faudrait encore...
-# Transposer le tableau
-# Insérer une ligne correspondant à la moyenne dans l'échantillon
-# Améliorer la coloration en la calculant comme l'écart par rapport à la moyenne ?
+# Trier les lignes par cluster
+# Améliorer la coloration en la calculant comme l'écart par rapport à la moyenne
 ```
 
 Première version : clustering sur l'ensemble des variable avec k=6.
