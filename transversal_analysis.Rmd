@@ -297,9 +297,15 @@ cluster_data <- merge(cluster_data, detailed_mca_data, by = "codecommune")
 variables_of_interest <- c(mca_detailed_outcomes, full_mca_regressors, paste0("type_comm_", 1:4))
 variables_of_interest <- setdiff(variables_of_interest, "type_comm")
 means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = variables_of_interest]
+
+means$cluster <- as.factor(means$cluster)
+cluster_counts <- as.data.frame(table(cluster_data$cluster))
+means <- merge(means, cluster_counts, by.x = "cluster", by.y = "Var1")
+
 global_means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), .SDcols = variables_of_interest]
 global_means$cluster <- "mean"
-means <- rbind(means, global_means)
+means <- rbind(means, global_means, fill = TRUE)
+
 means[, paste0("type_comm_", 1:4)] <- lapply(means[, paste0("type_comm_", 1:4)], as.numeric)
 means[, paste0("type_comm_", 1:4)] <- means[, paste0("type_comm_", 1:4)] * 100
 means$cluster <- as.character(means$cluster)
