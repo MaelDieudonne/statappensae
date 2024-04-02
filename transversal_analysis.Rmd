@@ -19,7 +19,9 @@ mca_detailed_outcomes <- c(mca_detailed_outcomes, "part_T1", "part_T2")
 
 ## Régresseurs
 mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger", "revmoy", "pcrimesdelits", "mmoyfortune", "pisf", "prsa", "type_comm")
-### Régresseurs abandonnés pour complaire aux économètres : prefract1791, pclerge1791, pclerge1856, pmessalisants1950
+full_mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop014", "prop1539", "prop4059", "prop60p", "propf", "propnodip", "propbac", "propsup", "pagri", "pindp", "pouvr", "pempl", "ppint", "pcadr", "pchom", "prsa", "petranger", "pcrimesdelits", "revmoy", "pisf", "mmoyfortune", "type_comm")
+
+### Régresseurs abandonnés pour complaire aux économètres du groupe : prefract1791, pclerge1791, pclerge1856, pmessalisants1950
 ```
 
 **Analyses descriptives**
@@ -119,171 +121,117 @@ rm(model_name, outcome, regression_formula)
 
 **ACP**
 
+On la réalise sur les variables électorales, pour obtenir un espace des comportements politiques sur lequel on projette ensuite les variables socio-démographiques.
+
+Concernant l'analyse des axes, il faut distinguer :
+- les coordonnées factorielles des variables = corrélation avec l'axe (tableau à lire verticalement pour comprendre la composition des axes)
+- les cos2 des variables = coordonnées au carré = qualité de de représentation (tableau à lire horizontalement pour comprendre à quel point chaque variable participe à l'espace finalement retenu)
+- les contributions à l'inertie des axes = 100 * cos2 / valeur propre de l'axe
+
 ```{r}
-# Préparation : ajout des modalités éliminées pour éviter la colinéarité dans les régressions, suppression des valeurs manquantes
-variables_of_interest <- c(mca_detailed_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
+# Préparation : sélection des variables, suppression des valeurs manquantes et création d'indicatrices pour les types de communes (car l'argument quali.sup donne des résultats étranges)
+variables_of_interest <- c(mca_detailed_outcomes, full_mca_regressors)
 mca_data_subset <- detailed_mca_data[, ..variables_of_interest]
+
 mca_data_subset <- na.omit(mca_data_subset)
 
+mca_data_subset$type_comm <- as.factor(mca_data_subset$type_comm)
+dummies <- model.matrix(~ type_comm - 1, data = mca_data_subset)
+colnames(dummies) <- paste0("type_comm_", 1:ncol(dummies))
+mca_data_subset <- cbind(mca_data_subset, dummies)
+mca_data_subset$type_comm <- NULL
+
 # Analyse
-quant_regressors <- setdiff(variables_of_interest, mca_detailed_outcomes)
-result <- PCA(mca_data_subset, scale.unit = TRUE, quanti.sup=quant_regressors, quali.sup = "type_comm")
-var <- get_pca_var(result)
+quant_regressors <- setdiff(full_mca_regressors, "type_comm")
+quant_regressors <- c(quant_regressors, "type_comm_1", "type_comm_2", "type_comm_3", "type_comm_4")
+result <- PCA(mca_data_subset, scale.unit = TRUE, quanti.sup=quant_regressors, graph = FALSE)
 
 # Résultats
 ## Histogramme de la contribution des axes à la variance totale
-fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 50)) 
+fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 40), title = "Histogramme de l'inertie totale") 
+
 ## Contribution des variables aux axes (comportements électoraux seulement)
-## print(result$var$contrib) ## Pour afficher les résultats bruts
+## Correspond à la qualité de représentation des variables (= cos2) normalisée entre 1 et 100
+## Présentable à l'aide d'un tableau...
 coeffs <- result$var$contrib
 labels <- rownames(result$var$contrib)
 axis_df <- data.frame(labels, coeffs, row.names = NULL)
 colnames(axis_df) <- c("Variables", "Axe 1", "Axe 2", "Axe 3", "Axe 4", "Axe 5")
 axis_tbl <- gt(axis_df)
-data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="Oranges")
-## Corrélation des variables aux axes (régresseurs inclus)
-corrplot(var$contrib, is.corr = FALSE)
-corrplot(result$quanti.sup$cor, is.corr = FALSE)
+axis_tbl <- fmt_number(axis_tbl, decimals = 3, drop_trailing_zeros = TRUE)
+axis_tbl <- tab_header(axis_tbl, "Contribution des variables à l'inertie des axes", subtitle = NULL, preheader = NULL)
+data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="Oranges", )
+## ... ou d'un corrplot
+corrplot(result$var$contrib, title = "Contribution des variables à l'inertie des axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+
+## Corrélation des variables aux axes
+## Avec à nouveau deux représentations possibles...
+## Des corrplots
+corrplot(result$var$coord[, 1:3], title = "Corrélation des outcomes aux axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$quanti.sup$coord[, 1:3], title = "Corrélation des régresseurs aux axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+## Des projections sur les plans factoriels
+plot.PCA(result, axes = c(1,2), choix = "var", select = "cos2 7", title = "Projection sur les axes 1 et 2")
+plot.PCA(result, axes=c(1,3), choix="var", select = "cos2 7", title = "Projection sur les axes 1 et 3")
+plot.PCA(result, axes=c(2,3), choix="var", select = "cos2 7", title = "Projection sur les axes 2 et 3")
+
 ## Qualité de représentation des variables
-corrplot(var$cos2, is.corr = FALSE) 
-corrplot(result$quanti.sup$cos2, is.corr = FALSE)
-## Projection 
-plot.PCA(result, axes=c(1,2), choix="var")
-plot.PCA(result, axes=c(1,3), choix="var")
-plot.PCA(result, axes=c(2,3), choix="var")
+corrplot(result$var$cos2[, 1:3], title = "Qualité de représentation des variables électorales", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$quanti.sup$cos2, title = "Qualité de représentation des régresseurs", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 
 # Nettoyage
-# rm(dummies, mca_data_subset, result, variables_of_interest, quant_regressors)
+rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, quant_regressors, result, variables_of_interest)
 ```
 
-```{r}
-# A supprimer
-
-print(result$quali.sup)
-
-coeffs <- result$var$contrib
-labels <- rownames(result$var$contrib)
-axis_df <- data.frame(labels, coeffs, row.names = NULL)
-colnames(axis_df) <- c("Variables", "Axe 1", "Axe 2", "Axe 3", "Axe 4", "Axe 5")
-axis_tbl <- gt(axis_df)
-data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="RdYlGn")
-data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="Oranges")
-
-coeffs <- result$quanti.sup$cor
-labels <- rownames(result$quanti.sup$cor)
-axis_df <- data.frame(labels, coeffs, row.names = NULL)
-colnames(axis_df) <- c("Variables", "Axe 1", "Axe 2", "Axe 3", "Axe 4", "Axe 5")
-axis_tbl <- gt(axis_df)
-data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="RdYlGn")
-
-corrplot(result$quanti.sup$cor, is.corr = FALSE)
-```
+On refait une ACP sans distinguer les outcomes et les régresseurs. Les corrplots deviennent illisibles, mais comme on ne les utilisera pas...
 
 ```{r}
-# A supprimer
-axis <- dimdesc(result, axes=c(1:5))
-
-correlation_values <- axis$Dim.1$quanti[, "correlation"]
-labels <- rownames(axis$Dim.1$quanti)
-axis_df <- data.frame(labels, correlation_values, row.names = NULL)
-colnames(axis_df) <- c("Variables", "Axe 1")
-
-correlation_values <- axis$Dim.1$quanti[, "correlation"]
-labels <- rownames(axis$Dim.1$quanti)
-axis_df <- data.frame(labels, correlation_values, row.names = NULL)
-colnames(axis_df) <- c("Variables", "Axe 1")
-
-correlation_values <- axis$Dim.2$quanti[, "correlation"]
-labels <- rownames(axis$Dim.2$quanti)
-df <- data.frame(labels, correlation_values, row.names = NULL)
-colnames(df) <- c("Variables", "Axe 2")
-axis_df <- merge(axis_df, df, by = "Variables", all = TRUE)
-
-correlation_values <- axis$Dim.3$quanti[, "correlation"]
-labels <- rownames(axis$Dim.3$quanti)
-df <- data.frame(labels, correlation_values, row.names = NULL)
-colnames(df) <- c("Variables", "Axe 3")
-axis_df <- merge(axis_df, df, by = "Variables", all = TRUE)
-
-correlation_values <- axis$Dim.4$quanti[, "correlation"]
-labels <- rownames(axis$Dim.4$quanti)
-df <- data.frame(labels, correlation_values, row.names = NULL)
-colnames(df) <- c("Variables", "Axe 4")
-axis_df <- merge(axis_df, df, by = "Variables", all = TRUE)
-
-correlation_values <- axis$Dim.5$quanti[, "correlation"]
-labels <- rownames(axis$Dim.5$quanti)
-df <- data.frame(labels, correlation_values, row.names = NULL)
-colnames(df) <- c("Variables", "Axe 5")
-axis_df <- merge(axis_df, df, by = "Variables", all = TRUE)
-
-rm(df)
-
-axis_tbl <- gt(axis_df)
-data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="RdYlGn")
-```
-
-```{r}
-# Ajout des modalités éliminées pour éviter la colinéarité dans les régressions, suppression des valeurs manquantes, normalisation des variables numériques
-variables_of_interest <- c(mca_regressors, "prop014", "propnodip", "pouvr", mca_detailed_outcomes)
+# Préparation : sélection des variables, suppression des valeurs manquantes et création d'indicatrices pour les types de communes (car l'argument quali.sup donne des résultats étranges)
+variables_of_interest <- c(mca_detailed_outcomes, full_mca_regressors)
 mca_data_subset <- detailed_mca_data[, ..variables_of_interest]
-mca_data_subset <- na.omit(mca_data_subset)
-mca_data_subset[, names(mca_data_subset)[sapply(mca_data_subset, is.numeric)] := lapply(.SD, scale), .SDcols = names(mca_data_subset)]
 
-# Création d'indicatrices pour les types de communes
+mca_data_subset <- na.omit(mca_data_subset)
+
 mca_data_subset$type_comm <- as.factor(mca_data_subset$type_comm)
 dummies <- model.matrix(~ type_comm - 1, data = mca_data_subset)
-colnames(dummies) <- paste("type_comm", levels(mca_data_subset$type_comm), sep = "_")
+colnames(dummies) <- paste0("type_comm_", 1:ncol(dummies))
 mca_data_subset <- cbind(mca_data_subset, dummies)
 mca_data_subset$type_comm <- NULL
 
 # Analyse
-result <- PCA(mca_data_subset, quanti.sup=mca_regressors,graph = TRUE)
-fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 50))
-print(result$var$contrib)
+result <- PCA(mca_data_subset, scale.unit = TRUE, graph = FALSE)
 
-var <- get_pca_var(result)
-corrplot(var$contrib, is.corr = FALSE)
-corrplot(var$cos2, is.corr = FALSE)
+# Résultats
+## Histogramme de la contribution des axes à la variance totale
+fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 40), title = "Histogramme de l'inertie totale") 
 
-plot.PCA(result, axes=c(1,2), choix="ind", habillage=1)
+## Contribution des variables aux axes (comportements électoraux seulement)
+## Correspond à la qualité de représentation des variables (= cos2) normalisée entre 1 et 100
+## Présentable à l'aide d'un tableau...
+coeffs <- result$var$contrib
+labels <- rownames(result$var$contrib)
+axis_df <- data.frame(labels, coeffs, row.names = NULL)
+colnames(axis_df) <- c("Variables", "Axe 1", "Axe 2", "Axe 3", "Axe 4", "Axe 5")
+axis_tbl <- gt(axis_df)
+axis_tbl <- fmt_number(axis_tbl, decimals = 3, drop_trailing_zeros = TRUE)
+axis_tbl <- tab_header(axis_tbl, "Contribution des variables à l'inertie des axes", subtitle = NULL, preheader = NULL)
+data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="Oranges", )
+## ... ou d'un corrplot
+corrplot(result$var$contrib, title = "Contribution des variables à l'inertie des axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+
+## Corrélation des variables aux axes
+## Avec à nouveau deux représentations possibles...
+## Des corrplots
+corrplot(result$var$coord[, 1:3], title = "Corrélation des variables aux axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+## Des projections sur les plans factoriels
+plot.PCA(result, axes = c(1,2), choix = "var", select = "cos2 7", title = "Projection sur les axes 1 et 2")
+plot.PCA(result, axes=c(1,3), choix="var", select = "cos2 7", title = "Projection sur les axes 1 et 3")
+plot.PCA(result, axes=c(2,3), choix="var", select = "cos2 7", title = "Projection sur les axes 2 et 3")
+
+## Qualité de représentation des variables
+corrplot(result$var$cos2[, 1:3], title = "Qualité de représentation des variables", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 
 # Nettoyage
-rm(dummies, mca_data_subset, result, variables_of_interest)
-```
-
-```{r}
-# Ajout des modalités éliminées pour éviter la colinéarité dans les régressions, suppression des valeurs manquantes, normalisation des variables numériques
-variables_of_interest <- c(mca_regressors, "prop014", "propnodip", "pouvr", mca_detailed_outcomes)
-mca_data_subset <- detailed_mca_data[, ..variables_of_interest]
-mca_data_subset <- na.omit(mca_data_subset)
-mca_data_subset[, names(mca_data_subset)[sapply(mca_data_subset, is.numeric)] := lapply(.SD, scale), .SDcols = names(mca_data_subset)]
-
-# Création d'indicatrices pour les types de communes
-mca_data_subset$type_comm <- as.factor(mca_data_subset$type_comm)
-dummies <- model.matrix(~ type_comm - 1, data = mca_data_subset)
-colnames(dummies) <- paste("type_comm", levels(mca_data_subset$type_comm), sep = "_")
-mca_data_subset <- cbind(mca_data_subset, dummies)
-mca_data_subset$type_comm <- NULL
-
-outcome_variables <- mca_data_subset[, ..mca_detailed_outcomes]
-pca_result <- prcomp(outcome_variables, scale. = TRUE)
-var <- get_pca_var(pca_result)
-projected_data <- predict(pca_result, newdata = mca_data_subset)
-
-# Axes
-fviz_screeplot(pca_result, addlabels = TRUE, ylim = c(0, 50))
-## Contribution des variables
-print(pca_result$rotation[, 1:5])
-corrplot(var$contrib, is.corr = FALSE)
-## Qualité de représentation des variables
-corrplot(var$cos2, is.corr = FALSE)
-
-fviz_pca_var(pca_result, axes = c(1, 2), geom = c("arrow", "text"), col.var = "blue", 
-             fill.var = "transparent", alpha.var = 0.8)
-
-fviz_pca_var(pca_result, axes = c(1, 3), geom = c("arrow", "text"), col.var = "red", 
-             fill.var = "transparent", alpha.var = 0.8)
+rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, result, variables_of_interest)
 ```
 
 **K-means**
