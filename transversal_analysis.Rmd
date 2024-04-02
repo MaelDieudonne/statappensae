@@ -271,7 +271,7 @@ set.seed(123)
 # Préparation des données
 ## Sélection des variables
 regressors <- c("codecommune", full_mca_regressors)
-regressors <- setdiff(regressors, c("popagglo", "type"))
+regressors <- setdiff(regressors, "popagglo")
 mca_data_subset <- detailed_mca_data[, ..regressors]
 mca_data_subset <- na.omit(mca_data_subset)
 ## Création d'indicatrices pour les types de communes
