@@ -18,6 +18,7 @@ packages <- c(
   "ggplot2",
   "gt",
   "httr",
+  "quantreg",
   "mapview",
   "miceadds",
   "plm",
@@ -153,7 +154,7 @@ draw_map <- function(input_year, region, mapped_var, mapped_var_name, base_width
 
   # Création des chemins
   title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n", reg_name, ", ", input_year)
-  output_file <- paste0("output/", mapped_var, "_", input_year, "_", reg_abrv, ".png")
+  output_file <- paste0("output_transversal/", mapped_var, "_", input_year, "_", reg_abrv, ".png")
   
   # Exportation d'une carte en haute résolution
   ## Calcul des dimensions

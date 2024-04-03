@@ -61,6 +61,63 @@ print(stat_desc)
 rm(col, nb_communes, stat_desc, summary)
 ```
 
+Carte du taux de propriétaires
+
+```{r}
+draw_map <- function(region, mapped_var, mapped_var_name, base_width) {
+  # Chargement des données
+  carto <- merge(map_data, mca_data, by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
+  if (region != 0) {
+    carto <- subset(carto, INSEE_REG == region)
+    reg_name <- codes_regions$LIBELLE[codes_regions$REG == region]
+    reg_abrv <- codes_regions$ABRV[codes_regions$REG == region]
+  } else {
+    reg_name <- "France"
+    reg_abrv <- "FR"
+  }
+
+  # Création des chemins
+  title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n", reg_name, ", 2017")
+  output_file <- paste0("output_transversal/", mapped_var, "_2017_", reg_abrv, ".png")
+  
+  # Exportation d'une carte en haute résolution
+  ## Calcul des dimensions
+  bbox <- st_bbox(carto)
+  aspect_ratio <- diff(c(bbox$xmin, bbox$xmax)) / diff(c(bbox$ymin, bbox$ymax))
+  base_height <- base_width / aspect_ratio
+  font_size <- base_width * 2.2
+  ## Création et enregistrement
+  plot_png <- ggplot() +
+    geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
+    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 1)) +
+    ggtitle(paste(title)) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5, size = font_size),
+          axis.text = element_blank(),
+          panel.grid = element_blank(),
+          plot.title.position = "plot",
+          legend.title = element_text(size = font_size * 0.8),
+          legend.text = element_text(size = font_size * 0.7))
+  ggsave(output_file, plot = plot_png, width = base_width, height = base_height, units = "in")
+  
+  # Affichage d'une carte en résolution normale
+  display_plot <- ggplot() +
+    geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
+    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 1)) +
+    ggtitle(paste(title)) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5),
+          axis.text = element_blank(),
+          panel.grid = element_blank(),
+          plot.title.position = "plot",
+          legend.title = element_text(),
+          legend.text = element_text())   
+    print(display_plot)
+}
+
+draw_map(94, "ppropri", "Taux de propriétaires", 8)
+```
+
 Corrélogramme
 
 ```{r include=FALSE}
@@ -263,7 +320,7 @@ plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters (k)", yl
 rm(regressors, mca_data_subset, kmeans_model, wcss, silhouette_avg, sil)
 ```
 
-Les résultats invitent à choisir k = 6 ou 7. On choisit finalement 6, qui produit les clusters les plus simples à interpréter ?
+Les résultats invitent à choisir k = 6 ou 7. On choisit finalement 6, qui produit les clusters les plus simples à interpréter.
 
 ```{r}
 set.seed(123)
@@ -533,78 +590,3 @@ gtsave(means_tbl, filename = "k_means.tex", path = "output_transversal")
 # Nettoyage
 rm(regressors, mca_data_subset, dummies, kmeans_result, variables_of_interest, means, cluster_counts, global_means, t_means, means_tbl, mca_data_subset_scaled)
 ```
-
-```{r}
-set.seed(123)
-
-# Préparation des données
-## Sélection des variables
-regressors <- c("codecommune", full_mca_regressors)
-regressors <- setdiff(regressors, "popagglo")
-mca_data_subset <- detailed_mca_data[, ..regressors]
-mca_data_subset <- na.omit(mca_data_subset)
-## Création d'indicatrices pour les types de communes
-mca_data_subset$type_comm <- as.factor(mca_data_subset$type_comm)
-dummies <- model.matrix(~ type_comm - 1, data = mca_data_subset)
-colnames(dummies) <- paste0("type_comm_", 1:ncol(dummies))
-mca_data_subset <- cbind(mca_data_subset, dummies)
-mca_data_subset$type_comm <- NULL
-## Normalisation
-scaling_regressors <- setdiff(full_mca_regressors, c("popagglo", "type_comm"))
-regressors <- c(scaling_regressors, paste0("type_comm_", 1:4))
-mca_data_subset_scaled <- mca_data_subset[, ..regressors]
-mca_data_subset_scaled[, (scaling_regressors) := lapply(.SD, scale), .SDcols = scaling_regressors]
-
-# Détermination des clusters et ajout des variables électorales
-kmeans_result <- kmeans(mca_data_subset_scaled, centers = 6)
-mca_data_subset$cluster <- kmeans_result$cluster
-columns <- c("codecommune", "cluster", paste0("type_comm_", 1:4))
-cluster_data <- mca_data_subset[, ..columns, drop = FALSE]
-cluster_data <- merge(cluster_data, detailed_mca_data, by = "codecommune")
-
-# Analyse des résultats
-## Calcul des moyennes par cluster
-variables_of_interest <- c(mca_detailed_outcomes, full_mca_regressors, paste0("type_comm_", 1:4))
-variables_of_interest <- setdiff(variables_of_interest, "type_comm")
-means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = variables_of_interest]
-means$cluster <- as.factor(means$cluster)
-## Calcul des effectifs des clusters
-cluster_counts <- as.data.frame(table(cluster_data$cluster))
-means <- merge(means, cluster_counts, by.x = "cluster", by.y = "Var1")
-## Calcul des moyennes pour la population
-global_means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), .SDcols = variables_of_interest]
-global_means$cluster <- "mean"
-means <- rbind(means, global_means, fill = TRUE)
-## Expression des types de commune en %
-means[, paste0("type_comm_", 1:4)] <- lapply(means[, paste0("type_comm_", 1:4)], as.numeric)
-means[, paste0("type_comm_", 1:4)] <- means[, paste0("type_comm_", 1:4)] * 100
-means$cluster <- as.character(means$cluster)
-## Transposition pour afficher les clusters en colonne
-t_means <- t(means)
-t_means <- data.frame(matrix = rownames(t_means), t_means, row.names = NULL)
-colnames(t_means) <- t_means[1, ]
-t_means <- t_means[-1, ]
-t_means[setdiff(names(t_means), "cluster")] <- lapply(t_means[setdiff(names(t_means), "cluster")], as.numeric)
-## Intervalle sur lequel appliquer la coloration (afin qu'elle soit centrée sur la moyenne de la population plutôt que des clusters)
-t_means <- as.data.frame(t_means)
-t_means$min <- apply(t_means[, 2:7], 1, min)
-t_means$max <- apply(t_means[, 2:7], 1, max)
-t_means$diff_min <- t_means$mean - t_means$min
-t_means$diff_max <- t_means$max - t_means$mean
-t_means$spread <- pmax(t_means$diff_min, t_means$diff_max)
-t_means$range_inf <- t_means$mean - t_means$spread
-t_means$range_sup <- t_means$mean + t_means$spread
-t_means <- subset(t_means, select = -c(min, max, diff_min, diff_max, spread))
-## Création du tableau avec gt
-means_tbl <- gt(t_means)
-means_tbl <- fmt_number(means_tbl, decimals = 3, drop_trailing_zeros = TRUE)
-means_tbl <- cols_hide(means_tbl, c("range_inf", "range_sup"))
-means_tbl <- tab_header(means_tbl, "Moyenne des variables par cluster", subtitle = NULL, preheader = NULL)
-means_tbl <- data_color(means_tbl, method = "numeric", columns = !matches("cluster|mean"), direction = "row", palette = "RColorBrewer::RdBu")
-means_tbl
-gtsave(means_tbl, filename = "k_means.tex", path = "output_transversal")
-
-# Nettoyage
-rm(regressors, mca_data_subset, dummies, kmeans_result, variables_of_interest, means, cluster_counts, global_means, t_means, means_tbl, mca_data_subset_scaled)
-```
-

@@ -14,13 +14,16 @@ wide_panel_data$year_round <- with(wide_panel_data, paste(year, round, sep="-"))
 ```{r}
 # Définition des variables
 ## Outcomes
-relative_outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "GD_ratio_T2", "EC_ratio_T1", "EC_ratio_T2")
-absolute_outcomes <- c("part_T1", "part_T2", "GIns_ratio_T1", "DIns_ratio_T1", "GIns_ratio_T2", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
+relative_outcomes <- c("part_T1", "GD_ratio_T1", "EC_ratio_T1")
+relative_outcomes_2T <- c("part_T1", "part_T2", "GD_ratio_T1", "GD_ratio_T2", "EC_ratio_T1", "EC_ratio_T2")
+absolute_outcomes <- c("part_T1", "GIns_ratio_T1", "DIns_ratio_T1", "EIns_ratio_T1", "CIns_ratio_T1")
+absolute_outcomes_2T <- c("part_T1", "part_T2", "GIns_ratio_T1", "DIns_ratio_T1", "GIns_ratio_T2", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
 wide_relative_outcomes <- c("part", "GD_ratio", "EC_ratio")
 
 ## Régresseurs
 ## Modalités supprimées pour éviter la colinéarité : prop014, propnodip, pouvr
 panel_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger", "revratio")
+full_panel_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop014", "prop1539", "prop4059", "prop60p", "propf", "propnodip", "propbac", "propsup", "pagri", "pindp", "pouvr", "pempl", "ppint", "pcadr", "pchom", "petranger", "revratio")
 wide_panel_regressors <- c("round", panel_regressors)
 ```
 
@@ -55,16 +58,13 @@ na_table <- function(variable_names, file_name) {
   max_value <- max(subset(na_prop_table, select = -Année), na.rm = TRUE)
   bins <- seq(0, max_value, by = max_value/9)
   na_prop_table <- gt(na_prop_table)
-  na_prop_table <- data_color(na_prop_table, method = "bin", bins = bins, columns = !starts_with("Année"), direction = "row", palette ="Oranges", na_color = "lightgrey")
+  na_prop_table <- data_color(na_prop_table, method = "bin", bins = bins, columns = !starts_with("Année"), direction = "column", palette ="Oranges", na_color = "lightgrey")
   print(na_prop_table)
-  gtsave(na_prop_table, filename = paste0(file_name, ".tex"), path = "output")
+  gtsave(na_prop_table, filename = paste0(file_name, ".tex"), path = "output_panel")
 }
 
 na_table(relative_outcomes, "relative_outcomes_NA")
-
-regressors <- c(panel_regressors, "prop014", "propnodip", "pouvr")
-na_table(regressors, "regressors_NA")
-rm(regressors)
+na_table(full_panel_regressors, "regressors_NA")
 ```
 
 **Analyses descriptives - outcomes**
@@ -72,7 +72,7 @@ rm(regressors)
 ```{r}
 graph_data <- data.frame(year = unique(panel_data$year))
 
-for (outcome in relative_outcomes) {
+for (outcome in relative_outcomes_2T) {
   data <- aggregate(as.formula(paste(outcome, " ~ year")), data = panel_data, FUN = mean)
   graph_data <- merge(graph_data, data, by = "year", all = TRUE)
 }
@@ -110,7 +110,7 @@ plot <- ggplot(graph_data, aes(x = year)) +
   )
 
 print(plot)
-ggsave("output/outcomes_relatifs_1965_2022.png", plot, width = 8, height = 6, dpi = 300)
+ggsave("output_panel/outcomes_relatifs_1965_2022.png", plot, width = 8, height = 6, dpi = 300)
 
 rm(graph_data, outcome)
 ```
@@ -148,7 +148,7 @@ plot <- ggplot(propri_df, aes(x = year)) +
     plot.title = element_text(hjust = 0.5)
   )
 print(plot)
-ggsave("output/taux_proprietaires_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
+ggsave("output_panel/taux_proprietaires_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
 
 rm(propri, propri_df, year, col_npropri, col_nlogement, col_ppropri, sum_npropri, sum_nlogement, average_ppropri, prop_ratio)
 ```
@@ -184,7 +184,7 @@ plot <- ggplot(quantiles_df, aes(x = year, y = ppropri, color = as.factor(quinti
   )
 
 print(plot)
-ggsave("output/deciles_taux_proprietaires_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
+ggsave("output_panel/deciles_taux_proprietaires_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
 
 rm(nb_quantiles, quantiles_list, yr, panel_subset, quantiles, quantiles_df)
 ```
@@ -204,12 +204,6 @@ print(correlation_df)
 rm(panel_data_complete, correlation_results, correlation_df)
 ```
 
-Cartes...
-
-```{r}
-draw_map(1988, 94, "ppropri", "Taux de propriétaires", 8)
-```
-
 **Panel (avec tours séparés)**
 
 On commence par des panels simples, en différences premières, avec clustering au niveau départemental et variance hétéroscédastique.
@@ -226,7 +220,7 @@ for (outcome in relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output/relative_panel_basic.html"))
+# suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_panel_basic.html"))
 
 rm(model_name, regression_formula, relative_results, outcome, panel_as_pdata)
 ```
@@ -243,7 +237,7 @@ for (outcome in absolute_outcomes) {
 }
 
 suppressWarnings(stargazer(absolute_results, type = "text"))
-# suppressWarnings(stargazer(absolute_results, type = "html", out = "output/absolute_panel_basic.html"))
+# suppressWarnings(stargazer(absolute_results, type = "html", out = "output_panel/absolute_panel_basic.html"))
 
 rm(absolute_results, model_name, regression_formula, outcome, panel_as_pdata)
 ```
@@ -264,7 +258,7 @@ for (outcome in relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output/relative_panel_timedummies.html"))
+# suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_panel_timedummies.html"))
 
 rm(model_name, regression_formula, regressors, relative_results, outcome, panel_as_pdata)
 ```
@@ -283,7 +277,7 @@ for (outcome in absolute_outcomes) {
 }
 
 suppressWarnings(stargazer(absolute_results, type = "text"))
-# suppressWarnings(stargazer(absolute_results, type = "html", out = "output/absolute_panel_timedummies.html"))
+# suppressWarnings(stargazer(absolute_results, type = "html", out = "output_panel/absolute_panel_timedummies.html"))
 
 rm(model_name, regression_formula, regressors, absolute_results, outcome, panel_as_pdata)
 ```
@@ -307,7 +301,7 @@ for (outcome in relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output/relative_panel_timedummies_interactions.html"))
+# suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_panel_timedummies_interactions.html"))
 
 rm(model_name, regression_formula, regressors, relative_results, time_dummies, outcome, panel_as_pdata)
 ```
@@ -324,13 +318,12 @@ regressors <- regressors[regressors != "ppropri"]
 absolute_results <- list()
 for (outcome in absolute_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
-  print(regression_formula)
   model_name <- paste0(outcome, "_model")
   absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
 }
 
 suppressWarnings(stargazer(absolute_results, type = "text"))
-# suppressWarnings(stargazer(absolute_results, type = "html", out = "output/absolute_panel_timedummies_interactions.html"))
+# suppressWarnings(stargazer(absolute_results, type = "html", out = "output_panel/absolute_panel_timedummies_interactions.html"))
 
 rm(model_name, regression_formula, regressors, absolute_results, time_dummies, outcome, panel_as_pdata)
 ```
@@ -353,7 +346,7 @@ for (outcome in wide_relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output/relative_widepanel_basic.html"))
+# suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_widepanel_basic.html"))
 
 rm(model_name, regression_formula, relative_results, outcome, wide_panel_as_pdata)
 ```
@@ -375,7 +368,7 @@ for (outcome in wide_relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output/relative_widepanel_timedummies.html"))
+# suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_widepanel_timedummies.html"))
 
 rm(model_name, regression_formula, relative_results, regressors, outcome, wide_panel_as_pdata)
 ```
@@ -399,7 +392,7 @@ for (outcome in wide_relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output/relative_widepanel_timedummies_interactions.html"))
+# suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_widepanel_timedummies_interactions.html"))
 
 rm(model_name, regression_formula, relative_results, regressors, time_dummies, outcome, wide_panel_as_pdata)
 ```
@@ -525,10 +518,6 @@ rm(coefs_df, R2_df, regression_formula, ppropri_ranges, yr, panel_subset, quanti
 Régressions quantiles : code à reprendre
 
 ```{r}
-library(quantreg)
-```
-
-```{r}
 quantiles <- c(0.2, 0.4, 0.6, 0.8)
 
 coefs_df <- data.frame(year = integer(), coefficient = numeric(), quantile = numeric())
@@ -551,66 +540,4 @@ ggplot(coefs_df, aes(x = year, y = coefficient, color = factor(quantile))) +
        x = "Year", y = "Coefficient") +
   theme_minimal() +
   scale_color_discrete(name = "Quantile")
-```
-
-Tentative en panel
-
-```{r}
-install.packages("rqpd", repos="http://R-Forge.R-project.org")
-library(rqpd)
-```
-
-```{r}
-panel_data$codecommune_year <- with(panel_data, paste(codecommune, year, sep="_"))
-
-regression_formula <- as.formula(paste("part_T1", "~ year +", paste(panel_regressors, collapse = "+"), "| codecommune"))
-print(regression_formula)
-
-results <- rqpd(
-  part_T1 ~ popcomm + popagglo + age + prop1539 + 
-    prop4059 + prop60p + propf + propbac + propsup + pagri + 
-    pindp + pcadr + ppint + pempl + pchom + petranger + revratio | 
-    codecommune,
-  rq(ppropri, tau = 0.25),
-  panel = panel(),
-  data = panel_data, 
-  tau = 0.5,
-  na.omit)
-print.rqpd(results)
-
-
-regression_formula <- as.formula(paste("part_T1 ~ ppropri + popcomm | codecommune_year"))
-results <- rqpd(
-  regression_formula, 
-  panel = panel(method="pfe", taus=1:3/4, tauw=c(.25,.5,.25), lambda=1, cre="m", ztol=1e-5), 
-  data = panel_data, 
-  na.omit)
-print.rqpd(results)
-summary.rqpd(results)
-```
-
-**Classification**
-
-```{r}
-# Expression des populations et du ratio de revenu sur une échelle de 1 à 100
-min_max_scale <- function(x) {
-  return ((x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)) * 100)
-}
-panel_data$popcomm <- min_max_scale(panel_data$popcomm)
-panel_data$popagglo <- min_max_scale(panel_data$popagglo)
-panel_data$revratio <- min_max_scale(panel_data$revratio)
-
-variables <- c("part_T1", "part_T2", "GD_ratio_T1", "year", panel_regressors, "prop014", "propnodip", "pouvr")
-
-data_for_clustering <- panel_data[, ..variables]
-data_for_clustering <- na.omit(data_for_clustering)
-
-# K-means
-set.seed(123)
-k <- 5
-kmeans_result <- kmeans(data_for_clustering, centers = k)
-
-print(kmeans_result)
-print(kmeans_result$centers)
-table(kmeans_result$cluster)
 ```
