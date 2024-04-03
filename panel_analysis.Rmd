@@ -204,7 +204,7 @@ print(correlation_df)
 rm(panel_data_complete, correlation_results, correlation_df)
 ```
 
-**Panel (avec tours séparés)**
+**Panel (premier tour seulement)**
 
 On commence par des panels simples, en différences premières, avec clustering au niveau départemental et variance hétéroscédastique.
 
@@ -220,9 +220,12 @@ for (outcome in relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_panel_basic.html"))
+rm(model_name, regression_formula, outcome, panel_as_pdata)
+```
 
-rm(model_name, regression_formula, relative_results, outcome, panel_as_pdata)
+```{r include=FALSE}
+suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_panel_basic.html"))
+rm(relative_results)
 ```
 
 ```{r eval=FALSE}
@@ -237,9 +240,12 @@ for (outcome in absolute_outcomes) {
 }
 
 suppressWarnings(stargazer(absolute_results, type = "text"))
-# suppressWarnings(stargazer(absolute_results, type = "html", out = "output_panel/absolute_panel_basic.html"))
+rm(model_name, regression_formula, outcome, panel_as_pdata)
+```
 
-rm(absolute_results, model_name, regression_formula, outcome, panel_as_pdata)
+```{r eval=FALSE, include=FALSE}
+suppressWarnings(stargazer(absolute_results, type = "html", out = "output_panel/absolute_panel_basic.html"))
+rm(absolute_results)
 ```
 
 On obtient des R2 très faibles, entre 0,5 et 2,8 %, et les coefficients de ppropri, bien que significatifs, ne sont pas toujours du signe attendu. Pour remédier à ces problèmes, on essaye d'introduire des dummies annuelles.
@@ -258,9 +264,12 @@ for (outcome in relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_panel_timedummies.html"))
+rm(model_name, regression_formula, regressors, outcome, panel_as_pdata)
+```
 
-rm(model_name, regression_formula, regressors, relative_results, outcome, panel_as_pdata)
+```{r include=FALSE}
+suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_panel_timedummies.html"))
+rm(relative_results)
 ```
 
 ```{r eval=FALSE}
@@ -277,9 +286,14 @@ for (outcome in absolute_outcomes) {
 }
 
 suppressWarnings(stargazer(absolute_results, type = "text"))
-# suppressWarnings(stargazer(absolute_results, type = "html", out = "output_panel/absolute_panel_timedummies.html"))
 
-rm(model_name, regression_formula, regressors, absolute_results, outcome, panel_as_pdata)
+rm(model_name, regression_formula, regressors, outcome, panel_as_pdata)
+```
+
+```{r eval=FALSE, include=FALSE}
+suppressWarnings(stargazer(absolute_results, type = "html", out = "output_panel/absolute_panel_timedummies.html"))
+
+rm(absolute_results)
 ```
 
 On obtient une très forte amélioration du R2, entre 21,6 et 63,9 %. Les effets de ppropri cessent d'être significatifs sur la participation. Ils le restent sur les autres outcomes, mais n'acquièrent pas de signification évidente (effet positif sur le vote à gauche, positif sur le vote au centre au T1 et négatif au T2). On teste l'hypothèse que les effets de ppropri évoluent au cours du temps en introduisant des interactions avec les dummies annuelles.
@@ -301,9 +315,30 @@ for (outcome in relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_panel_timedummies_interactions.html"))
+rm(model_name, regression_formula, regressors, time_dummies, outcome, panel_as_pdata)
+```
 
-rm(model_name, regression_formula, regressors, relative_results, time_dummies, outcome, panel_as_pdata)
+```{r}
+# A compléter pour les autres outcomes
+coefficients <- relative_results$part_T1_model$coefficients
+coefficients <- as.data.frame(coefficients)
+coefficients <- coefficients[grep("propri$", rownames(coefficients)), , drop = FALSE]
+years <- sub("^year(\\d+):.*", "\\1", rownames(coefficients))
+coefficients$year <- years
+rownames(coefficients) <- NULL
+
+ggplot(data = coefficients, aes(x = year, y = coefficients)) +
+  geom_line(aes(group = 1), color = "skyblue") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "darkblue") + 
+  labs(x = "Année", y = "Coefficients", title = "Coefficients de ppropri sur part_T1 au cours du temps") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+rm(coefficients, years)
+```
+
+```{r include=FALSE}
+suppressWarnings(stargazer(relative_results, type = "latex", out = "output_panel/relative_panel_timedummies_interactions.tex"))
+rm(relative_results)
 ```
 
 ```{r eval=FALSE}
@@ -323,9 +358,12 @@ for (outcome in absolute_outcomes) {
 }
 
 suppressWarnings(stargazer(absolute_results, type = "text"))
-# suppressWarnings(stargazer(absolute_results, type = "html", out = "output_panel/absolute_panel_timedummies_interactions.html"))
+rm(model_name, regression_formula, regressors, time_dummies, outcome, panel_as_pdata)
+```
 
-rm(model_name, regression_formula, regressors, absolute_results, time_dummies, outcome, panel_as_pdata)
+```{r eval=FALSE, include=FALSE}
+suppressWarnings(stargazer(absolute_results, type = "html", out = "output_panel/absolute_panel_timedummies_interactions.html"))
+rm(absolute_results)
 ```
 
 Les R2 n'évoluent pas. Pratiquement tous les sous-coefficients de ppropri sont significatifs, mais ils fluctuent d'une manière qui les rend difficilement interprétables.
@@ -346,12 +384,15 @@ for (outcome in wide_relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_widepanel_basic.html"))
-
-rm(model_name, regression_formula, relative_results, outcome, wide_panel_as_pdata)
+rm(model_name, regression_formula, outcome, wide_panel_as_pdata)
 ```
 
-Seconde tentative avec dummies temporelles.
+```{r include=FALSE}
+suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_widepanel_basic.html"))
+rm(relative_results)
+```
+
+Seconde tentative avec dummies temporelles
 
 ```{r}
 # Pour les outcomes relatifs = ratios / exprimés
@@ -368,12 +409,15 @@ for (outcome in wide_relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_widepanel_timedummies.html"))
-
-rm(model_name, regression_formula, relative_results, regressors, outcome, wide_panel_as_pdata)
+rm(model_name, regression_formula, regressors, outcome, wide_panel_as_pdata)
 ```
 
-Troisième tentative avec dummies temporelles et interactions.
+```{r include=FALSE}
+suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_widepanel_timedummies.html"))
+rm(relative_results)
+```
+
+Troisième tentative avec dummies temporelles et interactions
 
 ```{r}
 # Pour les outcomes relatifs = ratios / exprimés
@@ -392,9 +436,30 @@ for (outcome in wide_relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-# suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_widepanel_timedummies_interactions.html"))
+rm(model_name, regression_formula, regressors, time_dummies, outcome, wide_panel_as_pdata)
+```
 
-rm(model_name, regression_formula, relative_results, regressors, time_dummies, outcome, wide_panel_as_pdata)
+```{r}
+# A compléter pour les autres outcomes
+coefficients <- relative_results$part_model$coefficients
+coefficients <- as.data.frame(coefficients)
+coefficients <- coefficients[grep("propri$", rownames(coefficients)), , drop = FALSE]
+years <- sub("^year(\\d+):.*", "\\1", rownames(coefficients))
+coefficients$year <- years
+rownames(coefficients) <- NULL
+
+ggplot(data = coefficients, aes(x = year, y = coefficients)) +
+  geom_line(aes(group = 1), color = "skyblue") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "darkblue") + 
+  labs(x = "Année", y = "Coefficients", title = "Coefficients de ppropri sur part au cours du temps") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+rm(coefficients, years)
+```
+
+```{r include=FALSE}
+suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_widepanel_timedummies_interactions.html"))
+rm(relative_results)
 ```
 
 **Régressions annuelles**
