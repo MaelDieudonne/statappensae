@@ -224,7 +224,7 @@ rm(model_name, regression_formula, outcome, panel_as_pdata)
 ```
 
 ```{r include=FALSE}
-suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_panel_basic.html"))
+suppressWarnings(stargazer(relative_results, type = "latex", out = "output_panel/relative_panel_basic.tex"))
 rm(relative_results)
 ```
 
@@ -244,7 +244,7 @@ rm(model_name, regression_formula, outcome, panel_as_pdata)
 ```
 
 ```{r eval=FALSE, include=FALSE}
-suppressWarnings(stargazer(absolute_results, type = "html", out = "output_panel/absolute_panel_basic.html"))
+suppressWarnings(stargazer(absolute_results, type = "latex", out = "output_panel/absolute_panel_basic.tex"))
 rm(absolute_results)
 ```
 
@@ -268,7 +268,7 @@ rm(model_name, regression_formula, regressors, outcome, panel_as_pdata)
 ```
 
 ```{r include=FALSE}
-suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_panel_timedummies.html"))
+suppressWarnings(stargazer(relative_results, type = "latex", out = "output_panel/relative_panel_timedummies.tex"))
 rm(relative_results)
 ```
 
@@ -291,7 +291,7 @@ rm(model_name, regression_formula, regressors, outcome, panel_as_pdata)
 ```
 
 ```{r eval=FALSE, include=FALSE}
-suppressWarnings(stargazer(absolute_results, type = "html", out = "output_panel/absolute_panel_timedummies.html"))
+suppressWarnings(stargazer(absolute_results, type = "latex", out = "output_panel/absolute_panel_timedummies.tex"))
 
 rm(absolute_results)
 ```
@@ -362,7 +362,7 @@ rm(model_name, regression_formula, regressors, time_dummies, outcome, panel_as_p
 ```
 
 ```{r eval=FALSE, include=FALSE}
-suppressWarnings(stargazer(absolute_results, type = "html", out = "output_panel/absolute_panel_timedummies_interactions.html"))
+suppressWarnings(stargazer(absolute_results, type = "latex", out = "output_panel/absolute_panel_timedummies_interactions.tex"))
 rm(absolute_results)
 ```
 
@@ -388,7 +388,7 @@ rm(model_name, regression_formula, outcome, wide_panel_as_pdata)
 ```
 
 ```{r include=FALSE}
-suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_widepanel_basic.html"))
+suppressWarnings(stargazer(relative_results, type = "latex", out = "output_panel/relative_widepanel_basic.tex"))
 rm(relative_results)
 ```
 
@@ -413,7 +413,7 @@ rm(model_name, regression_formula, regressors, outcome, wide_panel_as_pdata)
 ```
 
 ```{r include=FALSE}
-suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_widepanel_timedummies.html"))
+suppressWarnings(stargazer(relative_results, type = "latex", out = "output_panel/relative_widepanel_timedummies.tex"))
 rm(relative_results)
 ```
 
@@ -458,7 +458,7 @@ rm(coefficients, years)
 ```
 
 ```{r include=FALSE}
-suppressWarnings(stargazer(relative_results, type = "html", out = "output_panel/relative_widepanel_timedummies_interactions.html"))
+suppressWarnings(stargazer(relative_results, type = "latex", out = "output_panel/relative_widepanel_timedummies_interactions.tex"))
 rm(relative_results)
 ```
 
