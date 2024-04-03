@@ -281,10 +281,10 @@ colnames(dummies) <- paste0("type_comm_", 1:ncol(dummies))
 mca_data_subset <- cbind(mca_data_subset, dummies)
 mca_data_subset$type_comm <- NULL
 ## Normalisation
-regressors <- c(full_mca_regressors, paste0("type_comm_", 1:4))
-regressors <- setdiff(regressors, c("popagglo", "type_comm"))
+scaling_regressors <- setdiff(full_mca_regressors, c("popagglo", "type_comm"))
+regressors <- c(scaling_regressors, paste0("type_comm_", 1:4))
 mca_data_subset_scaled <- mca_data_subset[, ..regressors]
-mca_data_subset_scaled <- scale(mca_data_subset_scaled)
+mca_data_subset_scaled[, (scaling_regressors) := lapply(.SD, scale), .SDcols = scaling_regressors]
 
 # Détermination des clusters et ajout des variables électorales
 kmeans_result <- kmeans(mca_data_subset_scaled, centers = 6)
@@ -336,7 +336,7 @@ means_tbl
 gtsave(means_tbl, filename = "k_means.tex", path = "output_transversal")
 
 # Nettoyage
-rm(regressors, mca_data_subset, dummies, kmeans_result, variables_of_interest, means, cluster_counts, global_means, t_means, means_tbl, mca_data_subset_scaled)
+rm(regressors, mca_data_subset, dummies, kmeans_result, variables_of_interest, means, cluster_counts, global_means, t_means, means_tbl, mca_data_subset_scaled, scaling_regressors)
 ```
 
 Ici, les résultats sont plus intéressants, avec des clusters qui se différencient plus nettement ; les clusters 2 et 6 en particulier, avec des taux de propriétaires très en-dessous de la moyenne, mais l'un (n°6) qui vote beaucoup aux extrêmes, l'autre (n°2) qui vote davantage au centre. Essayons d'identifier / caractériser ces clusters.
@@ -362,19 +362,19 @@ draw_map_cluster <- function(region, base_width) {
 
   output_file <- paste0("output_transversal/clusters_2017_", reg_abrv, ".png")
   title <- paste0("Clusters en ", reg_name)
-  legend_labels <- c("1" = "Rural mixte",
+  legend_labels <- c("1" = "Périurbain populaire",
                      "2" = "Centre des grandes villes",
-                     "3" = "Périurbain aisé",
-                     "4" = "Rural à dominante paysanne",
-                     "5" = "Rural à dominante ouvrière",
-                     "6" = "Banlieues et villes pauvres")
-  legend_colors <- c("1" = "limegreen",
+                     "3" = "Banlieues et zones périurbaines aisées",
+                     "4" = "Banlieues et villes pauvres",
+                     "5" = "Rural à dominante paysanne",
+                     "6" = "Rural précaire")
+  legend_colors <- c("1" = "lightgreen",
                      "2" = "blue",
                      "3" = "skyblue",
-                     "4" = "darkgreen",
-                     "5" = "lightgreen",
-                     "6" = "brown")
-  
+                     "4" = "brown",
+                     "5" = "darkgreen",
+                     "6" = "limegreen")
+
   # Exportation d'une carte en haute résolution
   ## Calcul des dimensions
   bbox <- st_bbox(carto)
@@ -460,7 +460,7 @@ print(means)
 ```
 
 ```{r}
-# Tentative avec outcomes relatifs et régresseurs
+# Tentative avec outcomes relatifs, régresseurs sans popagglo et type_comm en indicatrice
 set.seed(123)
 
 # Préparation des données
@@ -533,3 +533,78 @@ gtsave(means_tbl, filename = "k_means.tex", path = "output_transversal")
 # Nettoyage
 rm(regressors, mca_data_subset, dummies, kmeans_result, variables_of_interest, means, cluster_counts, global_means, t_means, means_tbl, mca_data_subset_scaled)
 ```
+
+```{r}
+set.seed(123)
+
+# Préparation des données
+## Sélection des variables
+regressors <- c("codecommune", full_mca_regressors)
+regressors <- setdiff(regressors, "popagglo")
+mca_data_subset <- detailed_mca_data[, ..regressors]
+mca_data_subset <- na.omit(mca_data_subset)
+## Création d'indicatrices pour les types de communes
+mca_data_subset$type_comm <- as.factor(mca_data_subset$type_comm)
+dummies <- model.matrix(~ type_comm - 1, data = mca_data_subset)
+colnames(dummies) <- paste0("type_comm_", 1:ncol(dummies))
+mca_data_subset <- cbind(mca_data_subset, dummies)
+mca_data_subset$type_comm <- NULL
+## Normalisation
+scaling_regressors <- setdiff(full_mca_regressors, c("popagglo", "type_comm"))
+regressors <- c(scaling_regressors, paste0("type_comm_", 1:4))
+mca_data_subset_scaled <- mca_data_subset[, ..regressors]
+mca_data_subset_scaled[, (scaling_regressors) := lapply(.SD, scale), .SDcols = scaling_regressors]
+
+# Détermination des clusters et ajout des variables électorales
+kmeans_result <- kmeans(mca_data_subset_scaled, centers = 6)
+mca_data_subset$cluster <- kmeans_result$cluster
+columns <- c("codecommune", "cluster", paste0("type_comm_", 1:4))
+cluster_data <- mca_data_subset[, ..columns, drop = FALSE]
+cluster_data <- merge(cluster_data, detailed_mca_data, by = "codecommune")
+
+# Analyse des résultats
+## Calcul des moyennes par cluster
+variables_of_interest <- c(mca_detailed_outcomes, full_mca_regressors, paste0("type_comm_", 1:4))
+variables_of_interest <- setdiff(variables_of_interest, "type_comm")
+means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = variables_of_interest]
+means$cluster <- as.factor(means$cluster)
+## Calcul des effectifs des clusters
+cluster_counts <- as.data.frame(table(cluster_data$cluster))
+means <- merge(means, cluster_counts, by.x = "cluster", by.y = "Var1")
+## Calcul des moyennes pour la population
+global_means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), .SDcols = variables_of_interest]
+global_means$cluster <- "mean"
+means <- rbind(means, global_means, fill = TRUE)
+## Expression des types de commune en %
+means[, paste0("type_comm_", 1:4)] <- lapply(means[, paste0("type_comm_", 1:4)], as.numeric)
+means[, paste0("type_comm_", 1:4)] <- means[, paste0("type_comm_", 1:4)] * 100
+means$cluster <- as.character(means$cluster)
+## Transposition pour afficher les clusters en colonne
+t_means <- t(means)
+t_means <- data.frame(matrix = rownames(t_means), t_means, row.names = NULL)
+colnames(t_means) <- t_means[1, ]
+t_means <- t_means[-1, ]
+t_means[setdiff(names(t_means), "cluster")] <- lapply(t_means[setdiff(names(t_means), "cluster")], as.numeric)
+## Intervalle sur lequel appliquer la coloration (afin qu'elle soit centrée sur la moyenne de la population plutôt que des clusters)
+t_means <- as.data.frame(t_means)
+t_means$min <- apply(t_means[, 2:7], 1, min)
+t_means$max <- apply(t_means[, 2:7], 1, max)
+t_means$diff_min <- t_means$mean - t_means$min
+t_means$diff_max <- t_means$max - t_means$mean
+t_means$spread <- pmax(t_means$diff_min, t_means$diff_max)
+t_means$range_inf <- t_means$mean - t_means$spread
+t_means$range_sup <- t_means$mean + t_means$spread
+t_means <- subset(t_means, select = -c(min, max, diff_min, diff_max, spread))
+## Création du tableau avec gt
+means_tbl <- gt(t_means)
+means_tbl <- fmt_number(means_tbl, decimals = 3, drop_trailing_zeros = TRUE)
+means_tbl <- cols_hide(means_tbl, c("range_inf", "range_sup"))
+means_tbl <- tab_header(means_tbl, "Moyenne des variables par cluster", subtitle = NULL, preheader = NULL)
+means_tbl <- data_color(means_tbl, method = "numeric", columns = !matches("cluster|mean"), direction = "row", palette = "RColorBrewer::RdBu")
+means_tbl
+gtsave(means_tbl, filename = "k_means.tex", path = "output_transversal")
+
+# Nettoyage
+rm(regressors, mca_data_subset, dummies, kmeans_result, variables_of_interest, means, cluster_counts, global_means, t_means, means_tbl, mca_data_subset_scaled)
+```
+
