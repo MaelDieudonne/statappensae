@@ -89,7 +89,7 @@ plot <- ggplot(graph_data, aes(x = year)) +
   labs(title = "Outcomes relatifs, 1965-2022",
        x = "Année",
        y = "Pourcentage",
-       color = "") +
+       color = "Outcomes") +
   scale_color_manual(values = c("part_T1" = "blue",
                                 "part_T2" = "skyblue",
                                 "GD_ratio_T1" = "limegreen",
@@ -192,14 +192,20 @@ rm(nb_quantiles, quantiles_list, yr, panel_subset, quantiles, quantiles_df)
 Étudions la corrélation du taux de propriétaires avec les autres régresseurs. Certains résultats sont peu surprenants : les propriétaires sont comparativement plus nombreux dans les communes dont les habitants sont plus âgés, et moins nombreux dans les communes plus petites et dont les habitants comptent davantage d'étrangers. Les corrélations avec le diplôme et la catégorie socio-professionnelles sont plus ambigues, avec une corrélation plus forte avec la proportion de diplômés du bac que du supérieur, et de professions intermédiaires que de cadres. On peut supposer que les diplômés du supérieur et les cadres résident davantage dans les grandes villes, ce qui freine leur accession à la propriété malgré leurs revenus supérieurs.
 
 ```{r}
-panel_data_complete <- na.omit(panel_data[, c("ppropri", panel_regressors), with = FALSE])
+panel_data_complete <- na.omit(panel_data[, c("ppropri", full_panel_regressors), with = FALSE])
 correlation_results <- sapply(panel_data_complete[, -1, drop = FALSE], function(x) cor(panel_data_complete$ppropri, x))
 correlation_results <- correlation_results * 100
-correlation_df <- data.frame(Variable = names(correlation_results), Correlation = correlation_results)
-correlation_df <- correlation_df[order(correlation_df$Correlation, decreasing = TRUE), ]
+correlation_df <- data.frame(Variables = names(correlation_results), Corrélation = correlation_results)
+correlation_df <- subset(correlation_df, Variables != "ppropri")
+correlation_df <- correlation_df[order(correlation_df$Corrélation, decreasing = TRUE), ]
+rownames(correlation_df) <- NULL
 
-correlation_df[] <- lapply(correlation_df, tidy_table)
-print(correlation_df)
+correlation_df <- gt(correlation_df)
+correlation_df <- fmt_number(correlation_df, decimals = 3, drop_trailing_zeros = TRUE)
+correlation_df <- tab_header(correlation_df, "Corrélation des régresseurs avec le taux de propriétaires", subtitle = NULL, preheader = NULL)
+correlation_df <- data_color(correlation_df, method = "numeric", columns = !matches("Variables"), palette ="Spectral")
+correlation_df
+gtsave(correlation_df, filename = "correl_ppropri.tex", path = "output_panel")
 
 rm(panel_data_complete, correlation_results, correlation_df)
 ```
@@ -343,12 +349,12 @@ coefficients <- rbind(part_T1, GD_ratio_T1, EC_ratio_T1)
 plot <- ggplot(coefficients, aes(x = year, y = coef_ppropri, color = outcome, group = outcome)) +
   geom_line() +
   geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
-  labs(title = "Coefficients de ppropri au cours du temps",
+  labs(title = "Coefficients de ppropri dans les panels", subtitle = "(avec interactions temporelles)",
        x = "Année",
        y = "Coefficient",
        color = "Outcome") +
   theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 print(plot)
 ggsave("output_panel/ppropri_panel_coeffs.png", plot, width = 8, height = 6, dpi = 300)
 
@@ -485,12 +491,12 @@ coefficients <- rbind(part_T1, GD_ratio_T1, EC_ratio_T1)
 plot <- ggplot(coefficients, aes(x = year, y = coef_ppropri, color = outcome, group = outcome)) +
   geom_line() +
   geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
-  labs(title = "Coefficients de ppropri au cours du temps (avec indicatrice des tours)",
+  labs(title = "Coefficients de ppropri dans les panels", subtitle = "(avec interactions temporelles et indicatrice des tours)",
        x = "Année",
        y = "Coefficient",
        color = "Outcome") +
   theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 print(plot)
 ggsave("output_panel/ppropri_panel_coeffs_round_dummies.png", plot, width = 8, height = 6, dpi = 300)
 
@@ -523,20 +529,24 @@ for (outcome in relative_outcomes) {
 }
 
 ggplot(results, aes(x = year, y = r2_adj, color = outcome, group = outcome)) +
-  geom_line() +
-  labs(title = "Adjusted R-squared for Each Outcome",
-       x = "Year",
-       y = "Adjusted R-squared",
+  geom_line() + +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
+  labs(title = "R2 ajusté des régressions annuelles",
+       x = "Année",
+       y = "R2 ajusté",
        color = "Outcome") +
-  theme_minimal()
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
 
 ggplot(results, aes(x = year, y = coef_ppropri, color = outcome, group = outcome)) +
-  geom_line() +
-  labs(title = "Evolution of ppropri coefficients for Each Outcome",
-       x = "Year",
-       y = "Coefficient (ppropri)",
+  geom_line() + +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
+  labs(title = "Coefficients de pprori dans les régressions annuelles",
+       x = "Année",
+       y = "Coefficient",
        color = "Outcome") +
-  theme_minimal()
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
 
 rm(results, outcome, yr, subset_data, regression_formula, model)
 ```
@@ -561,18 +571,22 @@ for (yr in unique(panel_data$year)) {
 }
 
 ggplot(R2_df, aes(x = factor(year), y = R2, color = quantile, group = quantile)) +
-  geom_line() +
-  labs(title = "R-squared Values by quantile of ppropri",
-       x = "Year",
-       y = "R-squared") +
-  theme_minimal()
+  geom_line() + +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
+  labs(title = "R2 des régressions pseudo-quantiles", subtitle ="(quantiles variables)",
+       x = "Année",
+       y = "R2") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 
 ggplot(coefs_df, aes(x = factor(year), y = coefficient, color = quantile, group = quantile)) +
-  geom_line() +
-  labs(title = "Coefficients of ppropri by quantile of ppropri",
-       x = "Year",
+  geom_line() + +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
+  labs(title = "Coefficients de ppropri dans les régressions pseudo-quantiles", subtitle ="(quantiles variables)",
+       x = "Année",
        y = "Coefficient") +
-  theme_minimal()
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 
 rm(coefs_df, R2_df, regression_formula, yr, panel_subset, quantiles, i, quantile_subset, model)
 ```
@@ -588,7 +602,7 @@ ppropri_ranges <- list("< 50 %" = c(0, 50),
                        "60-70 %" = c(60, 70),
                        "70-80 %" = c(70, 80),                       
                        "80-90 %" = c(80, 90),                       
-                       "> 90 %" = c(90, Inf))
+                       "90 % <" = c(90, Inf))
 for (yr in unique(panel_data$year)) {
   panel_subset <- panel_data[panel_data$year == yr, ]
   for (range_name in names(ppropri_ranges)) {
@@ -605,17 +619,21 @@ for (yr in unique(panel_data$year)) {
 
 ggplot(R2_df, aes(x = factor(year), y = R2, color = quantile, group = quantile)) +
   geom_line() +
-  labs(title = "R-squared Values by Quantile",
-       x = "Year",
-       y = "R-squared") +
-  theme_minimal()
+  geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
+  labs(title = "R2 des régressions pseudo-quantiles", subtitle ="(quantiles absolus)",
+       x = "Année",
+       y = "R2") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 
 ggplot(coefs_df, aes(x = factor(year), y = coefficient, color = quantile, group = quantile)) +
   geom_line() +
-  labs(title = "Coefficients of ppropri by level of ppprori",
-       x = "Year",
+  geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
+  labs(title = "Coefficients de ppropri dans les régressions pseudo-quantiles", subtitle ="(quantiles absolus)",
+       x = "Année",
        y = "Coefficient") +
-  theme_minimal()
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
 
 rm(coefs_df, R2_df, regression_formula, ppropri_ranges, yr, panel_subset, quantile_subset, model)
 ```
@@ -628,7 +646,7 @@ quantiles <- c(0.2, 0.4, 0.6, 0.8)
 coefs_df <- data.frame(year = integer(), coefficient = numeric(), quantile = numeric())
 R2_df <- data.frame(year = integer(), R2 = numeric(), quantile = numeric())
 
-regression_formula <- as.formula(paste("EC_ratio_T1", "~", paste(panel_regressors, collapse = "+")))
+regression_formula <- as.formula(paste("part_T1", "~", paste(panel_regressors, collapse = "+")))
 
 for (yr in unique(panel_data$year)) {
   subset_data <- panel_data[panel_data$year == yr, ]
@@ -641,8 +659,10 @@ for (yr in unique(panel_data$year)) {
 ggplot(coefs_df, aes(x = year, y = coefficient, color = factor(quantile))) +
   geom_line() +
   geom_point() +
-  labs(title = "Coefficients of 'ppropri' Across Time for Different Quantile Levels",
-       x = "Year", y = "Coefficient") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
+  labs(title = "Coefficients de ppropri dans les régressions quantiles sur part_T1",
+       x = "Année", y = "Coefficient") +
+  scale_color_discrete(name = "Quantile") +
   theme_minimal() +
-  scale_color_discrete(name = "Quantile")
+  theme(plot.title = element_text(hjust = 0.5))
 ```
