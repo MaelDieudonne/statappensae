@@ -11,8 +11,10 @@ codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
 ```{r}
 # Définition des variables
 ## Outcomes
-mca_relative_outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "EC_ratio_T1", "EC_ratio_T2")
-mca_absolute_outcomes <- c("part_T1", "part_T2", "DIns_ratio_T1", "GIns_ratio_T1", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
+mca_relative_outcomes <- c("part_T1", "GD_ratio_T1", "EC_ratio_T1")
+mca_relative_outcomes_2T<- c("part_T1", "part_T2", "GD_ratio_T1", "EC_ratio_T1", "EC_ratio_T2")
+mca_absolute_outcomes <- c("part_T1", "DIns_ratio_T1", "GIns_ratio_T1", "EIns_ratio_T1", "CIns_ratio_T1")
+mca_absolute_outcomes_2T <- c("part_T1", "part_T2", "DIns_ratio_T1", "GIns_ratio_T1", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
 
 mca_detailed_outcomes <- grep("^pvoix", names(detailed_mca_data), value = TRUE)
 mca_detailed_outcomes <- c(mca_detailed_outcomes, "part_T1", "part_T2")
@@ -59,6 +61,26 @@ print(stat_desc)
 
 # Nettoyage
 rm(col, nb_communes, stat_desc, summary)
+```
+
+Distribution du taux de propriétaires
+
+```{r}
+mean_ppropri <- mean(mca_data$ppropri, na.rm = TRUE)
+
+plot <- ggplot(mca_data[is.finite(mca_data$ppropri), ], aes(x = ppropri)) +
+  geom_histogram(fill = "lightblue", color = "skyblue", bins = 125) +
+  geom_vline(xintercept = mean_ppropri, color = "darkgrey", linetype = "dashed", linewidth = 1) +
+  labs(title = "Distribution du taux de propriétaires en 2017",
+       x = "Taux de propriétaires",
+       y = "Nombre de communes") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+print(plot)
+ggsave("output_transversal/distribution_ppropri_2017.png", plot, width = 8, height = 6, dpi = 300)
+
+rm(mean_ppropri, plot)
 ```
 
 Carte du taux de propriétaires
@@ -115,7 +137,9 @@ draw_map <- function(region, mapped_var, mapped_var_name, base_width) {
     print(display_plot)
 }
 
-draw_map(94, "ppropri", "Taux de propriétaires", 8)
+for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {
+  draw_map(i, "ppropri", "Taux de propriétaires", 8)
+}
 ```
 
 Corrélogramme
@@ -138,12 +162,7 @@ rm(corr_variables, correlation_matrix, mca_corr_data)
 
 **Régression linéaire simple**
 
-```{r include=FALSE}
-# Pour traiter le type de commune comme une variable catégorielle. Pour mémoire :
-## 1 = villages (agglos <2000 hab)
-## 2 = bourgs (agglos >2000 et <100 000 hab)
-## 3 = banlieues (communes secondaires agglos >100 000 hab)
-## 4 = métropoles (communes principales agglos >100 000 hab)
+```{r}
 mca_data$type_comm <- factor(mca_data$type_comm)
 
 relative_results <- list()
@@ -153,7 +172,6 @@ for (outcome in mca_relative_outcomes) {
   relative_results[[model_name]] <- lm(regression_formula, data = mca_data)
 }
 suppressWarnings(stargazer(relative_results, type = "text"))
-suppressWarnings(stargazer(relative_results, type = "latex", out = "output_transversal/2017_relative_results.tex"))
 
 absolute_results <- list()
 for (outcome in mca_absolute_outcomes) {
@@ -162,9 +180,14 @@ for (outcome in mca_absolute_outcomes) {
   absolute_results[[model_name]] <- lm(regression_formula, data = mca_data)
 }
 suppressWarnings(stargazer(absolute_results, type = "text"))
-suppressWarnings(stargazer(relative_results, type = "latex", out = "output_transversal/2017_absolute_results.tex"))
 
-rm(absolute_results, model_name, outcome, regression_formula, relative_results)
+rm(model_name, outcome, regression_formula)
+```
+
+```{r include=FALSE}
+suppressWarnings(stargazer(relative_results, type = "latex", out = "output_transversal/2017_relative_results.tex"))
+suppressWarnings(stargazer(relative_results, type = "latex", out = "output_transversal/2017_absolute_results.tex"))
+rm(relative_results,absolute_results)
 ```
 
 **ACP**
