@@ -144,9 +144,7 @@ plot <- ggplot(propri_df, aes(x = year)) +
   scale_color_manual(values = c("prop_ratio" = "skyblue", "ppropri" = "orange"),
                      labels = c("prop_ratio" = "Taux national", "ppropri" = "Taux communal moyen")) +
   theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5)
-  )
+  theme(plot.title = element_text(hjust = 0.5))
 print(plot)
 ggsave("output_panel/taux_proprietaires_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
 
