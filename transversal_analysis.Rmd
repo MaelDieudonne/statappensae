@@ -18,7 +18,7 @@ mca_detailed_outcomes <- grep("^pvoix", names(detailed_mca_data), value = TRUE)
 mca_detailed_outcomes <- c(mca_detailed_outcomes, "part_T1", "part_T2")
 
 ## Régresseurs
-mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger", "revmoy", "pcrimesdelits", "mmoyfortune", "pisf", "prsa", "type_comm")
+mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pempl", "ppint", "pcadr", "pchom", "petranger", "revmoy", "pcrimesdelits", "mmoyfortune", "pisf", "prsa", "type_comm")
 full_mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop014", "prop1539", "prop4059", "prop60p", "propf", "propnodip", "propbac", "propsup", "pagri", "pindp", "pouvr", "pempl", "ppint", "pcadr", "pchom", "prsa", "petranger", "pcrimesdelits", "revmoy", "pisf", "mmoyfortune", "type_comm")
 
 ### Régresseurs abandonnés pour complaire aux économètres du groupe : prefract1791, pclerge1791, pclerge1856, pmessalisants1950

@@ -22,7 +22,7 @@ wide_relative_outcomes <- c("part", "GD_ratio", "EC_ratio")
 
 ## Régresseurs
 ## Modalités supprimées pour éviter la colinéarité : prop014, propnodip, pouvr
-panel_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pcadr", "ppint", "pempl", "pchom", "petranger", "revratio")
+panel_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pempl", "ppint", "pcadr", "pchom", "petranger", "revratio")
 full_panel_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop014", "prop1539", "prop4059", "prop60p", "propf", "propnodip", "propbac", "propsup", "pagri", "pindp", "pouvr", "pempl", "ppint", "pcadr", "pchom", "petranger", "revratio")
 wide_panel_regressors <- c("round", panel_regressors)
 ```
@@ -286,13 +286,11 @@ for (outcome in absolute_outcomes) {
 }
 
 suppressWarnings(stargazer(absolute_results, type = "text"))
-
 rm(model_name, regression_formula, regressors, outcome, panel_as_pdata)
 ```
 
 ```{r eval=FALSE, include=FALSE}
 suppressWarnings(stargazer(absolute_results, type = "latex", out = "output_panel/absolute_panel_timedummies.tex"))
-
 rm(absolute_results)
 ```
 
@@ -319,21 +317,42 @@ rm(model_name, regression_formula, regressors, time_dummies, outcome, panel_as_p
 ```
 
 ```{r}
-# A compléter pour les autres outcomes
-coefficients <- relative_results$part_T1_model$coefficients
-coefficients <- as.data.frame(coefficients)
-coefficients <- coefficients[grep("propri$", rownames(coefficients)), , drop = FALSE]
-years <- sub("^year(\\d+):.*", "\\1", rownames(coefficients))
-coefficients$year <- years
-rownames(coefficients) <- NULL
+part_T1 <- as.data.frame(relative_results$part_T1_model$coefficients)
+part_T1 <- part_T1[grep("ppropri$", rownames(part_T1)), , drop = FALSE]
+colnames(part_T1) <- "coef_ppropri"
+years <- sub("^year(\\d+):.*", "\\1", rownames(part_T1))
+part_T1$year <- years
+part_T1$outcome <- "part_T1"
 
-ggplot(data = coefficients, aes(x = year, y = coefficients)) +
-  geom_line(aes(group = 1), color = "skyblue") +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "darkblue") + 
-  labs(x = "Année", y = "Coefficients", title = "Coefficients de ppropri sur part_T1 au cours du temps") +
+GD_ratio_T1 <- as.data.frame(relative_results$GD_ratio_T1_model$coefficients)
+GD_ratio_T1 <- GD_ratio_T1[grep("ppropri$", rownames(GD_ratio_T1)), , drop = FALSE]
+colnames(GD_ratio_T1) <- "coef_ppropri"
+years <- sub("^year(\\d+):.*", "\\1", rownames(GD_ratio_T1))
+GD_ratio_T1$year <- years
+GD_ratio_T1$outcome <- "GD_ratio_T1"
+
+EC_ratio_T1 <- as.data.frame(relative_results$EC_ratio_T1_model$coefficients)
+EC_ratio_T1 <- EC_ratio_T1[grep("ppropri$", rownames(EC_ratio_T1)), , drop = FALSE]
+colnames(EC_ratio_T1) <- "coef_ppropri"
+years <- sub("^year(\\d+):.*", "\\1", rownames(EC_ratio_T1))
+EC_ratio_T1$year <- years
+EC_ratio_T1$outcome <- "EC_ratio_T1"
+
+coefficients <- rbind(part_T1, GD_ratio_T1, EC_ratio_T1)
+
+plot <- ggplot(coefficients, aes(x = year, y = coef_ppropri, color = outcome, group = outcome)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
+  labs(title = "Coefficients de ppropri au cours du temps",
+       x = "Année",
+       y = "Coefficient",
+       color = "Outcome") +
+  theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
+print(plot)
+ggsave("output_panel/ppropri_panel_coeffs.png", plot, width = 8, height = 6, dpi = 300)
 
-rm(coefficients, years)
+rm(part_T1, GD_ratio_T1, EC_ratio_T1, coefficients, years, plot)
 ```
 
 ```{r include=FALSE}
@@ -440,21 +459,42 @@ rm(model_name, regression_formula, regressors, time_dummies, outcome, wide_panel
 ```
 
 ```{r}
-# A compléter pour les autres outcomes
-coefficients <- relative_results$part_model$coefficients
-coefficients <- as.data.frame(coefficients)
-coefficients <- coefficients[grep("propri$", rownames(coefficients)), , drop = FALSE]
-years <- sub("^year(\\d+):.*", "\\1", rownames(coefficients))
-coefficients$year <- years
-rownames(coefficients) <- NULL
+part_T1 <- as.data.frame(relative_results$part_model$coefficients)
+part_T1 <- part_T1[grep("ppropri$", rownames(part_T1)), , drop = FALSE]
+colnames(part_T1) <- "coef_ppropri"
+years <- sub("^year(\\d+):.*", "\\1", rownames(part_T1))
+part_T1$year <- years
+part_T1$outcome <- "part_T1"
 
-ggplot(data = coefficients, aes(x = year, y = coefficients)) +
-  geom_line(aes(group = 1), color = "skyblue") +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "darkblue") + 
-  labs(x = "Année", y = "Coefficients", title = "Coefficients de ppropri sur part au cours du temps") +
+GD_ratio_T1 <- as.data.frame(relative_results$GD_ratio_model$coefficients)
+GD_ratio_T1 <- GD_ratio_T1[grep("ppropri$", rownames(GD_ratio_T1)), , drop = FALSE]
+colnames(GD_ratio_T1) <- "coef_ppropri"
+years <- sub("^year(\\d+):.*", "\\1", rownames(GD_ratio_T1))
+GD_ratio_T1$year <- years
+GD_ratio_T1$outcome <- "GD_ratio_T1"
+
+EC_ratio_T1 <- as.data.frame(relative_results$EC_ratio_model$coefficients)
+EC_ratio_T1 <- EC_ratio_T1[grep("ppropri$", rownames(EC_ratio_T1)), , drop = FALSE]
+colnames(EC_ratio_T1) <- "coef_ppropri"
+years <- sub("^year(\\d+):.*", "\\1", rownames(EC_ratio_T1))
+EC_ratio_T1$year <- years
+EC_ratio_T1$outcome <- "EC_ratio_T1"
+
+coefficients <- rbind(part_T1, GD_ratio_T1, EC_ratio_T1)
+
+plot <- ggplot(coefficients, aes(x = year, y = coef_ppropri, color = outcome, group = outcome)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
+  labs(title = "Coefficients de ppropri au cours du temps (avec indicatrice des tours)",
+       x = "Année",
+       y = "Coefficient",
+       color = "Outcome") +
+  theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
+print(plot)
+ggsave("output_panel/ppropri_panel_coeffs_round_dummies.png", plot, width = 8, height = 6, dpi = 300)
 
-rm(coefficients, years)
+rm(part_T1, GD_ratio_T1, EC_ratio_T1, coefficients, years, plot)
 ```
 
 ```{r include=FALSE}
