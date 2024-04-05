@@ -37,8 +37,11 @@ docs/
 po/*~
 # RStudio Connect folder
 rsconnect/
-# Output folder
-output/
+# Output folders
+output_transversal/
+output_panel/
 # Data folders
 data_main/
 data_other/
+# Other
+.DS_Store

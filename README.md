@@ -2,7 +2,7 @@ Ce projet explore les effets du statut de propriétaire immobilier sur les compo
 
 Il est réalisé dans le cadre de l’enseignement de statistiques appliquées de seconde année à l’Ensae, au premier semestre 2024.
 
--   Auteurs : Alexis Barrau, Maël Dieudonne et Swann-Émilien Maillefert
+-   Auteurs : Alexis Barrau, Maël Dieudonné et Swann-Émilien Maillefert
 
 -   Encadrants : Pauline Mendras et Gaston Vermersch (INSEE / IPP)
 
@@ -20,4 +20,4 @@ Le code est conçu pour s’exécuter dans l’environnement [Onyxia](https://da
 7.  Transversal_analysis pour un approfondissement de l'année 2017
 8.  3D_map pour les cartes en 3D
 
-Toutes les sorties sont placées dans le répertoire output, au format latex ou png. Les rapports sont disponibles dans le dossier latex.
+Toutes les sorties sont placées dans les répertoires output, au format latex ou png. Les rapports sont disponibles dans le dossier latex.
