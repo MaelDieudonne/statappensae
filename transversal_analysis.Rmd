@@ -20,10 +20,10 @@ mca_detailed_outcomes <- grep("^pvoix", names(detailed_mca_data), value = TRUE)
 mca_detailed_outcomes <- c(mca_detailed_outcomes, "part_T1", "part_T2")
 
 ## Régresseurs
+### Abandonnés pour complaire aux économètres du groupe : prefract1791, pclerge1791, pclerge1856, pmessalisants1950
+## Modalités supprimées pour éviter la colinéarité : prop014, propnodip, pouvr
 mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pempl", "ppint", "pcadr", "pchom", "petranger", "revmoy", "pcrimesdelits", "mmoyfortune", "pisf", "prsa", "type_comm")
 full_mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop014", "prop1539", "prop4059", "prop60p", "propf", "propnodip", "propbac", "propsup", "pagri", "pindp", "pouvr", "pempl", "ppint", "pcadr", "pchom", "prsa", "petranger", "pcrimesdelits", "revmoy", "pisf", "mmoyfortune", "type_comm")
-
-### Régresseurs abandonnés pour complaire aux économètres du groupe : prefract1791, pclerge1791, pclerge1856, pmessalisants1950
 ```
 
 **Analyses descriptives**
@@ -33,9 +33,8 @@ Tableau récapitulatif (dont valeurs manquantes)
 ```{r}
 nb_communes <- uniqueN(mca_data, by = "codecommune")
 
-# Initialisation et calcul des valeurs
 stat_desc <- data.table()
-for (col in names(mca_data)) {if (!(col %in% c("dep", "codecommune", "codecommune2", "year", "GD_ratio_T2", "GIns_ratio_T2"))) {
+for (col in c(mca_relative_outcomes_2T, full_mca_regressors)) {
   summary <- mca_data[, {
     fivenum_values <- fivenum(get(col))
     nan_count <- sum(is.na(get(col)))
@@ -48,18 +47,19 @@ for (col in names(mca_data)) {if (!(col %in% c("dep", "codecommune", "codecommun
       "Mediane" = fivenum_values[3],
       "3e quartile" = fivenum_values[4],
       "Max" = fivenum_values[5],
-      "Valeurs manquantes" = nan_count,
+      "NaN" = nan_count,
       "En % des communes" = nan_count_prop
     )
   }]
-stat_desc <- rbind(stat_desc, summary)
-}}
+  stat_desc <- rbind(stat_desc, summary)
+}
 
-stat_desc[] <- data.frame(lapply(stat_desc, tidy_table))
-print(xtable(stat_desc, type = "latex"), file = "output_transversal/stat_desc_acp.tex")
-print(stat_desc)
+stat_desc <- gt(stat_desc)
+stat_desc <- fmt_number(stat_desc, decimals = 2, drop_trailing_zeros = TRUE)
+stat_desc <- tab_header(stat_desc, "Statistiques descriptives - 2017", subtitle = NULL, preheader = NULL)
+stat_desc
+gtsave(stat_desc, filename = "stat_desc_acp.tex", path = "output_panel")
 
-# Nettoyage
 rm(col, nb_communes, stat_desc, summary)
 ```
 
