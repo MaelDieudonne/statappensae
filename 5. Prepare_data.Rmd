@@ -283,6 +283,7 @@ EIns_panel_data$round <- ifelse(!is.na(EIns_panel_data$round), sub("^EIns_ratio_
 wide_panel_data <- merge(wide_panel_data, EIns_panel_data, by = c("codecommune", "year", "round"))
 
 wide_panel_data[, round := ifelse(round == 1, 0, ifelse(round == 2, 1, round))]
+wide_panel_data$round <- as.numeric(wide_panel_data$round)
 
 write_parquet(wide_panel_data, "data_main/wide_panel_data.parquet")
 ```
