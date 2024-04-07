@@ -220,7 +220,7 @@ relative_results <- list()
 for (outcome in relative_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(panel_regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", effect = "individual", cluster = "dep", vcov = "HC1")
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
@@ -240,7 +240,7 @@ absolute_results <- list()
 for (outcome in absolute_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(panel_regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep")
+  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", effect = "individual", cluster = "dep")
 }
 
 suppressWarnings(stargazer(absolute_results, type = "text"))
@@ -264,7 +264,7 @@ relative_results <- list()
 for (outcome in relative_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", effect = "individual", cluster = "dep", vcov = "HC1")
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
@@ -286,7 +286,7 @@ absolute_results <- list()
 for (outcome in absolute_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", effect = "individual", cluster = "dep", vcov = "HC1")
 }
 
 suppressWarnings(stargazer(absolute_results, type = "text"))
@@ -313,7 +313,7 @@ relative_results <- list()
 for (outcome in relative_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+  relative_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", effect = "individual", cluster = "dep", vcov = "HC1")
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
@@ -377,7 +377,7 @@ absolute_results <- list()
 for (outcome in absolute_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+  absolute_results[[model_name]] <- plm(regression_formula, data = panel_as_pdata, model = "fd", effect = "individual", cluster = "dep", vcov = "HC1")
 }
 
 suppressWarnings(stargazer(absolute_results, type = "text"))
@@ -403,7 +403,7 @@ relative_results <- list()
 for (outcome in wide_relative_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(wide_panel_regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", effect = "individual", cluster = "dep", vcov = "HC1")
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
@@ -428,7 +428,7 @@ relative_results <- list()
 for (outcome in wide_relative_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", cluster = "dep", vcov = "HC1")
+  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", effect = "individual", cluster = "dep", vcov = "HC1")
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
@@ -455,7 +455,7 @@ relative_results <- list()
 for (outcome in wide_relative_outcomes) {
   regression_formula <- as.formula(paste(outcome, "~", paste(regressors, collapse = "+")))
   model_name <- paste0(outcome, "_model")
-  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "within", cluster = "dep", vcov = "HC1")
+  relative_results[[model_name]] <- plm(regression_formula, data = wide_panel_as_pdata, model = "fd", effect = "individual", cluster = "dep", vcov = "HC1")
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
