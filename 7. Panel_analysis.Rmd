@@ -208,7 +208,44 @@ gtsave(correlation_df, filename = "correl_ppropri.tex", path = "output_panel")
 rm(panel_data_complete, correlation_results, correlation_df)
 ```
 
-**Panel (premier tour seulement)**
+**Panel - tests**
+
+On utilise deux tests :
+
+-   Le test de Wooldrige à partir des différences premières, qui concerne la corrélation temporelles des résidus.
+
+-   Le test de Hausman, qui permet de comparer les estimateurs fd et within, donc d'évaluer l'hypothèse d'exogénéité stricte.
+
+```{r}
+# Hausman test
+# Comparaison des estimateurs fd et within => H0 correspond à l'exogénéité stricte
+panel_as_pdata <- pdata.frame(panel_data, index = c("codecommune", "year"))
+
+print("Test for part_T1")
+regression_formula <- as.formula(paste("part_T1 ~", paste(panel_regressors, collapse = "+")))
+pwfdtest(regression_formula, data = panel_as_pdata)
+fd <- plm(regression_formula, data = panel_as_pdata, model = "fd", effect = "individual", cluster = "dep", vcov = "HC1")
+within <- plm(regression_formula, data = panel_as_pdata, model = "within", effect = "individual", cluster = "dep", vcov = "HC1")
+phtest(fd, within)
+
+print("Test for GD_ratio_T1")
+regression_formula <- as.formula(paste("GD_ratio_T1 ~", paste(panel_regressors, collapse = "+")))
+pwfdtest(regression_formula, data = panel_as_pdata)
+fd <- plm(regression_formula, data = panel_as_pdata, model = "fd", effect = "individual", cluster = "dep", vcov = "HC1")
+within <- plm(regression_formula, data = panel_as_pdata, model = "within", effect = "individual", cluster = "dep", vcov = "HC1")
+phtest(fd, within)
+
+print("Test for EC_ratio_T1")
+regression_formula <- as.formula(paste("EC_ratio_T1 ~", paste(panel_regressors, collapse = "+")))
+pwfdtest(regression_formula, data = panel_as_pdata)
+fd <- plm(regression_formula, data = panel_as_pdata, model = "fd", effect = "individual", cluster = "dep", vcov = "HC1")
+within <- plm(regression_formula, data = panel_as_pdata, model = "within", effect = "individual", cluster = "dep", vcov = "HC1")
+phtest(fd, within)
+
+rm(panel_as_pdata)
+```
+
+**Panel (T1 seulement)**
 
 On commence par des panels simples, en différences premières, avec clustering au niveau départemental et variance hétéroscédastique.
 
@@ -224,7 +261,7 @@ for (outcome in relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-rm(model_name, regression_formula, outcome, panel_as_pdata)
+# rm(model_name, regression_formula, outcome, panel_as_pdata)
 ```
 
 ```{r include=FALSE}
