@@ -12,7 +12,7 @@ codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
 # Définition des variables
 ## Outcomes
 mca_relative_outcomes <- c("part_T1", "GD_ratio_T1", "EC_ratio_T1")
-mca_relative_outcomes_2T<- c("part_T1", "part_T2", "GD_ratio_T1", "EC_ratio_T1", "EC_ratio_T2")
+mca_relative_outcomes_2T <- c("part_T1", "part_T2", "GD_ratio_T1", "EC_ratio_T1", "EC_ratio_T2")
 mca_absolute_outcomes <- c("part_T1", "DIns_ratio_T1", "GIns_ratio_T1", "EIns_ratio_T1", "CIns_ratio_T1")
 mca_absolute_outcomes_2T <- c("part_T1", "part_T2", "DIns_ratio_T1", "GIns_ratio_T1", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
 
@@ -498,118 +498,4 @@ draw_map_cluster <- function(region, base_width) {
 for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {
   draw_map_cluster(i, 8)
 }
-```
-
-
-
-```{r}
-# Première version : clustering sur l'ensemble des variable, avec les outcomes relatifs et k=6.
-set.seed(123)
-
-variables <- c(mca_relative_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
-data_for_clustering <- mca_data[, ..variables]
-data_for_clustering <- na.omit(data_for_clustering)
-data_for_clustering <- scale(data_for_clustering)
-
-kmeans_result <- kmeans(data_for_clustering, centers = 6)
-cluster_assignments <- kmeans_result$cluster
-
-variables <- c("codecommune", mca_relative_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
-data_for_clustering <- mca_data[, ..variables]
-data_for_clustering <- na.omit(data_for_clustering)
-
-data_for_clustering$cluster <- kmeans_result$cluster
-data_for_clustering <- as.data.table(data_for_clustering)
-data_for_clustering$type_comm <- as.factor(data_for_clustering$type_comm)
-
-counts <- data_for_clustering[, .N, by = .(cluster, type_comm)]
-total_counts <- data_for_clustering[, .N, by = cluster]
-modality_share <- merge(counts, total_counts, by = "cluster")
-modality_share[, share := N.x / N.y]
-modality_share[, c("N.x", "N.y") := NULL]
-modality_share <- dcast(modality_share, cluster ~ type_comm, value.var = "share")
-setnames(modality_share, c("cluster", "% villages", "% bourgs", "% banlieues", "% métropoles"))
-
-variables <- c(mca_relative_outcomes, mca_regressors, "prop014", "propnodip", "pouvr")
-variables <- setdiff(variables, "type_comm")
-means <- data_for_clustering[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = variables]
-
-means <- merge(means, modality_share, by = "cluster")
-means[] <- data.frame(lapply(means, tidy_table))
-print(means)
-```
-
-```{r}
-# Tentative avec outcomes relatifs, régresseurs sans popagglo et type_comm en indicatrice
-set.seed(123)
-
-# Préparation des données
-## Sélection des variables
-regressors <- c("codecommune", mca_relative_outcomes, full_mca_regressors)
-regressors <- setdiff(regressors, "popagglo")
-mca_data_subset <- mca_data[, ..regressors]
-mca_data_subset <- na.omit(mca_data_subset)
-## Création d'indicatrices pour les types de communes
-mca_data_subset$type_comm <- as.factor(mca_data_subset$type_comm)
-dummies <- model.matrix(~ type_comm - 1, data = mca_data_subset)
-colnames(dummies) <- paste0("type_comm_", 1:ncol(dummies))
-mca_data_subset <- cbind(mca_data_subset, dummies)
-mca_data_subset$type_comm <- NULL
-## Normalisation
-regressors <- c(mca_relative_outcomes, full_mca_regressors, paste0("type_comm_", 1:4))
-regressors <- setdiff(regressors, c("popagglo", "type_comm"))
-mca_data_subset_scaled <- mca_data_subset[, ..regressors]
-mca_data_subset_scaled <- scale(mca_data_subset_scaled)
-
-# Détermination des clusters et ajout des variables électorales
-kmeans_result <- kmeans(mca_data_subset_scaled, centers = 6)
-mca_data_subset$cluster <- kmeans_result$cluster
-columns <- c("codecommune", "cluster", paste0("type_comm_", 1:4))
-cluster_data <- mca_data_subset[, ..columns, drop = FALSE]
-cluster_data <- merge(cluster_data, mca_data, by = "codecommune")
-
-# Analyse des résultats
-## Calcul des moyennes par cluster
-variables_of_interest <- c(mca_relative_outcomes, full_mca_regressors, paste0("type_comm_", 1:4))
-variables_of_interest <- setdiff(variables_of_interest, "type_comm")
-means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = variables_of_interest]
-means$cluster <- as.factor(means$cluster)
-## Calcul des effectifs des clusters
-cluster_counts <- as.data.frame(table(cluster_data$cluster))
-means <- merge(means, cluster_counts, by.x = "cluster", by.y = "Var1")
-## Calcul des moyennes pour la population
-global_means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), .SDcols = variables_of_interest]
-global_means$cluster <- "mean"
-means <- rbind(means, global_means, fill = TRUE)
-## Expression des types de commune en %
-means[, paste0("type_comm_", 1:4)] <- lapply(means[, paste0("type_comm_", 1:4)], as.numeric)
-means[, paste0("type_comm_", 1:4)] <- means[, paste0("type_comm_", 1:4)] * 100
-means$cluster <- as.character(means$cluster)
-## Transposition pour afficher les clusters en colonne
-t_means <- t(means)
-t_means <- data.frame(matrix = rownames(t_means), t_means, row.names = NULL)
-colnames(t_means) <- t_means[1, ]
-t_means <- t_means[-1, ]
-t_means[setdiff(names(t_means), "cluster")] <- lapply(t_means[setdiff(names(t_means), "cluster")], as.numeric)
-## Intervalle sur lequel appliquer la coloration (afin qu'elle soit centrée sur la moyenne de la population plutôt que des clusters)
-t_means <- as.data.frame(t_means)
-t_means$min <- apply(t_means[, 2:7], 1, min)
-t_means$max <- apply(t_means[, 2:7], 1, max)
-t_means$diff_min <- t_means$mean - t_means$min
-t_means$diff_max <- t_means$max - t_means$mean
-t_means$spread <- pmax(t_means$diff_min, t_means$diff_max)
-t_means$range_inf <- t_means$mean - t_means$spread
-t_means$range_sup <- t_means$mean + t_means$spread
-t_means <- subset(t_means, select = -c(min, max, diff_min, diff_max, spread))
-## Création du tableau avec gt
-means_tbl <- gt(t_means)
-means_tbl <- fmt_number(means_tbl, decimals = 3, drop_trailing_zeros = TRUE)
-means_tbl <- cols_hide(means_tbl, c("range_inf", "range_sup"))
-means_tbl <- tab_header(means_tbl, "Moyenne des variables par cluster", subtitle = NULL, preheader = NULL)
-means_tbl <- data_color(means_tbl, method = "numeric", columns = !matches("cluster|mean"), direction = "row", palette = "RColorBrewer::RdBu")
-means_tbl
-gtsave(means_tbl, filename = "k_means.tex", path = "output_transversal")
-
-# Nettoyage
-rm(regressors, mca_data_subset, dummies, kmeans_result, variables_of_interest, means, cluster_counts, global_means, t_means, means_tbl, mca_data_subset_scaled)
 ```
