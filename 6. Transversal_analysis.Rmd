@@ -1,3 +1,11 @@
+---
+title: "Analyse transversale"
+output: html_document
+params:
+  date: !r Sys.Date()
+  printcode: TRUE
+---
+
 ```{r include=FALSE}
 # Importation des données
 mca_data <- load_parquet("mca_data.parquet")
@@ -194,10 +202,7 @@ rm(relative_results,absolute_results)
 
 On la réalise sur les variables électorales, pour obtenir un espace des comportements politiques sur lequel on projette ensuite les variables socio-démographiques.
 
-Concernant l'analyse des axes, il faut distinguer :
-- les coordonnées factorielles des variables = corrélation avec l'axe (tableau à lire verticalement pour comprendre la composition des axes)
-- les cos2 des variables = coordonnées au carré = qualité de de représentation (tableau à lire horizontalement pour comprendre à quel point chaque variable participe à l'espace finalement retenu)
-- les contributions à l'inertie des axes = 100 * cos2 / valeur propre de l'axe
+Concernant l'analyse des axes, il faut distinguer : - les coordonnées factorielles des variables = corrélation avec l'axe (tableau à lire verticalement pour comprendre la composition des axes) - les cos2 des variables = coordonnées au carré = qualité de de représentation (tableau à lire horizontalement pour comprendre à quel point chaque variable participe à l'espace finalement retenu) - les contributions à l'inertie des axes = 100 \* cos2 / valeur propre de l'axe
 
 ```{r}
 # Préparation : sélection des variables, suppression des valeurs manquantes et création d'indicatrices pour les types de communes (car l'argument quali.sup donne des résultats étranges)
@@ -396,6 +401,10 @@ t_means <- data.frame(matrix = rownames(t_means), t_means, row.names = NULL)
 colnames(t_means) <- t_means[1, ]
 t_means <- t_means[-1, ]
 t_means[setdiff(names(t_means), "cluster")] <- lapply(t_means[setdiff(names(t_means), "cluster")], as.numeric)
+## Réarrangement des lignes
+freq_row_index <- which(t_means$cluster == "Freq")
+t_means$cluster[freq_row_index] <- "Effectifs"
+t_means <- rbind(t_means[freq_row_index, ], t_means[-freq_row_index, ])
 ## Intervalle sur lequel appliquer la coloration (afin qu'elle soit centrée sur la moyenne de la population plutôt que des clusters)
 t_means <- as.data.frame(t_means)
 t_means$min <- apply(t_means[, 2:7], 1, min)
@@ -407,16 +416,28 @@ t_means$range_inf <- t_means$mean - t_means$spread
 t_means$range_sup <- t_means$mean + t_means$spread
 t_means <- subset(t_means, select = -c(min, max, diff_min, diff_max, spread))
 ## Création du tableau avec gt
-means_tbl <- gt(t_means)
-means_tbl <- fmt_number(means_tbl, decimals = 3, drop_trailing_zeros = TRUE)
-means_tbl <- cols_hide(means_tbl, c("range_inf", "range_sup"))
-means_tbl <- tab_header(means_tbl, "Moyenne des variables par cluster", subtitle = NULL, preheader = NULL)
-means_tbl <- data_color(means_tbl, method = "numeric", columns = !matches("cluster|mean"), direction = "row", palette = "RColorBrewer::RdBu")
+means_tbl <- t_means %>%
+  gt() %>%
+  fmt_number(decimals = 3, drop_trailing_zeros = TRUE) %>%
+  cols_hide(c("range_inf", "range_sup")) %>%
+  tab_header(title = "Moyenne des variables par cluster") %>%
+  data_color(method = "numeric", columns = !matches("cluster|mean"), direction = "row", palette = "RColorBrewer::RdBu") %>%
+  tab_row_group(label = "", rows = 1, id = "n") %>%
+  tab_row_group(label = "Outcomes", rows = 2:15, id = "out") %>%
+  tab_row_group(label = "Régresseurs", rows = 16:45, id = "reg") %>%
+  row_group_order(groups = c("n", "out", "reg")) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "lightgrey"),
+      cell_text(style = "italic", align = "center")
+    ),
+    locations = cells_row_groups(groups = c("n", "out", "reg"))
+  )
 means_tbl
 gtsave(means_tbl, filename = "k_means.tex", path = "output_transversal")
 
 # Nettoyage
-rm(regressors, mca_data_subset, dummies, kmeans_result, variables_of_interest, means, cluster_counts, global_means, t_means, means_tbl, mca_data_subset_scaled, scaling_regressors)
+rm(regressors, mca_data_subset, dummies, kmeans_result, variables_of_interest, means, cluster_counts, global_means, t_means, means_tbl, mca_data_subset_scaled, scaling_regressors, freq_row_index)
 ```
 
 Ici, les résultats sont plus intéressants, avec des clusters qui se différencient plus nettement ; les clusters 2 et 6 en particulier, avec des taux de propriétaires très en-dessous de la moyenne, mais l'un (n°6) qui vote beaucoup aux extrêmes, l'autre (n°2) qui vote davantage au centre. Essayons d'identifier / caractériser ces clusters.
