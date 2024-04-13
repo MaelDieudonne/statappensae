@@ -27,7 +27,9 @@ full_panel_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop014", "
 wide_panel_regressors <- c("round", panel_regressors)
 ```
 
-**Analyse des valeurs manquantes**
+# **Analyse descriptives**
+
+## **Valeurs manquantes**
 
 On vérifie facilement l'absence de valeurs manquantes pour les variables identifiantes (année et code commune).
 
@@ -67,7 +69,7 @@ na_table(relative_outcomes, "relative_outcomes_NA")
 na_table(full_panel_regressors, "regressors_NA")
 ```
 
-**Analyses descriptives - outcomes**
+## **Outcomes**
 
 ```{r}
 graph_data <- data.frame(year = unique(panel_data$year))
@@ -115,7 +117,7 @@ ggsave("output_panel/outcomes_relatifs_1965_2022.png", plot, width = 8, height =
 rm(graph_data, outcome)
 ```
 
-**Analyses descriptives - taux de propriétaires**
+## **Taux de propriétaires**
 
 Nous pouvons d'abord représenter l'évolution du taux national de propriétaires, calculé sur l'ensemble de la population française. Il n'est cependant pas le plus pertinent, car nous allons raisonner à l'échelle des communes plutôt que des individus. Représentons donc aussi l'évolution de la proportion moyenne de propriétaires dans chaque commune.
 
@@ -208,7 +210,9 @@ gtsave(correlation_df, filename = "correl_ppropri.tex", path = "output_panel")
 rm(panel_data_complete, correlation_results, correlation_df)
 ```
 
-**Panel - tests**
+# **Panel**
+
+## **Tests**
 
 On utilise deux tests :
 
@@ -245,7 +249,7 @@ phtest(fd, within)
 rm(panel_as_pdata)
 ```
 
-**Panel (T1 seulement)**
+## **T1 seul**
 
 On commence par des panels simples, en différences premières, avec clustering au niveau départemental et variance hétéroscédastique.
 
@@ -428,7 +432,7 @@ rm(absolute_results)
 
 Les R2 n'évoluent pas. Pratiquement tous les sous-coefficients de ppropri sont significatifs, mais ils fluctuent d'une manière qui les rend difficilement interprétables.
 
-**Panel avec tours confondus**
+## **Tours confondus**
 
 Première tentative simple : comme précédemment, on obtient des R2 très faibles, bien que marginalement meilleurs.
 
@@ -543,7 +547,9 @@ suppressWarnings(stargazer(relative_results, type = "latex", out = "output_panel
 rm(relative_results)
 ```
 
-**Régressions annuelles**
+# **Régressions annuelles**
+
+## Standard
 
 On peut confirmer le constat d'une variabilité des effets de ppropri en réalisant des régressions années par années, et en traçant l'évolution de son coefficient. La différence avec les panels précédents est que les coefficients des autres variables sont désormais libres au cours du temps ?
 
@@ -586,7 +592,9 @@ ggplot(results, aes(x = year, y = coef_ppropri, color = outcome, group = outcome
 rm(results, outcome, yr, subset_data, regression_formula, model)
 ```
 
-Régressions pseudo-quantiles (considérant les quantiles de ppropri plutôt que de l'outcome)
+## Pseudo-quantiles
+
+En considérant les quantiles de ppropri plutôt que de l'outcome.
 
 ```{r}
 # Possibilité 1 : considérer la distribution relative avec les quantiles années par année
@@ -686,7 +694,7 @@ for (outcome in relative_outcomes) {pseudo_quant_reg(outcome)}
 rm(pseudo_quant_reg, outcome)
 ```
 
-Régressions quantiles
+## Régressions quantiles
 
 ```{r}
 quant_reg <- function(outcome) {

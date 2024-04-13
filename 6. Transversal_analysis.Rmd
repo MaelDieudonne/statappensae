@@ -26,9 +26,9 @@ mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop1539", "prop40
 full_mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop014", "prop1539", "prop4059", "prop60p", "propf", "propnodip", "propbac", "propsup", "pagri", "pindp", "pouvr", "pempl", "ppint", "pcadr", "pchom", "prsa", "petranger", "pcrimesdelits", "revmoy", "pisf", "mmoyfortune", "type_comm")
 ```
 
-**Analyses descriptives**
+# **Analyses descriptives**
 
-Tableau récapitulatif (dont valeurs manquantes)
+## Tableau récapitulatif
 
 ```{r}
 nb_communes <- uniqueN(mca_data, by = "codecommune")
@@ -43,27 +43,50 @@ for (col in c(mca_relative_outcomes_2T, full_mca_regressors)) {
     data.table(
       Variable = col,
       "Min" = round(fivenum_values[1], 0),
-      "1er quartile" = fivenum_values[2],
-      "Mediane" = fivenum_values[3],
-      "3e quartile" = fivenum_values[4],
+      "1er quart." = fivenum_values[2],
+      "Médiane" = fivenum_values[3],
+      "3e quart." = fivenum_values[4],
       "Max" = fivenum_values[5],
-      "NaN" = nan_count,
-      "En % des communes" = nan_count_prop
+      "Σ" = nan_count,
+      "%" = nan_count_prop
     )
   }]
   stat_desc <- rbind(stat_desc, summary)
 }
 
-stat_desc <- gt(stat_desc)
-stat_desc <- fmt_number(stat_desc, decimals = 2, drop_trailing_zeros = TRUE)
-stat_desc <- tab_header(stat_desc, "Statistiques descriptives - 2017", subtitle = NULL, preheader = NULL)
-stat_desc
-gtsave(stat_desc, filename = "stat_desc_acp.tex", path = "output_panel")
+stat_desc_tbl <- stat_desc %>%
+  gt() %>%
+  fmt_number(decimals = 2, drop_trailing_zeros = TRUE, suffixing = TRUE) %>%
+  tab_header(title = "Statistiques descriptives - 2017", subtitle = NULL, preheader = NULL) %>%
+  tab_spanner(label = "Valeurs", columns = c("Min", "1er quart.", "Médiane", "3e quart.", "Max"), id = "values") %>%
+  tab_spanner(label = "NaN", columns = c("Σ", "%"), id = "nan") %>%
+  cols_label(Variable = "") %>%
+  tab_row_group(label = "Outcomes", rows = 1:5, id = "out") %>%
+  tab_row_group(label = "Régresseurs", rows = 6:31, id = "reg") %>%
+  row_group_order(groups = c("out", "reg")) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "lightgrey"),
+      cell_text(style = "italic", align = "center", v_align = "top")),
+    locations = cells_row_groups(groups = c("out", "reg"))) %>%
+  tab_style(
+    style = list(
+      cell_text(style = "italic",align = "center")),
+    locations = list(
+      cells_column_labels())) %>%
+  tab_style(
+    style = list(
+      cell_borders(sides = "right", color = "lightgrey", style = "solid", weight = px(1))
+      ),
+    locations = list(
+      cells_body(column = c("Variable", "Max"))))
+stat_desc_tbl
+gtsave(stat_desc_tbl, filename = "stat_desc_acp.tex", path = "output_panel")
 
-rm(col, nb_communes, stat_desc, summary)
+rm(col, nb_communes, stat_desc, stat_desc_tbl, summary)
 ```
 
-Distribution du taux de propriétaires
+## Distribution du taux de propriétaires
 
 ```{r}
 mean_ppropri <- mean(mca_data$ppropri, na.rm = TRUE)
@@ -83,7 +106,7 @@ ggsave("output_transversal/distribution_ppropri_2017.png", plot, width = 8, heig
 rm(mean_ppropri, plot)
 ```
 
-Carte du taux de propriétaires
+## Cartes du taux de propriétaires
 
 ```{r}
 draw_map <- function(region, mapped_var, mapped_var_name, base_width) {
@@ -142,7 +165,7 @@ for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {
 }
 ```
 
-Corrélogramme
+## Corrélogramme
 
 ```{r include=FALSE}
 corr_variables <- c(mca_regressors, mca_relative_outcomes)
@@ -160,7 +183,7 @@ dev.off()
 rm(corr_variables, correlation_matrix, mca_corr_data)
 ```
 
-**Régression linéaire simple**
+# **Régression linéaire simple**
 
 ```{r}
 mca_data$type_comm <- factor(mca_data$type_comm)
@@ -190,7 +213,9 @@ suppressWarnings(stargazer(relative_results, type = "latex", out = "output_trans
 rm(relative_results,absolute_results)
 ```
 
-**ACP**
+# **ACP**
+
+## Sur les comportements électoraux
 
 On la réalise sur les variables électorales, pour obtenir un espace des comportements politiques sur lequel on projette ensuite les variables socio-démographiques.
 
@@ -250,6 +275,8 @@ corrplot(result$quanti.sup$cos2, title = "Qualité de représentation des régre
 rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, quant_regressors, result, variables_of_interest)
 ```
 
+## Sur l'ensemble des variables
+
 On refait une ACP sans distinguer les outcomes et les régresseurs. Les corrplots deviennent illisibles, mais comme on ne les utilisera pas...
 
 ```{r}
@@ -304,12 +331,13 @@ corrplot(result$var$cos2[16:44, 1:3], title = "Qualité de représentation des r
 rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, result, variables_of_interest)
 ```
 
-**K-means**
+# **K-means**
 
 On inverse l'approche : on construit un espace socio-démographique, sur lequel on projette les comportements politiques
 
+## Détermination du nombre de clusters optimal
+
 ```{r}
-# Détermination du nombre de clusters optimal
 set.seed(123)
 
 ## Préparation des données
@@ -339,6 +367,8 @@ plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters (k)", yl
 
 rm(regressors, mca_data_subset, kmeans_model, wcss, silhouette_avg, sil)
 ```
+
+## Classification
 
 Les résultats invitent à choisir k = 6 ou 7. On choisit finalement 6, qui produit les clusters les plus simples à interpréter.
 
@@ -420,6 +450,10 @@ means_tbl <- t_means %>%
   tab_row_group(label = "Outcomes", rows = 2:16, id = "out") %>%
   tab_row_group(label = "Régresseurs", rows = 17:45, id = "reg") %>%
   row_group_order(groups = c("n", "out", "reg")) %>%
+  sub_missing(
+    columns = everything(),
+    rows = everything(),
+    missing_text = "-") %>%
   tab_style(
     style = list(
       cell_fill(color = "lightgrey"),
@@ -450,6 +484,8 @@ Trois appartiennent à l'univers rural (avec le même taux de propriétaires) ; 
 Trois appartiennent à l'univers urbain (avec des taux variables de propriétaires) ; représentent environ 13 000 communes 2 = Agglomération parisienne et centre des métropoles, sans doute possible grâce à popagglo. Avec le plus faible taux de propriétaires, une population plus jeune et nettement plus diplômée qu'ailleurs, avec la plus grande proportion de cadres et celle d'ouvriers parmi les plus faibles. Avec aussi la situation économique la plus contrastée, associant le revenu communal moyen et la proportion de contribuables soumis à l'ISF les plus élevés, mais aussi la seconde plus importante proportion d'allocataires du RSA. Cluster où la participation est la plus faible, le vote à gauche le plus fort, et le vote protestataire le plus faible. Cluster le plus petit en nombre de communes. 6 = banlieues et villes pauvres ? 3 = petites communes appartenant à de grosses agglomérations, avec beaucoup de cadres et de professions intermédiaires, et de diplômés du supérieur. Communes très riches, comptant le moins d'étrangers et d'allocataires du RSA. Présentent la participation la plus élevée, un vote à gauche moyen, et un vote protestataire faible. Correspondent aux beaux quartiers hors des centres, banlieues aisées, périrubain riche ?
 
 NB : les données sur le RSA sont manquantes pour la Corse. Celle-ci est donc exclue de la classification !
+
+## Cartes
 
 ```{r}
 draw_map_cluster <- function(region, base_width) {
