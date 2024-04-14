@@ -43,30 +43,47 @@ Tableaux présentant la proportion de valeurs manquantes par outcome relatif, pu
 ```{r}
 count_na <- function(x) mean(is.na(x)) * 100
 
-na_table <- function(variable_names, file_name) {
-  na_prop_table <- data.table(year = unique(panel_data$year))
-  for (name in variable_names) {
-    na_prop <- panel_data[, .(na_prop = count_na(get(name))), by = year]
-    na_prop_table <- merge(na_prop_table, na_prop, by = "year", all.x = TRUE)
-    setnames(na_prop_table, "na_prop", name)
-  }
-  
-  setnames(na_prop_table, "year", "Année")
-  na_prop_table[] <- lapply(na_prop_table, tidy_table)
-  na_prop_table <- replace(na_prop_table, na_prop_table == 100, NA)
-  
-  numeric_columns <- names(na_prop_table)[-1]
-  na_prop_table[, numeric_columns] <- lapply(na_prop_table[, ..numeric_columns], as.numeric)
-  max_value <- max(subset(na_prop_table, select = -Année), na.rm = TRUE)
-  bins <- seq(0, max_value, by = max_value/9)
-  na_prop_table <- gt(na_prop_table)
-  na_prop_table <- data_color(na_prop_table, method = "bin", bins = bins, columns = !starts_with("Année"), direction = "column", palette ="Oranges", na_color = "lightgrey")
-  print(na_prop_table)
-  gtsave(na_prop_table, filename = paste0(file_name, ".tex"), path = "output_panel")
+variable_names = c(relative_outcomes_2T, full_panel_regressors)
+
+na_prop_table <- data.table(year = unique(panel_data$year))
+for (name in variable_names) {
+  na_prop <- panel_data[, .(na_prop = count_na(get(name))), by = year]
+  na_prop_table <- merge(na_prop_table, na_prop, by = "year", all.x = TRUE)
+  setnames(na_prop_table, "na_prop", name)
 }
 
-na_table(relative_outcomes, "relative_outcomes_NA")
-na_table(full_panel_regressors, "regressors_NA")
+na_prop_table <- na_prop_table %>%
+  replace(., . == 100, NaN) %>%
+  t() %>%
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]
+
+max_value <- max(na_prop_table[is.finite(na_prop_table)])
+bins <- seq(0, max_value, by = max_value/9)
+
+gt_na_prop <- na_prop_table %>%
+  as.data.frame() %>%
+  gt(., rownames_to_stub = TRUE) %>%
+  fmt_number(decimals = 2, drop_trailing_zeros = TRUE) %>%
+  tab_header(title = "Proportion de valeurs manquantes", subtitle = NULL, preheader = NULL) %>%
+  data_color(method = "bin", bins = bins, direction = "column", palette ="Oranges", na_color = "white", alpha = 0.6) %>%
+  tab_row_group(label = "Outcomes", rows = 1:6, id = "out") %>%
+  tab_row_group(label = "Régresseurs", rows = 7:27, id = "reg") %>%
+  row_group_order(groups = c("out", "reg")) %>%
+  sub_missing(missing_text = "-") %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "lightgrey"),
+      cell_text(style = "italic", align = "center")),
+    locations = cells_row_groups(groups = c("out", "reg"))) %>%
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_body())
+
+gt_na_prop
+gtsave(gt_na_prop, filename = "nan_table.tex", path = "output_panel")
+
+rm(count_na, variable_names, na_prop_table, max_value, bins, gt_na_prop, name, na_prop)
 ```
 
 ## **Outcomes**

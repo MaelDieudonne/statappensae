@@ -71,15 +71,18 @@ stat_desc_tbl <- stat_desc %>%
     locations = cells_row_groups(groups = c("out", "reg"))) %>%
   tab_style(
     style = list(
-      cell_text(style = "italic",align = "center")),
+      cell_text(style = "italic", align = "center")),
     locations = list(
       cells_column_labels())) %>%
   tab_style(
     style = list(
-      cell_borders(sides = "right", color = "lightgrey", style = "solid", weight = px(1))
-      ),
+      cell_borders(sides = "right", color = "lightgrey", style = "solid", weight = px(1))),
     locations = list(
-      cells_body(column = c("Variable", "Max"))))
+      cells_body(column = c("Variable", "Max")))) %>%
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_body(columns = !matches("Variable")))
+
 stat_desc_tbl
 gtsave(stat_desc_tbl, filename = "stat_desc_acp.tex", path = "output_panel")
 
@@ -353,7 +356,6 @@ for (i in 1:20) {
   kmeans_model <- kmeans(mca_data_subset, centers = i)
   wcss[i] <- kmeans_model$tot.withinss
 }
-
 plot(1:20, wcss, type = "b", xlab = "Number of Clusters", ylab = "Within-Cluster Sum of Squares (WCSS)")
 
 ## Méthode silhouette
@@ -405,8 +407,10 @@ cluster_data <- merge(cluster_data, detailed_mca_data, by = "codecommune")
 variables_of_interest <- c(mca_detailed_outcomes, full_mca_regressors, paste0("type_comm_", 1:4))
 variables_of_interest <- setdiff(variables_of_interest, "type_comm")
 means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = variables_of_interest]
-means$cluster <- as.factor(means$cluster)
 ## Calcul des effectifs des clusters
+sum <- cluster_data[, .(Population = sum(popcomm, na.rm = TRUE)), by = cluster]
+means <- merge(means, sum, by = "cluster")
+means$cluster <- as.factor(means$cluster)
 cluster_counts <- as.data.frame(table(cluster_data$cluster))
 means <- merge(means, cluster_counts, by.x = "cluster", by.y = "Var1")
 ## Calcul des moyennes pour la population
@@ -424,9 +428,10 @@ colnames(t_means) <- t_means[1, ]
 t_means <- t_means[-1, ]
 t_means[setdiff(names(t_means), "cluster")] <- lapply(t_means[setdiff(names(t_means), "cluster")], as.numeric)
 ## Réarrangement des lignes
-freq_row_index <- which(t_means$cluster == "Freq")
-t_means$cluster[freq_row_index] <- "Effectifs"
-t_means <- rbind(t_means[freq_row_index, ], t_means[-freq_row_index, ])
+first_rows <- t_means[-((nrow(t_means) - 1):nrow(t_means)), ]
+last_rows <- t_means[(nrow(t_means) - 1):nrow(t_means), ]
+t_means <- rbind(last_rows, first_rows)
+t_means$cluster[2] <- "Communes"
 ## Intervalle sur lequel appliquer la coloration (afin qu'elle soit centrée sur la moyenne de la population plutôt que des clusters)
 t_means <- as.data.frame(t_means)
 t_means$min <- apply(t_means[, 2:7], 1, min)
@@ -440,25 +445,31 @@ t_means <- subset(t_means, select = -c(min, max, diff_min, diff_max, spread))
 ## Création du tableau avec gt
 means_tbl <- t_means %>%
   gt() %>%
-  fmt_number(decimals = 3, drop_trailing_zeros = TRUE) %>%
+  fmt_number(rows = 1, decimals = 0, scale_by = 1000) %>%
+  fmt_number(rows = 2, decimals = 0) %>%
+  fmt_number(rows = 3:46, decimals = 2, drop_trailing_zeros = TRUE) %>%
+  fmt_number(rows = (c(40,42)), decimals = 0, drop_trailing_zeros = TRUE) %>%
   cols_hide(c("range_inf", "range_sup")) %>%
   tab_header(title = "Moyenne des variables par cluster") %>%
-  data_color(method = "numeric", columns = !matches("cluster|mean"), direction = "row", palette = "RColorBrewer::RdBu") %>%
+  data_color(
+    method = "numeric",
+    columns = !matches("cluster|mean"),
+    rows = 3:46,
+    direction = "row",
+    palette = "RColorBrewer::RdBu",
+    alpha = 0.6) %>%
   tab_spanner(label = "Clusters", columns = c("1", "2", "3", "4", "5", "6"), id = "clust") %>%
-  cols_label(cluster = "", mean = "Moyenne") %>%
-  tab_row_group(label = "", rows = 1, id = "n") %>%
-  tab_row_group(label = "Outcomes", rows = 2:16, id = "out") %>%
-  tab_row_group(label = "Régresseurs", rows = 17:45, id = "reg") %>%
-  row_group_order(groups = c("n", "out", "reg")) %>%
-  sub_missing(
-    columns = everything(),
-    rows = everything(),
-    missing_text = "-") %>%
+  cols_label(cluster = "", mean = "Moy.") %>%
+  tab_row_group(label = "Effectifs", rows = 1:2, id = "pop") %>%
+  tab_row_group(label = "Outcomes", rows = 3:17, id = "out") %>%
+  tab_row_group(label = "Régresseurs", rows = 18:46, id = "reg") %>%
+  row_group_order(groups = c("pop", "out", "reg")) %>%
+  sub_missing(missing_text = "-") %>%
   tab_style(
     style = list(
       cell_fill(color = "lightgrey"),
       cell_text(style = "italic", align = "center", v_align = "top")),
-    locations = cells_row_groups(groups = c("n", "out", "reg"))) %>%
+    locations = cells_row_groups(groups = c("pop", "out", "reg"))) %>%
   tab_style(
     style = list(
       cell_text(style = "italic", align = "center")),
@@ -469,12 +480,14 @@ means_tbl <- t_means %>%
     style = list(
       cell_text(align = "center")),
     locations = list(
-      cells_column_labels(columns = c("1", "2", "3", "4", "5", "6"))))
+      cells_column_labels(columns = c("1", "2", "3", "4", "5", "6")),
+      locations = cells_body(columns = !matches("cluster"))))
+
 means_tbl
 gtsave(means_tbl, filename = "k_means.tex", path = "output_transversal")
 
 # Nettoyage
-rm(regressors, mca_data_subset, dummies, kmeans_result, variables_of_interest, means, cluster_counts, global_means, t_means, means_tbl, mca_data_subset_scaled, scaling_regressors, freq_row_index)
+rm(cluster_counts, cluster_data, columns, dummies, first_rows, global_means, kmeans_result, last_rows, mca_data_subset, mca_data_subset_scaled, means, means_tbl, regressors, scaling_regressors, sum, t_means, variables_of_interest)
 ```
 
 Ici, les résultats sont plus intéressants, avec des clusters qui se différencient plus nettement ; les clusters 2 et 6 en particulier, avec des taux de propriétaires très en-dessous de la moyenne, mais l'un (n°6) qui vote beaucoup aux extrêmes, l'autre (n°2) qui vote davantage au centre. Essayons d'identifier / caractériser ces clusters.
