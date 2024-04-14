@@ -217,10 +217,17 @@ correlation_df <- subset(correlation_df, Variables != "ppropri")
 correlation_df <- correlation_df[order(correlation_df$Corrélation, decreasing = TRUE), ]
 rownames(correlation_df) <- NULL
 
-correlation_df <- gt(correlation_df)
-correlation_df <- fmt_number(correlation_df, decimals = 3, drop_trailing_zeros = TRUE)
-correlation_df <- tab_header(correlation_df, "Corrélation des régresseurs avec le taux de propriétaires", subtitle = NULL, preheader = NULL)
-correlation_df <- data_color(correlation_df, method = "numeric", columns = !matches("Variables"), palette ="Spectral")
+correlation_df <- correlation_df %>%
+  gt() %>%
+  fmt_number(decimals = 2, drop_trailing_zeros = TRUE) %>%
+  tab_header("Corrélation des régresseurs avec le taux de propriétaires", subtitle = NULL, preheader = NULL) %>%
+  data_color(method = "numeric", columns = !matches("Variables"), palette ="Spectral", alpha = 0.6) %>%
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = list(
+      cells_body(column = c("Corrélation")),
+      cells_column_labels()))
+
 correlation_df
 gtsave(correlation_df, filename = "correl_ppropri.tex", path = "output_panel")
 
