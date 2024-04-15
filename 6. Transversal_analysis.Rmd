@@ -240,7 +240,7 @@ mca_data_subset$type_comm <- NULL
 # Analyse
 quant_regressors <- setdiff(full_mca_regressors, "type_comm")
 quant_regressors <- c(quant_regressors, "type_comm_1", "type_comm_2", "type_comm_3", "type_comm_4")
-result <- PCA(mca_data_subset, scale.unit = TRUE, quanti.sup=quant_regressors, graph = FALSE)
+result <- PCA(mca_data_subset, scale.unit = TRUE, quanti.sup=quant_regressors, ncp = 10, graph = FALSE)
 
 # Résultats
 ## Histogramme de la contribution des axes à la variance totale
@@ -252,11 +252,22 @@ fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 40), title = "Histogramme d
 coeffs <- result$var$contrib
 labels <- rownames(result$var$contrib)
 axis_df <- data.frame(labels, coeffs, row.names = NULL)
-colnames(axis_df) <- c("Variables", "Axe 1", "Axe 2", "Axe 3", "Axe 4", "Axe 5")
-axis_tbl <- gt(axis_df)
-axis_tbl <- fmt_number(axis_tbl, decimals = 3, drop_trailing_zeros = TRUE)
-axis_tbl <- tab_header(axis_tbl, "Contribution des variables à l'inertie des axes", subtitle = NULL, preheader = NULL)
-data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="Oranges", )
+colnames(axis_df) <- c("Variables", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10")
+axis_tbl <- axis_df %>%
+  gt() %>%
+  fmt_number(decimals = 2, drop_trailing_zeros = TRUE) %>%
+  tab_header("Contribution des variables à l'inertie des axes", subtitle = NULL, preheader = NULL) %>%
+  tab_spanner(label = "Axes", columns = c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"), id = "axes") %>%
+  data_color(method = "numeric", columns = !matches("Variables"), palette ="Oranges", ) %>%
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = list(
+      cells_column_labels(columns = c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10")),
+      cells_body(columns = !matches("Variables")))) %>%
+  tab_style(
+    style = cell_fill(color = "lightgrey"),
+    locations = cells_column_labels(columns = c("1", "3", "5", "7", "9"))) 
+axis_tbl
 ## ... ou d'un corrplot
 corrplot(result$var$contrib, title = "Contribution des variables à l'inertie des axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 
@@ -272,7 +283,7 @@ plot.PCA(result, axes=c(2,3), choix="var", select = "cos2 7", title = "Projectio
 
 ## Qualité de représentation des variables
 corrplot(result$var$cos2[, 1:3], title = "Qualité de représentation des variables électorales", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
-corrplot(result$quanti.sup$cos2, title = "Qualité de représentation des régresseurs", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$quanti.sup$cos2[, 1:3], title = "Qualité de représentation des régresseurs", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 
 # Nettoyage
 rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, quant_regressors, result, variables_of_interest)
@@ -296,7 +307,7 @@ mca_data_subset <- cbind(mca_data_subset, dummies)
 mca_data_subset$type_comm <- NULL
 
 # Analyse
-result <- PCA(mca_data_subset, scale.unit = TRUE, graph = FALSE)
+result <- PCA(mca_data_subset, scale.unit = TRUE, ncp = 10, graph = FALSE)
 
 # Résultats
 ## Histogramme de la contribution des axes à la variance totale
@@ -308,11 +319,31 @@ fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 40), title = "Histogramme d
 coeffs <- result$var$contrib
 labels <- rownames(result$var$contrib)
 axis_df <- data.frame(labels, coeffs, row.names = NULL)
-colnames(axis_df) <- c("Variables", "Axe 1", "Axe 2", "Axe 3", "Axe 4", "Axe 5")
-axis_tbl <- gt(axis_df)
-axis_tbl <- fmt_number(axis_tbl, decimals = 3, drop_trailing_zeros = TRUE)
-axis_tbl <- tab_header(axis_tbl, "Contribution des variables à l'inertie des axes", subtitle = NULL, preheader = NULL)
-data_color(axis_tbl, method = "numeric", columns = starts_with("Axe"), palette ="Oranges", )
+colnames(axis_df) <- c("Variables", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10")
+axis_tbl <- axis_df %>%
+  gt() %>%
+  fmt_number(decimals = 2, drop_trailing_zeros = TRUE) %>%
+  tab_header("Contribution des variables à l'inertie des axes", subtitle = NULL, preheader = NULL) %>%
+  tab_spanner(label = "Axes", columns = c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"), id = "axes") %>%
+  data_color(method = "numeric", columns = !matches("Variables"), palette ="Oranges", ) %>%
+  tab_row_group(label = "Outcomes", rows = 1:15, id = "out") %>%
+  tab_row_group(label = "Régresseurs", rows = 16:44, id = "reg") %>%
+  row_group_order(groups = c("out", "reg")) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "lightgrey"),
+      cell_text(style = "italic", align = "center")),
+    locations = cells_row_groups(groups = c("out", "reg"))) %>%  
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = list(
+      cells_column_labels(columns = c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10")),
+      cells_body(columns = !matches("Variables")))) %>%
+  tab_style(
+    style = cell_fill(color = "lightgrey"),
+    locations = cells_column_labels(columns = c("1", "3", "5", "7", "9"))) 
+axis_tbl
+
 ## ... ou d'un corrplot
 corrplot(result$var$contrib, title = "Contribution des variables à l'inertie des axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 
@@ -370,9 +401,9 @@ plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters (k)", yl
 rm(regressors, mca_data_subset, kmeans_model, wcss, silhouette_avg, sil)
 ```
 
-## Classification
+## Classification avec k=6
 
-Les résultats invitent à choisir k = 6 ou 7. On choisit finalement 6, qui produit les clusters les plus simples à interpréter.
+Les résultats invitent à choisir k = 6 ou 7. On essaye 6 ici.
 
 ```{r}
 set.seed(123)
@@ -445,10 +476,9 @@ t_means <- subset(t_means, select = -c(min, max, diff_min, diff_max, spread))
 ## Création du tableau avec gt
 means_tbl <- t_means %>%
   gt() %>%
-  fmt_number(rows = 1, decimals = 0, scale_by = 1000) %>%
-  fmt_number(rows = 2, decimals = 0) %>%
   fmt_number(rows = 3:46, decimals = 2, drop_trailing_zeros = TRUE) %>%
-  fmt_number(rows = (c(40,42)), decimals = 0, drop_trailing_zeros = TRUE) %>%
+  fmt_number(rows = (c(1,19,20)), decimals = 0, scale_by = 1000) %>%
+  fmt_number(rows = (c(2,40,42)), decimals = 0) %>%
   cols_hide(c("range_inf", "range_sup")) %>%
   tab_header(title = "Moyenne des variables par cluster") %>%
   data_color(
@@ -482,12 +512,11 @@ means_tbl <- t_means %>%
     locations = list(
       cells_column_labels(columns = c("1", "2", "3", "4", "5", "6")),
       locations = cells_body(columns = !matches("cluster"))))
-
 means_tbl
-gtsave(means_tbl, filename = "k_means.tex", path = "output_transversal")
+gtsave(means_tbl, filename = "k6_means.tex", path = "output_transversal")
 
 # Nettoyage
-rm(cluster_counts, cluster_data, columns, dummies, first_rows, global_means, kmeans_result, last_rows, mca_data_subset, mca_data_subset_scaled, means, means_tbl, regressors, scaling_regressors, sum, t_means, variables_of_interest)
+rm(cluster_counts, columns, dummies, first_rows, global_means, kmeans_result, last_rows, mca_data_subset, mca_data_subset_scaled, means, means_tbl, regressors, scaling_regressors, sum, t_means, variables_of_interest)
 ```
 
 Ici, les résultats sont plus intéressants, avec des clusters qui se différencient plus nettement ; les clusters 2 et 6 en particulier, avec des taux de propriétaires très en-dessous de la moyenne, mais l'un (n°6) qui vote beaucoup aux extrêmes, l'autre (n°2) qui vote davantage au centre. Essayons d'identifier / caractériser ces clusters.
@@ -498,7 +527,7 @@ Trois appartiennent à l'univers urbain (avec des taux variables de propriétair
 
 NB : les données sur le RSA sont manquantes pour la Corse. Celle-ci est donc exclue de la classification !
 
-## Cartes
+### Cartes
 
 ```{r}
 draw_map_cluster <- function(region, base_width) {
@@ -513,20 +542,20 @@ draw_map_cluster <- function(region, base_width) {
     reg_abrv <- "FR"
   }
 
-  output_file <- paste0("output_transversal/clusters_2017_", reg_abrv, ".png")
+  output_file <- paste0("output_transversal/clusters_2017_k6_", reg_abrv, ".png")
   title <- paste0("Clusters en ", reg_name)
-  legend_labels <- c("1" = "Périurbain populaire",
-                     "2" = "Centre des grandes villes",
+  legend_labels <- c("2" = "Centre des grandes villes",
                      "3" = "Banlieues et zones périurbaines aisées",
                      "4" = "Banlieues et villes pauvres",
                      "5" = "Rural à dominante paysanne",
-                     "6" = "Rural précaire")
-  legend_colors <- c("1" = "lightgreen",
-                     "2" = "blue",
+                     "6" = "Rural précaire",
+                     "1" = "Périurbain populaire")
+  legend_colors <- c("2" = "blue",
                      "3" = "skyblue",
-                     "4" = "brown",
+                     "4" = "pink",
                      "5" = "darkgreen",
-                     "6" = "limegreen")
+                     "6" = "limegreen",
+                     "1" = "lightgreen")
 
   # Exportation d'une carte en haute résolution
   ## Calcul des dimensions
@@ -544,7 +573,7 @@ draw_map_cluster <- function(region, base_width) {
           panel.grid = element_blank(),
           plot.title.position = "plot",
           legend.title = element_text(size = font_size * 0.8),
-          legend.text = element_text(size = font_size * 0.7)) +
+          legend.text = element_text(size = font_size * 0.5)) +
     scale_fill_manual(values = legend_colors,
                       breaks = names(legend_labels),
                       labels = legend_labels,
@@ -569,6 +598,203 @@ draw_map_cluster <- function(region, base_width) {
 }
 
 for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {
-  draw_map_cluster(i, 8)
+  draw_map_cluster(i, 12)
 }
+
+rm(cluster_data, i)
+```
+
+## Classification avec k=7
+
+```{r}
+set.seed(123)
+
+# Préparation des données
+## Sélection des variables
+regressors <- c("codecommune", full_mca_regressors)
+regressors <- setdiff(regressors, "popagglo")
+mca_data_subset <- detailed_mca_data[, ..regressors]
+mca_data_subset <- na.omit(mca_data_subset)
+## Création d'indicatrices pour les types de communes
+mca_data_subset$type_comm <- as.factor(mca_data_subset$type_comm)
+dummies <- model.matrix(~ type_comm - 1, data = mca_data_subset)
+colnames(dummies) <- paste0("type_comm_", 1:ncol(dummies))
+mca_data_subset <- cbind(mca_data_subset, dummies)
+mca_data_subset$type_comm <- NULL
+## Normalisation
+scaling_regressors <- setdiff(full_mca_regressors, c("popagglo", "type_comm"))
+regressors <- c(scaling_regressors, paste0("type_comm_", 1:4))
+mca_data_subset_scaled <- mca_data_subset[, ..regressors]
+mca_data_subset_scaled[, (scaling_regressors) := lapply(.SD, scale), .SDcols = scaling_regressors]
+
+# Détermination des clusters et ajout des variables électorales
+kmeans_result <- kmeans(mca_data_subset_scaled, centers = 7)
+mca_data_subset$cluster <- kmeans_result$cluster
+columns <- c("codecommune", "cluster", paste0("type_comm_", 1:4))
+cluster_data <- mca_data_subset[, ..columns, drop = FALSE]
+cluster_data <- merge(cluster_data, detailed_mca_data, by = "codecommune")
+
+# Analyse des résultats
+## Calcul des moyennes par cluster
+variables_of_interest <- c(mca_detailed_outcomes, full_mca_regressors, paste0("type_comm_", 1:4))
+variables_of_interest <- setdiff(variables_of_interest, "type_comm")
+means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = variables_of_interest]
+## Calcul des effectifs des clusters
+sum <- cluster_data[, .(Population = sum(popcomm, na.rm = TRUE)), by = cluster]
+means <- merge(means, sum, by = "cluster")
+means$cluster <- as.factor(means$cluster)
+cluster_counts <- as.data.frame(table(cluster_data$cluster))
+means <- merge(means, cluster_counts, by.x = "cluster", by.y = "Var1")
+## Calcul des moyennes pour la population
+global_means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), .SDcols = variables_of_interest]
+global_means$cluster <- "mean"
+means <- rbind(means, global_means, fill = TRUE)
+## Expression des types de commune en %
+means[, paste0("type_comm_", 1:4)] <- lapply(means[, paste0("type_comm_", 1:4)], as.numeric)
+means[, paste0("type_comm_", 1:4)] <- means[, paste0("type_comm_", 1:4)] * 100
+means$cluster <- as.character(means$cluster)
+## Transposition pour afficher les clusters en colonne
+t_means <- t(means)
+t_means <- data.frame(matrix = rownames(t_means), t_means, row.names = NULL)
+colnames(t_means) <- t_means[1, ]
+t_means <- t_means[-1, ]
+t_means[setdiff(names(t_means), "cluster")] <- lapply(t_means[setdiff(names(t_means), "cluster")], as.numeric)
+## Réarrangement des lignes
+first_rows <- t_means[-((nrow(t_means) - 1):nrow(t_means)), ]
+last_rows <- t_means[(nrow(t_means) - 1):nrow(t_means), ]
+t_means <- rbind(last_rows, first_rows)
+t_means$cluster[2] <- "Communes"
+## Intervalle sur lequel appliquer la coloration (afin qu'elle soit centrée sur la moyenne de la population plutôt que des clusters)
+t_means <- as.data.frame(t_means)
+t_means$min <- apply(t_means[, 2:8], 1, min)
+t_means$max <- apply(t_means[, 2:8], 1, max)
+t_means$diff_min <- t_means$mean - t_means$min
+t_means$diff_max <- t_means$max - t_means$mean
+t_means$spread <- pmax(t_means$diff_min, t_means$diff_max)
+t_means$range_inf <- t_means$mean - t_means$spread
+t_means$range_sup <- t_means$mean + t_means$spread
+t_means <- subset(t_means, select = -c(min, max, diff_min, diff_max, spread))
+## Création du tableau avec gt
+means_tbl <- t_means %>%
+  gt() %>%
+  fmt_number(rows = 3:46, decimals = 2, drop_trailing_zeros = TRUE) %>%
+  fmt_number(rows = (c(1,19,20)), decimals = 0, scale_by = 1000) %>%
+  fmt_number(rows = (c(2,40,42)), decimals = 0) %>%
+  cols_hide(c("range_inf", "range_sup")) %>%
+  tab_header(title = "Moyenne des variables par cluster") %>%
+  data_color(
+    method = "numeric",
+    columns = !matches("cluster|mean"),
+    rows = 3:46,
+    direction = "row",
+    palette = "RColorBrewer::RdBu",
+    alpha = 0.6) %>%
+  tab_spanner(label = "Clusters", columns = c("1", "2", "3", "4", "5", "6", "7"), id = "clust") %>%
+  cols_label(cluster = "", mean = "Moy.") %>%
+  tab_row_group(label = "Effectifs", rows = 1:2, id = "pop") %>%
+  tab_row_group(label = "Outcomes", rows = 3:17, id = "out") %>%
+  tab_row_group(label = "Régresseurs", rows = 18:46, id = "reg") %>%
+  row_group_order(groups = c("pop", "out", "reg")) %>%
+  sub_missing(missing_text = "-") %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "lightgrey"),
+      cell_text(style = "italic", align = "center", v_align = "top")),
+    locations = cells_row_groups(groups = c("pop", "out", "reg"))) %>%
+  tab_style(
+    style = list(
+      cell_text(style = "italic", align = "center")),
+    locations = list(
+      cells_column_labels(columns = "mean"), 
+      cells_body(columns = "mean"))) %>%
+ tab_style(
+    style = list(
+      cell_text(align = "center")),
+    locations = list(
+      cells_column_labels(columns = c("1", "2", "3", "4", "5", "6", "7")),
+      locations = cells_body(columns = !matches("cluster"))))
+means_tbl
+gtsave(means_tbl, filename = "k7_means.tex", path = "output_transversal")
+
+# Nettoyage
+rm(cluster_counts, columns, dummies, first_rows, global_means, kmeans_result, last_rows, mca_data_subset, mca_data_subset_scaled, means, means_tbl, regressors, scaling_regressors, sum, t_means, variables_of_interest)
+```
+
+### Cartes
+
+```{r}
+draw_map_cluster <- function(region, base_width) {
+  carto <- merge(map_data, cluster_data, by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
+  carto[["cluster"]] <- factor(carto[["cluster"]])
+  if (region != 0) {
+    carto <- subset(carto, INSEE_REG == region)
+    reg_name <- codes_regions$LIBELLE[codes_regions$REG == region]
+    reg_abrv <- codes_regions$ABRV[codes_regions$REG == region]
+  } else {
+    reg_name <- "France"
+    reg_abrv <- "FR"
+  }
+
+  output_file <- paste0("output_transversal/clusters_2017_k7_", reg_abrv, ".png")
+  title <- paste0("Clusters en ", reg_name)
+  legend_labels <- c("2" = "Centre des grandes villes, vote contrasté",
+                     "7" = "Banlieues et périurbain aisés, vote C",
+                     "3" = "Périurbain à dominante inter., vote moyen",
+                     "1" = "Banlieues et villages populaires, vote G",
+                     "5" = "Rural à dominante agricole, vote D",
+                     "4" = "Rural à dominante ouvrière, vote E",
+                     "6" = "Rural à dominante indép. & empl., vote moyen")
+  legend_colors <- c("2" = "darkblue",
+                     "7" = "cornflowerblue",
+                     "3" = "skyblue",
+                     "1" = "darkgoldenrod1",
+                     "5" = "darkgreen",
+                     "4" = "limegreen",
+                     "6" = "lightgreen")
+
+  # Exportation d'une carte en haute résolution
+  ## Calcul des dimensions
+  bbox <- st_bbox(carto)
+  aspect_ratio <- diff(c(bbox$xmin, bbox$xmax)) / diff(c(bbox$ymin, bbox$ymax))
+  base_height <- base_width / aspect_ratio
+  font_size <- base_width * 2.2
+  ## Création et enregistrement
+  plot_png <- ggplot() +
+    geom_sf(data = carto, aes(fill = .data[["cluster"]])) +
+    ggtitle(paste(title)) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5, size = font_size),
+          axis.text = element_blank(),
+          panel.grid = element_blank(),
+          plot.title.position = "plot",
+          legend.title = element_text(size = font_size * 0.8),
+          legend.text = element_text(size = font_size * 0.5)) +
+    scale_fill_manual(values = legend_colors,
+                      breaks = names(legend_labels),
+                      labels = legend_labels,
+                      name = NULL)
+  ggsave(output_file, plot = plot_png, width = base_width, height = base_height, units = "in")
+  
+  display_plot <- ggplot() +
+    geom_sf(data = carto, aes(fill = .data[["cluster"]])) +
+    ggtitle(paste(title)) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5),
+          axis.text = element_blank(),
+          panel.grid = element_blank(),
+          plot.title.position = "plot",
+          legend.title = element_text(),
+          legend.text = element_text()) +
+    scale_fill_manual(values = legend_colors,
+                      breaks = names(legend_labels),
+                      labels = legend_labels,
+                      name = NULL)
+    print(display_plot)
+}
+
+for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {
+  draw_map_cluster(i, 12)
+}
+
+rm(cluster_data, i)
 ```
