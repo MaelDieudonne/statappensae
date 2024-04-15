@@ -1,4 +1,4 @@
-**Packages et librairies**
+# Packages et librairies
 
 ```{r eval=FALSE}
 # Installation alternative d'arrow pour MacOs
@@ -38,7 +38,7 @@ invisible(lapply(packages, library, character.only = TRUE))
 rm(installed_packages, packages)
 ```
 
-**Répertoires**
+# Répertoires
 
 ```{r}
 if (!dir.exists("data_main")) {dir.create("data_main")}
@@ -46,7 +46,7 @@ if (!dir.exists("output_panel")) {dir.create("output_panel")}
 if (!dir.exists("output_transversal")) {dir.create("output_transversal")}
 ```
 
-**Fonctions**
+# Fonctions
 
 ```{r}
 # Pour charger les données Parquet

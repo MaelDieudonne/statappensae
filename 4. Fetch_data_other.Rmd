@@ -1,16 +1,16 @@
-**Téléchargement des codes régionaux**
+# Codes régionaux et départementaux
 
 ```{r}
 httr::GET("https://www.insee.fr/fr/statistiques/fichier/6800675/v_region_2023.csv", timeout(15), progress(), write_disk("data_other/codes_regions_Insee.csv", overwrite = TRUE))
 ```
 
-**Téléchargement des codes départementaux**
-
 ```{r}
 httr::GET("https://www.insee.fr/fr/statistiques/fichier/6800675/v_departement_2023.csv", timeout(15), progress(), write_disk("data_other/codes_departements_Insee.csv", overwrite = TRUE))
 ```
 
-**Téléchargement des données cartographiques**
+# Données cartographiques
+
+Téléchargement
 
 ```{r}
 httr::GET("https://wxs.ign.fr/x02uy2aiwjo9bm8ce5plwqmr/telechargement/prepackage/ADMINEXPRESS_SHP_TERRITOIRES_PACK_2023-12-19$ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19/file/ADMIN-EXPRESS_3-2__SHP_LAMB93_FXX_2023-12-19.7z", timeout(1800), progress(), write_disk("data_other/Carto_Insee.7z", overwrite = TRUE))
@@ -44,7 +44,7 @@ unlink(c("data_other/Carto_Insee.7z", "data_other/shapefile/ADMIN-EXPRESS_3-2__S
 rm(ext, extensions, file_name, file_names, files_to_extract, root_name, root_path, source_file, target_file)
 ```
 
-**Téléversement sur le Datalab**
+Téléversement sur le Datalab
 
 ```{r eval=FALSE}
 aws.s3::s3sync(

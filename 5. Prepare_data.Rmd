@@ -1,4 +1,4 @@
-**Données de panel**
+# Données de panel
 
 L'enjeu est de construire une base unique à partir de données dispersées, entre des bases annuelles pour les résultats électoraux, proches du format long, et des bases globales pour les régresseurs, au format wide. La stratégie retenue consiste à itérer sur une table vide à l'aide des résultats électoraux.
 
@@ -324,7 +324,7 @@ aws.s3::put_object(
   multipart = TRUE)
 ```
 
-**Données de coupe**
+# Données de coupe
 
 On construit également une base restreinte à une année, mais intégrant toutes les données disponibles seulement en fin de période : sur la criminalité, la fiscalité, les prestations sociales, ainsi que les types de communes. On part de la base précédente en sélectionnant l'année 2017, puis l'on ajoute les régresseurs supplémentaires.
 
@@ -432,7 +432,7 @@ aws.s3::s3write_using(
   opts = list("region" = ""))
 ```
 
-**Cartes**
+# Cartes
 
 Les données géographiques sont très volumineuses car très précises, et stockées dans un format spécifique. Il serait donc malcommode des les intégrer aux bases précédentes. On prévoit plutôt d'utiliser une fonction construisant dynamiquement la base nécessaire chaque fois qu'une carte est tracée.
 

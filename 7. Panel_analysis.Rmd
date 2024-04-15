@@ -27,9 +27,9 @@ full_panel_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop014", "
 wide_panel_regressors <- c("round", panel_regressors)
 ```
 
-# **Analyse descriptives**
+# Analyse descriptives
 
-## **Valeurs manquantes**
+## Valeurs manquantes
 
 On vérifie facilement l'absence de valeurs manquantes pour les variables identifiantes (année et code commune).
 
@@ -86,7 +86,7 @@ gtsave(gt_na_prop, filename = "nan_table.tex", path = "output_panel")
 rm(count_na, variable_names, na_prop_table, max_value, bins, gt_na_prop, name, na_prop)
 ```
 
-## **Outcomes**
+## Outcomes
 
 ```{r}
 graph_data <- data.frame(year = unique(panel_data$year))
@@ -134,7 +134,7 @@ ggsave("output_panel/outcomes_relatifs_1965_2022.png", plot, width = 8, height =
 rm(graph_data, outcome)
 ```
 
-## **Taux de propriétaires**
+## Taux de propriétaires
 
 Nous pouvons d'abord représenter l'évolution du taux national de propriétaires, calculé sur l'ensemble de la population française. Il n'est cependant pas le plus pertinent, car nous allons raisonner à l'échelle des communes plutôt que des individus. Représentons donc aussi l'évolution de la proportion moyenne de propriétaires dans chaque commune.
 
@@ -234,9 +234,9 @@ gtsave(correlation_df, filename = "correl_ppropri.tex", path = "output_panel")
 rm(panel_data_complete, correlation_results, correlation_df)
 ```
 
-# **Panel**
+# Panel
 
-## **Tests**
+## Tests
 
 On utilise deux tests :
 
@@ -273,7 +273,7 @@ phtest(fd, within)
 rm(panel_as_pdata)
 ```
 
-## **T1 seul**
+## T1 seul
 
 On commence par des panels simples, en différences premières, avec clustering au niveau départemental et variance hétéroscédastique.
 
@@ -456,7 +456,7 @@ rm(absolute_results)
 
 Les R2 n'évoluent pas. Pratiquement tous les sous-coefficients de ppropri sont significatifs, mais ils fluctuent d'une manière qui les rend difficilement interprétables.
 
-## **Tours confondus**
+## Tours confondus
 
 Première tentative simple : comme précédemment, on obtient des R2 très faibles, bien que marginalement meilleurs.
 
@@ -571,7 +571,7 @@ suppressWarnings(stargazer(relative_results, type = "latex", out = "output_panel
 rm(relative_results)
 ```
 
-# **Régressions annuelles**
+# Régressions annuelles
 
 ## Standard
 

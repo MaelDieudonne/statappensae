@@ -26,7 +26,7 @@ mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop1539", "prop40
 full_mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop014", "prop1539", "prop4059", "prop60p", "propf", "propnodip", "propbac", "propsup", "pagri", "pindp", "pouvr", "pempl", "ppint", "pcadr", "pchom", "prsa", "petranger", "pcrimesdelits", "revmoy", "pisf", "mmoyfortune", "type_comm")
 ```
 
-# **Analyses descriptives**
+# Analyses descriptives
 
 ## Tableau récapitulatif
 
@@ -170,15 +170,15 @@ for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {
 
 ## Corrélogramme
 
-```{r include=FALSE}
+```{r}
 corr_variables <- c(mca_regressors, mca_relative_outcomes)
 mca_corr_data <- mca_data[, ..corr_variables, with = FALSE]
-
 mca_corr_data <- mca_corr_data[, .SD, .SDcols = sapply(mca_corr_data, is.numeric)]
 mca_corr_data <- mca_corr_data[complete.cases(mca_corr_data)]
-
 correlation_matrix <- cor(mca_corr_data)
+corrplot(correlation_matrix, type = "upper", method = "color", order = "FPC", tl.srt = 60, tl.col = "darkgrey")
 
+# Enregistrement
 png(filename = "output_transversal/corrplot.png", width = 2200, height = 1800)
 corrplot(correlation_matrix, type = "upper", method = "color", order = "FPC", tl.cex = 3.5, tl.srt = 60, tl.col = "darkgrey", cl.cex = 3.5)
 dev.off()
@@ -186,7 +186,7 @@ dev.off()
 rm(corr_variables, correlation_matrix, mca_corr_data)
 ```
 
-# **Régression linéaire simple**
+# Régression linéaire simple
 
 ```{r}
 mca_data$type_comm <- factor(mca_data$type_comm)
@@ -216,7 +216,7 @@ suppressWarnings(stargazer(relative_results, type = "latex", out = "output_trans
 rm(relative_results,absolute_results)
 ```
 
-# **ACP**
+# ACP
 
 ## Sur les comportements électoraux
 
@@ -365,7 +365,7 @@ corrplot(result$var$cos2[16:44, 1:3], title = "Qualité de représentation des r
 rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, result, variables_of_interest)
 ```
 
-# **K-means**
+# K-means
 
 On inverse l'approche : on construit un espace socio-démographique, sur lequel on projette les comportements politiques
 
@@ -387,7 +387,7 @@ for (i in 1:20) {
   kmeans_model <- kmeans(mca_data_subset, centers = i)
   wcss[i] <- kmeans_model$tot.withinss
 }
-plot(1:20, wcss, type = "b", xlab = "Number of Clusters", ylab = "Within-Cluster Sum of Squares (WCSS)")
+plot(1:20, wcss, type = "b", xlab = "Number of Clusters", ylab = "Within-Cluster Sum of Squares")
 
 ## Méthode silhouette
 silhouette_avg <- numeric(length = 20)
@@ -396,14 +396,22 @@ for (i in 2:20) {
   sil <- silhouette(kmeans_model$cluster, dist(mca_data_subset))
   silhouette_avg[i - 1] <- mean(sil[, 3])
 }
-plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters (k)", ylab = "Average Silhouette Width")
+plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters", ylab = "Average Silhouette Width")
+
+## Enregistrement des graphs
+png("output_transversal/WCSS.png", width = 1000, height = 500)
+plot(1:20, wcss, type = "b", xlab = "Number of Clusters", ylab = "Within-Cluster Sum of Squares")
+dev.off()
+png("output_transversal/Silhouette.png", width = 1000, height = 500)
+plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters", ylab = "Average Silhouette Width")
+dev.off()
 
 rm(regressors, mca_data_subset, kmeans_model, wcss, silhouette_avg, sil)
 ```
 
 ## Classification avec k=6
 
-Les résultats invitent à choisir k = 6 ou 7. On essaye 6 ici.
+Les résultats invitent à choisir k = 6 ou 7. On commence par 6.
 
 ```{r}
 set.seed(123)
@@ -519,11 +527,7 @@ gtsave(means_tbl, filename = "k6_means.tex", path = "output_transversal")
 rm(cluster_counts, columns, dummies, first_rows, global_means, kmeans_result, last_rows, mca_data_subset, mca_data_subset_scaled, means, means_tbl, regressors, scaling_regressors, sum, t_means, variables_of_interest)
 ```
 
-Ici, les résultats sont plus intéressants, avec des clusters qui se différencient plus nettement ; les clusters 2 et 6 en particulier, avec des taux de propriétaires très en-dessous de la moyenne, mais l'un (n°6) qui vote beaucoup aux extrêmes, l'autre (n°2) qui vote davantage au centre. Essayons d'identifier / caractériser ces clusters.
-
-Trois appartiennent à l'univers rural (avec le même taux de propriétaires) ; représentent environ 20 000 communes 4 = campagne paysanne, avec les plus petites communes, une proportion très élevée d'agriculteurs, une population plus âgée et moins diplômée qu'ailleurs. Cluster présentant le plus fort taux de propriétaires, participation dans la moyenne, vote à gauche le plus faible, ainsi que le vote protestataire au T1. Cluster le plus petit, correspondant à la droite rurale traditionnelle ? 1 et 5 = campagne ouvrière, avec toujours de petites communes et agglomérations, mais une population beaucoup plus ouvrière. Cluster 1 = population âgée, avec un peu plus de chômeurs et d'étrangers, plus de crimes et délits, ainsi que de bénéficiaires du RSA. Cluster 5 = population plus jeune. Vote à gauche faible, vote protestataire élevé. Univers pavillonnaire ?
-
-Trois appartiennent à l'univers urbain (avec des taux variables de propriétaires) ; représentent environ 13 000 communes 2 = Agglomération parisienne et centre des métropoles, sans doute possible grâce à popagglo. Avec le plus faible taux de propriétaires, une population plus jeune et nettement plus diplômée qu'ailleurs, avec la plus grande proportion de cadres et celle d'ouvriers parmi les plus faibles. Avec aussi la situation économique la plus contrastée, associant le revenu communal moyen et la proportion de contribuables soumis à l'ISF les plus élevés, mais aussi la seconde plus importante proportion d'allocataires du RSA. Cluster où la participation est la plus faible, le vote à gauche le plus fort, et le vote protestataire le plus faible. Cluster le plus petit en nombre de communes. 6 = banlieues et villes pauvres ? 3 = petites communes appartenant à de grosses agglomérations, avec beaucoup de cadres et de professions intermédiaires, et de diplômés du supérieur. Communes très riches, comptant le moins d'étrangers et d'allocataires du RSA. Présentent la participation la plus élevée, un vote à gauche moyen, et un vote protestataire faible. Correspondent aux beaux quartiers hors des centres, banlieues aisées, périrubain riche ?
+Les résultats sont plus intéressants, avec des clusters qui se différencient nettement.
 
 NB : les données sur le RSA sont manquantes pour la Corse. Celle-ci est donc exclue de la classification !
 
@@ -605,6 +609,8 @@ rm(cluster_data, i)
 ```
 
 ## Classification avec k=7
+
+On essaye maintenant avec 7 clusters.
 
 ```{r}
 set.seed(123)
