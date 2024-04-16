@@ -556,7 +556,7 @@ draw_map_cluster <- function(region, base_width) {
                      "1" = "Périurbain populaire")
   legend_colors <- c("2" = "blue",
                      "3" = "skyblue",
-                     "4" = "pink",
+                     "4" = "aquamarine",
                      "5" = "darkgreen",
                      "6" = "limegreen",
                      "1" = "lightgreen")
@@ -753,7 +753,7 @@ draw_map_cluster <- function(region, base_width) {
   legend_colors <- c("2" = "darkblue",
                      "7" = "cornflowerblue",
                      "3" = "skyblue",
-                     "1" = "darkgoldenrod1",
+                     "1" = "aquamarine",
                      "5" = "darkgreen",
                      "4" = "limegreen",
                      "6" = "lightgreen")

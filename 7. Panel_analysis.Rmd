@@ -131,7 +131,7 @@ plot <- ggplot(graph_data, aes(x = year)) +
 print(plot)
 ggsave("output_panel/outcomes_relatifs_1965_2022.png", plot, width = 8, height = 6, dpi = 300)
 
-rm(graph_data, outcome)
+rm(data, graph_data, outcome)
 ```
 
 ## Taux de propriétaires
@@ -270,7 +270,7 @@ fd <- plm(regression_formula, data = panel_as_pdata, model = "fd", effect = "ind
 within <- plm(regression_formula, data = panel_as_pdata, model = "within", effect = "individual", cluster = "dep", vcov = "HC1")
 phtest(fd, within)
 
-rm(panel_as_pdata)
+rm(panel_as_pdata, fd, within)
 ```
 
 ## T1 seul
@@ -289,7 +289,7 @@ for (outcome in relative_outcomes) {
 }
 
 suppressWarnings(stargazer(relative_results, type = "text"))
-# rm(model_name, regression_formula, outcome, panel_as_pdata)
+rm(model_name, regression_formula, outcome, panel_as_pdata)
 ```
 
 ```{r include=FALSE}
