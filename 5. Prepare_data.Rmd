@@ -314,14 +314,16 @@ aws.s3::put_object(
   object = "/diffusion/panel_data.parquet",
   bucket = "maeldieudonne",
   region = "",
-  multipart = TRUE)
+  multipart = TRUE,
+  overwrite = TRUE)
 
 aws.s3::put_object(
-  "data_main/panel_data.parquet",
+  "data_main/wide_panel_data.parquet",
   object = "/diffusion/wide_panel_data.parquet",
   bucket = "maeldieudonne",
   region = "",
-  multipart = TRUE)
+  multipart = TRUE,
+  overwrite = TRUE)
 ```
 
 # Données de coupe
@@ -417,19 +419,21 @@ rm(cols_to_drop, cols_to_keep, pres_2017)
 
 ```{r eval=FALSE}
 # Téléversement sur le SSP Cloud
-aws.s3::s3write_using(
-  mca_data,
-  FUN = arrow::write_parquet,
+aws.s3::put_object(
+  "data_main/mca_data.parquet",
   object = "/diffusion/mca_data.parquet",
   bucket = "maeldieudonne",
-  opts = list("region" = ""))
+  region = "",
+  multipart = TRUE,
+  overwrite = TRUE)
 
-aws.s3::s3write_using(
-  detailed_mca_data,
-  FUN = arrow::write_parquet,
+aws.s3::put_object(
+  "data_main/detailed_mca_data.parquet",
   object = "/diffusion/detailed_mca_data.parquet",
   bucket = "maeldieudonne",
-  opts = list("region" = ""))
+  region = "",
+  multipart = TRUE,
+  overwrite = TRUE)
 ```
 
 # Cartes
