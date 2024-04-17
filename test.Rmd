@@ -1,0 +1,88 @@
+```{r include=FALSE}
+# Importation des données
+mca_data <- load_parquet("mca_data.parquet")
+detailed_mca_data <- load_parquet("detailed_mca_data.parquet")
+map_data <- load_shapefile("FRANCE.shx")
+
+codes_regions <- fread("data_other/codes_regions_Insee.csv", header = TRUE)
+codes_regions$ABRV <- sapply(codes_regions$LIBELLE, get_first_letters)
+```
+
+```{r}
+# Définition des variables
+## Outcomes
+mca_relative_outcomes <- c("part_T1", "GD_ratio_T1", "EC_ratio_T1")
+mca_relative_outcomes_2T <- c("part_T1", "part_T2", "GD_ratio_T1", "EC_ratio_T1", "EC_ratio_T2")
+mca_absolute_outcomes <- c("part_T1", "DIns_ratio_T1", "GIns_ratio_T1", "EIns_ratio_T1", "CIns_ratio_T1")
+mca_absolute_outcomes_2T <- c("part_T1", "part_T2", "DIns_ratio_T1", "GIns_ratio_T1", "DIns_ratio_T2", "EIns_ratio_T1", "CIns_ratio_T1", "EIns_ratio_T2", "CIns_ratio_T2")
+
+mca_detailed_outcomes <- grep("^pvoix", names(detailed_mca_data), value = TRUE)
+mca_detailed_outcomes <- c(mca_detailed_outcomes, "part_T1", "part_T2")
+
+## Régresseurs
+### Abandonnés pour complaire aux économètres du groupe : prefract1791, pclerge1791, pclerge1856, pmessalisants1950
+## Modalités supprimées pour éviter la colinéarité : prop014, propnodip, pouvr
+mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop1539", "prop4059", "prop60p", "propf", "propbac", "propsup", "pagri", "pindp", "pempl", "ppint", "pcadr", "pchom", "petranger", "revmoy", "pcrimesdelits", "mmoyfortune", "pisf", "prsa", "type_comm")
+full_mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop014", "prop1539", "prop4059", "prop60p", "propf", "propnodip", "propbac", "propsup", "pagri", "pindp", "pouvr", "pempl", "ppint", "pcadr", "pchom", "prsa", "petranger", "pcrimesdelits", "revmoy", "pisf", "mmoyfortune", "type_comm")
+```
+
+```{r}
+# Essai avec ggplot2 pour les corrélogrammes
+# Ici faudrait pouvoir restreindre l'échelle à 0:1 pour les contributions à l'inertie des axes et les qualité de représentation, mais impossible directement avec ce package.
+
+library(ggcorrplot)
+
+variables_of_interest <- c(mca_detailed_outcomes, full_mca_regressors)
+mca_data_subset <- detailed_mca_data[, ..variables_of_interest]
+mca_data_subset <- na.omit(mca_data_subset)
+mca_data_subset$type_comm <- as.factor(mca_data_subset$type_comm)
+dummies <- model.matrix(~ type_comm - 1, data = mca_data_subset)
+colnames(dummies) <- paste0("type_comm_", 1:ncol(dummies))
+mca_data_subset <- cbind(mca_data_subset, dummies)
+mca_data_subset$type_comm <- NULL
+
+quant_regressors <- setdiff(full_mca_regressors, "type_comm")
+quant_regressors <- c(quant_regressors, "type_comm_1", "type_comm_2", "type_comm_3", "type_comm_4")
+result <- PCA(mca_data_subset, scale.unit = TRUE, quanti.sup=quant_regressors, ncp = 10, graph = FALSE)
+
+draw_corrplot <- function(data, title, subtitle, filename) {
+  corrplot <- ggcorrplot(
+    data, 
+    method = "square",
+    ggtheme = theme_grey,
+    show.legend = TRUE,
+    legend.title = "",
+    colors = c("#6D9EC1", "white", "#E46726"),
+    outline.color = "darkgrey",
+    tl.cex = 8)
+
+  corrplot$labels$title <- title
+  corrplot$labels$subtitle <- subtitle
+  
+  corrplot$theme$plot.title$hjust <- 0.5
+  corrplot$theme$plot.title$size <- 12
+  corrplot$theme$plot.subtitle$hjust <- 0.5
+  corrplot$theme$plot.subtitle$size <- 12
+  corrplot$theme$legend.key.width <- unit(0.3, "cm")
+  corrplot$theme$legend.key.height <- unit(1, "null")
+  
+  print(corrplot)
+  ggsave(filename, plot = corrplot)
+}
+
+draw_corrplot(t(result$var$contrib[, 1:10]/100), "Contribution des variables à l'inertie des axes", "", "output_transversal/contrib_axes.png")
+draw_corrplot(t(result$var$coord[, 1:3]), title = "Corrélation des outcomes aux axes", "", "output_transversal/corr_outc_axes.png")
+draw_corrplot(t(result$quanti.sup$coord[, 1:3]), "Corrélation des régresseurs", "aux axes", "output_transversal/corr_rég_axes.png")
+draw_corrplot(t(result$var$cos2[, 1:3]), "Qualité de représentation", "des variables électorales", "output_transversal/qual_rep_outc.png")
+draw_corrplot(t(result$quanti.sup$cos2[, 1:3]), "Qualité de représentation", "des régresseurs", "output_transversal/qual_rep_régr.png")
+
+```
+
+```{r}
+library(ggplotify)
+
+corrplot <- as.ggplot(function() corrplot(result$var$contrib, title = "Contribution des variables à l'inertie des axes", is.corr = FALSE, col.lim = c(0, 100), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3))
+print(corrplot)
+ggsave("filename.png", plot = corrplot)
+```
+
