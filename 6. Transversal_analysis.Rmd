@@ -176,14 +176,15 @@ mca_corr_data <- mca_data[, ..corr_variables, with = FALSE]
 mca_corr_data <- mca_corr_data[, .SD, .SDcols = sapply(mca_corr_data, is.numeric)]
 mca_corr_data <- mca_corr_data[complete.cases(mca_corr_data)]
 correlation_matrix <- cor(mca_corr_data)
-corrplot(correlation_matrix, type = "upper", method = "color", order = "FPC", tl.srt = 60, tl.col = "darkgrey")
+p_values = cor.mtest(mca_corr_data, conf.level = 0.95)
+corrplot(correlation_matrix, p.mat = p_values$p, pch.cex = 0.7, type = "upper", method = "color", COL2("RdYlBu"), order = "FPC", tl.srt = 60, tl.col = "darkgrey", diag = FALSE)
 
 # Enregistrement
 png(filename = "output_transversal/corrplot.png", width = 2200, height = 1800)
-corrplot(correlation_matrix, type = "upper", method = "color", order = "FPC", tl.cex = 3.5, tl.srt = 60, tl.col = "darkgrey", cl.cex = 3.5)
+corrplot(correlation_matrix, type = "upper", method = "color", order = "FPC", tl.cex = 3.5, tl.srt = 60, tl.col = "darkgrey", cl.cex = 3.5, diag = FALSE)
 dev.off()
 
-rm(corr_variables, correlation_matrix, mca_corr_data)
+rm(corr_variables, correlation_matrix, mca_corr_data, p_values)
 ```
 
 # Régression linéaire simple
@@ -269,24 +270,103 @@ axis_tbl <- axis_df %>%
     locations = cells_column_labels(columns = c("1", "3", "5", "7", "9"))) 
 axis_tbl
 ## ... ou d'un corrplot
-corrplot(result$var$contrib, title = "Contribution des variables à l'inertie des axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$var$contrib, title = "Contribution des variables à l'inertie des axes", is.corr = FALSE, col.lim = c(0, 100), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 
 ## Corrélation des variables aux axes
 ## Avec à nouveau deux représentations possibles...
 ## Des corrplots
-corrplot(result$var$coord[, 1:3], title = "Corrélation des outcomes aux axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
-corrplot(result$quanti.sup$coord[, 1:3], title = "Corrélation des régresseurs aux axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$var$coord[, 1:3], title = "Corrélation des outcomes aux axes", is.corr = TRUE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$quanti.sup$coord[, 1:3], title = "Corrélation des régresseurs aux axes", is.corr = TRUE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 ## Des projections sur les plans factoriels
 plot.PCA(result, axes = c(1,2), choix = "var", select = "cos2 7", title = "Projection sur les axes 1 et 2")
 plot.PCA(result, axes=c(1,3), choix="var", select = "cos2 7", title = "Projection sur les axes 1 et 3")
 plot.PCA(result, axes=c(2,3), choix="var", select = "cos2 7", title = "Projection sur les axes 2 et 3")
 
 ## Qualité de représentation des variables
-corrplot(result$var$cos2[, 1:3], title = "Qualité de représentation des variables électorales", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
-corrplot(result$quanti.sup$cos2[, 1:3], title = "Qualité de représentation des régresseurs", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$var$cos2[, 1:3], title = "Qualité de représentation des variables électorales", is.corr = FALSE, col.lim = c(0, 1), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$quanti.sup$cos2[, 1:3], title = "Qualité de représentation des régresseurs", is.corr = FALSE, col.lim = c(0, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 
 # Nettoyage
 rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, quant_regressors, result, variables_of_interest)
+```
+
+```{r}
+# Essai avec ggplot2 pour les corrélogrammes
+variables_of_interest <- c(mca_detailed_outcomes, full_mca_regressors)
+mca_data_subset <- detailed_mca_data[, ..variables_of_interest]
+mca_data_subset <- na.omit(mca_data_subset)
+mca_data_subset$type_comm <- as.factor(mca_data_subset$type_comm)
+dummies <- model.matrix(~ type_comm - 1, data = mca_data_subset)
+colnames(dummies) <- paste0("type_comm_", 1:ncol(dummies))
+mca_data_subset <- cbind(mca_data_subset, dummies)
+mca_data_subset$type_comm <- NULL
+
+quant_regressors <- setdiff(full_mca_regressors, "type_comm")
+quant_regressors <- c(quant_regressors, "type_comm_1", "type_comm_2", "type_comm_3", "type_comm_4")
+result <- PCA(mca_data_subset, scale.unit = TRUE, quanti.sup=quant_regressors, ncp = 10, graph = FALSE)
+
+ggcorrplot(t(result$var$contrib[, 1:10]),
+           method = "circle",
+           ggtheme = theme_grey,
+           title = "Contribution des variables à l'inertie des axes",
+           show.legend = TRUE,
+           legend.title = "",
+           colors = c("#6D9EC1", "white", "#E46726"),
+           outline.color = "darkgrey",
+           tl.cex = 8)
+
+ggcorrplot(t(result$var$coord[, 1:3]),
+           method = "square",
+           ggtheme = theme_grey,
+           title = "Corrélation des outcomes aux axes",
+           show.legend = TRUE,
+           legend.title = "",
+           colors = c("#6D9EC1", "white", "#E46726"),
+           outline.color = "darkgrey",
+           tl.cex = 8)
+
+ggcorrplot(t(result$quanti.sup$coord[, 1:3]),
+           method = "square",
+           ggtheme = theme_grey,
+           title = "Corrélation des régresseurs aux axes",
+           show.legend = TRUE,
+           legend.title = "",
+           colors = c("#6D9EC1", "white", "#E46726"),
+           outline.color = "darkgrey",
+           tl.cex = 8)
+
+ggcorrplot(t(result$var$cos2[, 1:3]),
+           method = "square",
+           ggtheme = theme_grey,
+           title = "Qualité de représentation des variables électorales",
+           show.legend = TRUE,
+           legend.title = "",
+           colors = c("#6D9EC1", "white", "#E46726"),
+           outline.color = "darkgrey",
+           tl.cex = 8)
+
+plot2 <- ggcorrplot(
+  t(result$quanti.sup$cos2[, 1:3]), 
+  method = "square",
+  ggtheme = theme_grey,
+  title = "Qualité de représentation des variables électorales",
+  show.legend = TRUE,
+  legend.title = "",
+  colors = c("#6D9EC1", "white", "#E46726"),
+  outline.color = "darkgrey",
+  tl.cex = 8)
+
+plot2$labels$title <- "Qualité de représentation"
+plot2$labels$subtitle <- "des régresseurs"
+
+plot2$theme$plot.title$hjust <- 0.5
+plot2$theme$plot.title$size <- 12
+plot2$theme$plot.subtitle$hjust <- 0.5
+plot2$theme$plot.subtitle$size <- 12
+plot2$theme$legend.key.width <- unit(0.3, 'cm')
+plot2$theme$legend.key.height <- unit(1.8, 'cm')
+
+print(plot2)
 ```
 
 ## Sur l'ensemble des variables
@@ -345,21 +425,21 @@ axis_tbl <- axis_df %>%
 axis_tbl
 
 ## ... ou d'un corrplot
-corrplot(result$var$contrib, title = "Contribution des variables à l'inertie des axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$var$contrib, title = "Contribution des variables à l'inertie des axes", is.corr = FALSE, col.lim = c(0, 100), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 
 ## Corrélation des variables aux axes
 ## Avec à nouveau deux représentations possibles...
 ## Des corrplots
-corrplot(result$var$coord[1:15, 1:3], title = "Corrélation des outcomes aux axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
-corrplot(result$var$coord[16:44, 1:3], title = "Corrélation des régresseurs aux axes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$var$coord[1:15, 1:3], title = "Corrélation des outcomes aux axes", is.corr = TRUE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$var$coord[16:44, 1:3], title = "Corrélation des régresseurs aux axes", is.corr = TRUE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 ## Des projections sur les plans factoriels
 plot.PCA(result, axes = c(1,2), choix = "var", select = "cos2 13", title = "Projection sur les axes 1 et 2")
 plot.PCA(result, axes=c(1,3), choix="var", select = "cos2 13", title = "Projection sur les axes 1 et 3")
 plot.PCA(result, axes=c(2,3), choix="var", select = "cos2 13", title = "Projection sur les axes 2 et 3")
 
 ## Qualité de représentation des variables
-corrplot(result$var$cos2[1:15, 1:3], title = "Qualité de représentation des outcomes", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
-corrplot(result$var$cos2[16:44, 1:3], title = "Qualité de représentation des régresseurs", is.corr = FALSE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$var$cos2[1:15, 1:3], title = "Qualité de représentation des outcomes", is.corr = FALSE, col.lim = c(0, 1), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+corrplot(result$var$cos2[16:44, 1:3], title = "Qualité de représentation des régresseurs", is.corr = FALSE, col.lim = c(0, 1), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 
 # Nettoyage
 rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, result, variables_of_interest)
