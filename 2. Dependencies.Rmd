@@ -16,6 +16,7 @@ packages <- c(
   "factoextra",
   "FactoMineR",
   "ggplot2",
+  "ggridges",
   "gt",
   "httr",
   "quantreg",
