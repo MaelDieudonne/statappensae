@@ -441,8 +441,10 @@ mca_data_subset$cluster <- kmeans_result$cluster
 columns <- c("codecommune", "cluster", paste0("type_comm_", 1:4))
 cluster_data <- mca_data_subset[, ..columns, drop = FALSE]
 cluster_data <- merge(cluster_data, detailed_mca_data, by = "codecommune")
+```
 
-# Analyse des résultats
+```{r}
+# Tableau avec les valeurs moyennes par commune
 ## Calcul des moyennes par cluster
 variables_of_interest <- c(mca_detailed_outcomes, full_mca_regressors, paste0("type_comm_", 1:4))
 variables_of_interest <- setdiff(variables_of_interest, "type_comm")
@@ -458,9 +460,6 @@ means <- merge(means, cluster_counts, by.x = "cluster", by.y = "Var1")
 ## Calcul des moyennes pour la population
 global_means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), .SDcols = variables_of_interest]
 global_means$cluster <- "mean"
-means <- rbind(means, global_means, fill = TRUE)
-global_means <- cluster_data[, lapply(.SD, function(x) weighted.mean(x, w = popcomm, na.rm = TRUE)), .SDcols = variables_of_interest]
-global_means$cluster <- "weighted_mean"
 means <- rbind(means, global_means, fill = TRUE)
 ## Expression des types de commune en %
 means[, paste0("type_comm_", 1:4)] <- lapply(means[, paste0("type_comm_", 1:4)], as.numeric)
@@ -494,17 +493,17 @@ means_tbl <- t_means %>%
   fmt_number(rows = (c(1,19,20)), decimals = 0, scale_by = 1000) %>%
   fmt_number(rows = (c(2,40,42)), decimals = 0) %>%
   cols_hide(c("range_inf", "range_sup")) %>%
-  tab_header(title = "Moyenne des variables par cluster") %>%
+  tab_header(title = "Moyennes des variables par cluster", subtitle = "Exprimées selon communes") %>%
   data_color(
     method = "numeric",
-    columns = !matches("cluster|mean|weighted_means"),
+    columns = !matches("cluster|mean"),
     rows = 3:46,
     direction = "row",
     palette = "RColorBrewer::RdBu",
     alpha = 0.6) %>%
   tab_spanner(label = "Clusters", columns = c("1", "2", "3", "4", "5", "6"), id = "clust") %>%
-  tab_spanner(label = "Moyennes", columns = c("mean", "weighted_mean"), id = "moy") %>%
-  cols_label(cluster = "", mean = "Comm.", weighted_mean = "Pop.") %>%
+  tab_spanner(label = "Total", columns = "mean", id = "moy") %>%
+  cols_label(cluster = "", mean = "") %>%
   tab_row_group(label = "Effectifs", rows = 1:2, id = "pop") %>%
   tab_row_group(label = "Outcomes", rows = 3:17, id = "out") %>%
   tab_row_group(label = "Régresseurs", rows = 18:46, id = "reg") %>%
@@ -519,17 +518,103 @@ means_tbl <- t_means %>%
     style = list(
       cell_text(style = "italic", align = "center")),
     locations = list(
-      cells_column_labels(columns = c("mean", "weighted_mean")), 
-      cells_body(columns = c("mean", "weighted_mean")))) %>%
+      cells_column_labels(columns = "mean"), 
+      cells_body(columns = "mean"))) %>%
  tab_style(
     style = list(
       cell_text(align = "center")),
     locations = list(
-      cells_column_labels(columns = c("1", "2", "3", "4", "5", "6", "mean", "weighted_mean")),
+      cells_column_labels(columns = c("1", "2", "3", "4", "5", "6", "mean")),
       locations = cells_body(columns = !matches("cluster"))))
 means_tbl
 gtsave(means_tbl, filename = "k6_means.tex", path = "output_transversal")
+```
 
+```{r}
+# Tableau avec les valeurs moyennes pondérées par la population
+## Calcul des moyennes par cluster
+variables_of_interest <- c(mca_detailed_outcomes, full_mca_regressors, paste0("type_comm_", 1:4))
+variables_of_interest <- setdiff(variables_of_interest, "type_comm")
+means <- cluster_data[, lapply(.SD, function(x) weighted.mean(x, w = popcomm, na.rm = TRUE)), by = cluster, .SDcols = variables_of_interest]
+## Calcul des effectifs des clusters
+sum <- cluster_data[, .(Population = sum(popcomm, na.rm = TRUE)), by = cluster]
+means <- merge(means, sum, by = "cluster")
+means$cluster <- as.factor(means$cluster)
+cluster_counts <- as.data.frame(table(cluster_data$cluster))
+means <- merge(means, cluster_counts, by.x = "cluster", by.y = "Var1")
+## Calcul des moyennes pour la population
+global_means <- cluster_data[, lapply(.SD, function(x) weighted.mean(x, w = popcomm, na.rm = TRUE)), .SDcols = variables_of_interest]
+global_means$cluster <- "mean"
+means <- rbind(means, global_means, fill = TRUE)
+## Expression des types de commune en %
+means[, paste0("type_comm_", 1:4)] <- lapply(means[, paste0("type_comm_", 1:4)], as.numeric)
+means[, paste0("type_comm_", 1:4)] <- means[, paste0("type_comm_", 1:4)] * 100
+means$cluster <- as.character(means$cluster)
+## Transposition pour afficher les clusters en colonne
+t_means <- t(means)
+t_means <- data.frame(matrix = rownames(t_means), t_means, row.names = NULL)
+colnames(t_means) <- t_means[1, ]
+t_means <- t_means[-1, ]
+t_means[setdiff(names(t_means), "cluster")] <- lapply(t_means[setdiff(names(t_means), "cluster")], as.numeric)
+## Réarrangement des lignes
+first_rows <- t_means[-((nrow(t_means) - 1):nrow(t_means)), ]
+last_rows <- t_means[(nrow(t_means) - 1):nrow(t_means), ]
+t_means <- rbind(last_rows, first_rows)
+t_means$cluster[2] <- "Communes"
+## Intervalle sur lequel appliquer la coloration (afin qu'elle soit centrée sur la moyenne de la population plutôt que des clusters)
+t_means <- as.data.frame(t_means)
+t_means$min <- apply(t_means[, 2:7], 1, min)
+t_means$max <- apply(t_means[, 2:7], 1, max)
+t_means$diff_min <- t_means$mean - t_means$min
+t_means$diff_max <- t_means$max - t_means$mean
+t_means$spread <- pmax(t_means$diff_min, t_means$diff_max)
+t_means$range_inf <- t_means$mean - t_means$spread
+t_means$range_sup <- t_means$mean + t_means$spread
+t_means <- subset(t_means, select = -c(min, max, diff_min, diff_max, spread))
+## Création du tableau avec gt
+means_tbl <- t_means %>%
+  gt() %>%
+  fmt_number(rows = 3:46, decimals = 2, drop_trailing_zeros = TRUE) %>%
+  fmt_number(rows = (c(1,19,20)), decimals = 0, scale_by = 1000) %>%
+  fmt_number(rows = (c(2,40,42)), decimals = 0) %>%
+  cols_hide(c("range_inf", "range_sup")) %>%
+  tab_header(title = "Moyennes des variables par cluster", subtitle = "Exprimées selon la population") %>%
+  data_color(
+    method = "numeric",
+    columns = !matches("cluster|mean"),
+    rows = 3:46,
+    direction = "row",
+    palette = "RColorBrewer::RdBu",
+    alpha = 0.6) %>%
+  tab_spanner(label = "Clusters", columns = c("1", "2", "3", "4", "5", "6"), id = "clust") %>%
+  tab_spanner(label = "Total", columns = "mean", id = "moy") %>%
+  cols_label(cluster = "", mean = "") %>%
+  tab_row_group(label = "Effectifs", rows = 1:2, id = "pop") %>%
+  tab_row_group(label = "Outcomes", rows = 3:17, id = "out") %>%
+  tab_row_group(label = "Régresseurs", rows = 18:46, id = "reg") %>%
+  row_group_order(groups = c("pop", "out", "reg")) %>%
+  sub_missing(missing_text = "-") %>%
+    tab_style(
+    style = list(
+      cell_fill(color = "lightgrey"),
+      cell_text(style = "italic", align = "center")),
+    locations = cells_row_groups(groups = c("pop", "out", "reg"))) %>%
+  tab_style(
+    style = list(
+      cell_text(style = "italic", align = "center")),
+    locations = list( 
+      cells_body(columns = "mean"))) %>%
+ tab_style(
+    style = list(
+      cell_text(align = "center")),
+    locations = list(
+      cells_column_labels(columns = c("1", "2", "3", "4", "5", "6", "mean")),
+      locations = cells_body(columns = !matches("cluster"))))
+means_tbl
+gtsave(means_tbl, filename = "k6_weighted_means.tex", path = "output_transversal")
+```
+
+```{r}
 # Nettoyage
 rm(cluster_counts, columns, dummies, first_rows, global_means, kmeans_result, last_rows, mca_data_subset, mca_data_subset_scaled, means, means_tbl, regressors, scaling_regressors, sum, t_means, variables_of_interest)
 ```
@@ -662,9 +747,6 @@ means <- merge(means, cluster_counts, by.x = "cluster", by.y = "Var1")
 global_means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), .SDcols = variables_of_interest]
 global_means$cluster <- "mean"
 means <- rbind(means, global_means, fill = TRUE)
-global_means <- cluster_data[, lapply(.SD, function(x) weighted.mean(x, w = popcomm, na.rm = TRUE)), .SDcols = variables_of_interest]
-global_means$cluster <- "weighted_mean"
-means <- rbind(means, global_means, fill = TRUE)
 ## Expression des types de commune en %
 means[, paste0("type_comm_", 1:4)] <- lapply(means[, paste0("type_comm_", 1:4)], as.numeric)
 means[, paste0("type_comm_", 1:4)] <- means[, paste0("type_comm_", 1:4)] * 100
@@ -700,14 +782,14 @@ means_tbl <- t_means %>%
   tab_header(title = "Moyenne des variables par cluster") %>%
   data_color(
     method = "numeric",
-    columns = !matches("cluster|mean|weighted_means"),
+    columns = !matches("cluster|mean"),
     rows = 3:46,
     direction = "row",
     palette = "RColorBrewer::RdBu",
     alpha = 0.6) %>%
   tab_spanner(label = "Clusters", columns = c("1", "2", "3", "4", "5", "6", "7"), id = "clust") %>%
-  tab_spanner(label = "Moyennes", columns = c("mean", "weighted_mean"), id = "moy") %>%
-  cols_label(cluster = "", mean = "Comm.", weighted_mean = "Pop.") %>%
+  tab_spanner(label = "Total", columns = "mean", id = "moy") %>%
+  cols_label(cluster = "", mean = "") %>%
   tab_row_group(label = "Effectifs", rows = 1:2, id = "pop") %>%
   tab_row_group(label = "Outcomes", rows = 3:17, id = "out") %>%
   tab_row_group(label = "Régresseurs", rows = 18:46, id = "reg") %>%
@@ -716,19 +798,18 @@ means_tbl <- t_means %>%
   tab_style(
     style = list(
       cell_fill(color = "lightgrey"),
-      cell_text(style = "italic", align = "center", v_align = "top")),
+      cell_text(style = "italic", align = "center")),
     locations = cells_row_groups(groups = c("pop", "out", "reg"))) %>%
   tab_style(
     style = list(
       cell_text(style = "italic", align = "center")),
     locations = list(
-      cells_column_labels(columns = c("mean", "weighted_mean")), 
-      cells_body(columns = c("mean", "weighted_mean")))) %>%
+      cells_body(columns = "mean"))) %>%
  tab_style(
     style = list(
       cell_text(align = "center")),
     locations = list(
-      cells_column_labels(columns = c("1", "2", "3", "4", "5", "6", "7", "mean", "weighted_mean")),
+      cells_column_labels(columns = c("1", "2", "3", "4", "5", "6", "7", "mean")),
       locations = cells_body(columns = !matches("cluster"))))
 means_tbl
 gtsave(means_tbl, filename = "k7_means.tex", path = "output_transversal")
