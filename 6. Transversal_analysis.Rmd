@@ -527,7 +527,6 @@ means_tbl <- t_means %>%
     locations = list(
       cells_column_labels(columns = c("1", "2", "3", "4", "5", "6", "mean", "weighted_mean")),
       locations = cells_body(columns = !matches("cluster"))))
-
 means_tbl
 gtsave(means_tbl, filename = "k6_means.tex", path = "output_transversal")
 
@@ -663,6 +662,9 @@ means <- merge(means, cluster_counts, by.x = "cluster", by.y = "Var1")
 global_means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), .SDcols = variables_of_interest]
 global_means$cluster <- "mean"
 means <- rbind(means, global_means, fill = TRUE)
+global_means <- cluster_data[, lapply(.SD, function(x) weighted.mean(x, w = popcomm, na.rm = TRUE)), .SDcols = variables_of_interest]
+global_means$cluster <- "weighted_mean"
+means <- rbind(means, global_means, fill = TRUE)
 ## Expression des types de commune en %
 means[, paste0("type_comm_", 1:4)] <- lapply(means[, paste0("type_comm_", 1:4)], as.numeric)
 means[, paste0("type_comm_", 1:4)] <- means[, paste0("type_comm_", 1:4)] * 100
@@ -698,13 +700,14 @@ means_tbl <- t_means %>%
   tab_header(title = "Moyenne des variables par cluster") %>%
   data_color(
     method = "numeric",
-    columns = !matches("cluster|mean"),
+    columns = !matches("cluster|mean|weighted_means"),
     rows = 3:46,
     direction = "row",
     palette = "RColorBrewer::RdBu",
     alpha = 0.6) %>%
   tab_spanner(label = "Clusters", columns = c("1", "2", "3", "4", "5", "6", "7"), id = "clust") %>%
-  cols_label(cluster = "", mean = "Moy.") %>%
+  tab_spanner(label = "Moyennes", columns = c("mean", "weighted_mean"), id = "moy") %>%
+  cols_label(cluster = "", mean = "Comm.", weighted_mean = "Pop.") %>%
   tab_row_group(label = "Effectifs", rows = 1:2, id = "pop") %>%
   tab_row_group(label = "Outcomes", rows = 3:17, id = "out") %>%
   tab_row_group(label = "Régresseurs", rows = 18:46, id = "reg") %>%
@@ -719,13 +722,13 @@ means_tbl <- t_means %>%
     style = list(
       cell_text(style = "italic", align = "center")),
     locations = list(
-      cells_column_labels(columns = "mean"), 
-      cells_body(columns = "mean"))) %>%
+      cells_column_labels(columns = c("mean", "weighted_mean")), 
+      cells_body(columns = c("mean", "weighted_mean")))) %>%
  tab_style(
     style = list(
       cell_text(align = "center")),
     locations = list(
-      cells_column_labels(columns = c("1", "2", "3", "4", "5", "6", "7")),
+      cells_column_labels(columns = c("1", "2", "3", "4", "5", "6", "7", "mean", "weighted_mean")),
       locations = cells_body(columns = !matches("cluster"))))
 means_tbl
 gtsave(means_tbl, filename = "k7_means.tex", path = "output_transversal")
