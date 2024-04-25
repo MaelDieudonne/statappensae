@@ -216,7 +216,6 @@ plot <- ggplot(panel_data, aes(x = ppropri, y = as.factor(year), fill = ..x..)) 
     title = "Distribution du taux de propriétaires, 1965 - 2022",
     x = "",
     y = "") +
-  theme_minimal() +
   theme(
       legend.position = "none",
       plot.title = element_text(hjust = 0.5))
