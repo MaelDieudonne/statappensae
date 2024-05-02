@@ -101,7 +101,7 @@ plot <- ggplot(mca_data[is.finite(mca_data$ppropri), ], aes(x = ppropri)) +
   labs(title = "Distribution du taux de propriétaires en 2017",
        x = "Taux de propriétaires",
        y = "Nombre de communes") +
-  theme_minimal() +
+  theme_grey() +
   theme(plot.title = element_text(hjust = 0.5))
 
 print(plot)
@@ -641,18 +641,18 @@ draw_map_cluster <- function(region, base_width) {
 
   output_file <- paste0("output_transversal/clusters_2017_k6_", reg_abrv, ".png")
   title <- paste0("Clusters en ", reg_name)
-  legend_labels <- c("2" = "Centre des grandes villes",
-                     "3" = "Banlieues et zones périurbaines aisées",
-                     "4" = "Banlieues et villes pauvres",
-                     "5" = "Rural à dominante paysanne",
-                     "6" = "Rural précaire",
-                     "1" = "Périurbain populaire")
-  legend_colors <- c("2" = "blue",
-                     "3" = "skyblue",
-                     "4" = "aquamarine",
-                     "5" = "darkgreen",
-                     "6" = "limegreen",
-                     "1" = "lightgreen")
+  legend_labels <- c("1" = "Centre des grandes villes",
+                     "2" = "Banlieues et villes pauvres",
+                     "5" = "Banlieues et zones périurbaines aisées",
+                     "4" = "Périurbain populaire",
+                     "3" = "Rural précaire",
+                     "6" = "Rural à dominante paysanne")
+  legend_colors <- c("1" = "blue3",
+                     "2" = "cornflowerblue",
+                     "5" = "lightskyblue1",
+                     "6" = "darkgreen",
+                     "3" = "limegreen",
+                     "4" = "lightgreen")
 
   # Exportation d'une carte en haute résolution
   ## Calcul des dimensions
