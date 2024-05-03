@@ -224,6 +224,9 @@ panel_data[pchom > 1, pchom := NA]
 
 # Une entrée dépourvue de valeur pour le codecommune apparaît aussi : on la supprime.
 panel_data <- panel_data[nchar(panel_data$codecommune) >= 5, ]
+
+# On élimine les arrondissements de Lyon et Marseille.
+panel_data <- subset(panel_data, !(codecommune %in% c(69381:69389, 13201:13216)))
 ```
 
 ```{r}
@@ -450,6 +453,7 @@ background_plm <- load_shapefile("ARRONDISSEMENT_MUNICIPAL.shx")
 background_plm$INSEE_REG <- ifelse(startsWith(background_plm$INSEE_ARM, "13"), 93,
                                     ifelse(startsWith(background_plm$INSEE_ARM, "69"), 84,
                                            ifelse(startsWith(background_plm$INSEE_ARM, "75"), 11, NA)))
+background_plm <- subset(background_plm, INSEE_REG == 11)
 background_plm <- subset(background_plm, select = -INSEE_COM)
 setnames(background_plm, old = "INSEE_ARM", new = "INSEE_COM")
 
