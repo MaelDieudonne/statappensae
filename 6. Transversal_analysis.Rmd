@@ -32,10 +32,10 @@ full_mca_regressors <- c("ppropri", "popcomm", "popagglo", "age", "prop014", "pr
 ```{r}
 nb_communes <- uniqueN(mca_data, by = "codecommune")
 
-outcomes <- c("part_T1", "GD_ratio_T1", "EC_ratio_T1", "part_T2", "EC_ratio_T2","DIns_ratio_T1", "GIns_ratio_T1", "EIns_ratio_T1", "CIns_ratio_T1", "CIns_ratio_T2", "EIns_ratio_T2")
+outcomes <- c("part_T1", "part_T2", "GD_ratio_T1", "EC_ratio_T1", "EC_ratio_T2","DIns_ratio_T1", "GIns_ratio_T1", "EIns_ratio_T1", "CIns_ratio_T1", "CIns_ratio_T2", "EIns_ratio_T2")
 
 stat_desc <- data.table()
-for (col in c(outcomes, full_mca_regressors)) {
+for (col in c(outcomes)) {
   summary <- mca_data[, {
     fivenum_values <- fivenum(get(col))
     nan_count <- sum(is.na(get(col)))
@@ -62,19 +62,14 @@ stat_desc_tbl <- stat_desc %>%
   tab_spanner(label = "Valeurs", columns = c("Min", "1er quart.", "Médiane", "3e quart.", "Max"), id = "values") %>%
   tab_spanner(label = "NaN", columns = c("Σ", "%"), id = "nan") %>%
   cols_label(Variable = "") %>%
-  tab_row_group(label = "Outcomes", rows = 1:11, id = "out") %>%
-  tab_row_group(label = "Régresseurs", rows = 12:37, id = "reg") %>%
-  row_group_order(groups = c("out", "reg")) %>%
+  tab_row_group(label = "Approche séquentielle de la participation", rows = 1:5, id = "rel") %>%
+  tab_row_group(label = "Approche simultanée de la participation", rows = 6:11, id = "abs") %>%
+  row_group_order(groups = c("rel", "abs")) %>%
   tab_style(
     style = list(
       cell_fill(color = "lightgrey"),
-      cell_text(style = "italic", align = "center", v_align = "top")),
-    locations = cells_row_groups(groups = c("out", "reg"))) %>%
-  tab_style(
-    style = list(
       cell_text(style = "italic", align = "center")),
-    locations = list(
-      cells_column_labels())) %>%
+    locations = cells_row_groups(groups = c("rel", "abs"))) %>%
   tab_style(
     style = list(
       cell_borders(sides = "right", color = "lightgrey", style = "solid", weight = px(1))),
@@ -85,7 +80,7 @@ stat_desc_tbl <- stat_desc %>%
     locations = cells_body(columns = !matches("Variable")))
 
 stat_desc_tbl
-gtsave(stat_desc_tbl, filename = "stat_desc_acp.tex", path = "output_panel")
+gtsave(stat_desc_tbl, filename = "stat_desc_outcomes.tex", path = "output_transversal")
 
 rm(col, nb_communes, stat_desc, stat_desc_tbl, summary, outcomes)
 ```
@@ -246,7 +241,17 @@ result <- PCA(mca_data_subset, scale.unit = TRUE, quanti.sup=quant_regressors, n
 
 # Résultats
 ## Histogramme de la contribution des axes à la variance totale
-fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 40), title = "Histogramme de l'inertie totale") 
+screeplot <- fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 30), title = "Histogramme de l'inertie totale")
+screeplot$layers[[1]]$aes_params$fill <- "lightskyblue"
+screeplot$layers[[1]]$aes_params$colour <- "cornflowerblue"
+screeplot$layers[[2]]$aes_params$colour <- "darkblue"
+screeplot$layers[[3]]$aes_params$colour <- "darkblue"
+screeplot$layers[[4]]$aes_params$colour <- "darkblue"
+screeplot$theme$plot.title$hjust <- 0.5
+screeplot$labels$x <- "Dimensions"
+screeplot$labels$y <- "% de variance expliquée"
+screeplot
+ggsave("output_transversal/screeplot_ACP1.png", plot = screeplot, width = 10, height = 6, units = "in", dpi = 300)
 
 ## Contribution des variables aux axes (comportements électoraux seulement)
 ## Correspond à la qualité de représentation des variables (= cos2) normalisée entre 1 et 100
@@ -270,6 +275,8 @@ axis_tbl <- axis_df %>%
     style = cell_fill(color = "lightgrey"),
     locations = cells_column_labels(columns = c("1", "3", "5", "7", "9"))) 
 axis_tbl
+gtsave(axis_tbl, filename = "contrib_axes_acp1.tex", path = "output_transversal")
+
 ## ... ou d'un corrplot
 corrplot(result$var$contrib, title = "Contribution des variables à l'inertie des axes", is.corr = FALSE, col.lim = c(0, 100), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 
@@ -288,7 +295,7 @@ corrplot(result$var$cos2[, 1:3], title = "Qualité de représentation des variab
 corrplot(result$quanti.sup$cos2[, 1:3], title = "Qualité de représentation des régresseurs", is.corr = FALSE, col.lim = c(0, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 
 # Nettoyage
-rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, quant_regressors, result, variables_of_interest)
+rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, quant_regressors, result, variables_of_interest, screeplot)
 ```
 
 ## Sur l'ensemble des variables
@@ -313,7 +320,17 @@ result <- PCA(mca_data_subset, scale.unit = TRUE, ncp = 10, graph = FALSE)
 
 # Résultats
 ## Histogramme de la contribution des axes à la variance totale
-fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 40), title = "Histogramme de l'inertie totale") 
+screeplot <- fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 30), title = "Histogramme de l'inertie totale")
+screeplot$layers[[1]]$aes_params$fill <- "lightskyblue"
+screeplot$layers[[1]]$aes_params$colour <- "cornflowerblue"
+screeplot$layers[[2]]$aes_params$colour <- "darkblue"
+screeplot$layers[[3]]$aes_params$colour <- "darkblue"
+screeplot$layers[[4]]$aes_params$colour <- "darkblue"
+screeplot$theme$plot.title$hjust <- 0.5
+screeplot$labels$x <- "Dimensions"
+screeplot$labels$y <- "% de variance expliquée"
+screeplot
+ggsave("output_transversal/screeplot_ACP2.png", plot = screeplot, width = 10, height = 6, units = "in", dpi = 300)
 
 ## Contribution des variables aux axes (comportements électoraux seulement)
 ## Correspond à la qualité de représentation des variables (= cos2) normalisée entre 1 et 100
@@ -345,6 +362,7 @@ axis_tbl <- axis_df %>%
     style = cell_fill(color = "lightgrey"),
     locations = cells_column_labels(columns = c("1", "3", "5", "7", "9"))) 
 axis_tbl
+gtsave(axis_tbl, filename = "contrib_axes_acp2.tex", path = "output_transversal")
 
 ## ... ou d'un corrplot
 corrplot(result$var$contrib, title = "Contribution des variables à l'inertie des axes", is.corr = FALSE, col.lim = c(0, 100), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
@@ -364,7 +382,7 @@ corrplot(result$var$cos2[1:15, 1:3], title = "Qualité de représentation des ou
 corrplot(result$var$cos2[16:44, 1:3], title = "Qualité de représentation des régresseurs", is.corr = FALSE, col.lim = c(0, 1), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
 
 # Nettoyage
-rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, result, variables_of_interest)
+rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, result, variables_of_interest, screeplot)
 ```
 
 # K-means
@@ -511,7 +529,7 @@ means_tbl <- t_means %>%
     tab_style(
     style = list(
       cell_fill(color = "lightgrey"),
-      cell_text(style = "italic", align = "center", v_align = "top")),
+      cell_text(style = "italic", align = "center")),
     locations = cells_row_groups(groups = c("pop", "out", "reg"))) %>%
   tab_style(
     style = list(
@@ -637,7 +655,7 @@ draw_map_cluster <- function(region, base_width) {
     reg_abrv <- "FR"
   }
 
-  output_file <- paste0("output_transversal/map_ppropri/clusters_", reg_abrv, ".png")
+  output_file <- paste0("output_transversal/map_clusters/clusters_", reg_abrv, ".png")
   title <- paste0("Clusters en ", reg_name)
   legend_labels <- c("1" = "Centre des grandes villes",
                      "2" = "Banlieues et villes pauvres",
