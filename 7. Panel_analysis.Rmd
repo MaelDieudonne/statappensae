@@ -196,9 +196,7 @@ plot <- ggplot(quantiles_df, aes(x = year, y = ppropri, color = as.factor(quinti
        y = "", 
        color = "Déciles") +
   theme_grey() +
-  theme(
-    plot.title = element_text(hjust = 0.5)
-  )
+  theme(plot.title = element_text(hjust = 0.5))
 
 print(plot)
 ggsave("output_panel/deciles_taux_proprietaires_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
@@ -420,7 +418,7 @@ get_coeffs <- function(model, outcome_name) {
   years <- sub("^year(\\d+):.*", "\\1", rownames(coefficients))
   coefficients$year <- years
   coefficients$outcome <- outcome_name
-
+  
   variance <- as.data.frame(model$vcov)
   variance <- variance[grep("ppropri$", rownames(variance)), grep("ppropri$", colnames(variance)), drop = FALSE]
   variance <- diag(as.matrix(variance))
@@ -459,7 +457,10 @@ plot <- ggplot(coefficients) +
        color = "Coefficient",
        fill = "95 % IC") +
   theme_grey() +
-  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    panel.grid.minor = element_blank())
 print(plot)
 ggsave("output_panel/ppropri_panel_coeffs.png", plot, width = 8, height = 6, dpi = 300)
 
@@ -579,7 +580,8 @@ get_coeffs <- function(model, outcome_name) {
   years <- sub("^year(\\d+):.*", "\\1", rownames(coefficients))
   coefficients$year <- years
   coefficients$outcome <- outcome_name
-
+  print(confint(model))
+  
   variance <- as.data.frame(model$vcov)
   variance <- variance[grep("ppropri$", rownames(variance)), grep("ppropri$", colnames(variance)), drop = FALSE]
   variance <- diag(as.matrix(variance))
@@ -618,9 +620,11 @@ plot <- ggplot(coefficients) +
        color = "Coefficient",
        fill = "95 % IC") +
   theme_grey() +
-  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    panel.grid.minor = element_blank())
 print(plot)
-ggsave("output_panel/ppropri_panel_coeffs_abs.png", plot, width = 8, height = 6, dpi = 300)
+ggsave("output_panel/ppropri_reg_coeffs.png", plot, width = 8, height = 6, dpi = 300)
 
 rm(part, GD_ratio, EC_ratio, coefficients, plot)
 ```
@@ -637,7 +641,7 @@ rm(relative_results)
 On peut confirmer le constat d'une variabilité des effets de ppropri en réalisant des régressions années par années, et en traçant l'évolution de son coefficient. La différence avec les panels précédents est que les coefficients des autres variables sont désormais libres au cours du temps ?
 
 ```{r}
-results <- data.frame(year = integer(), "part_T1" = numeric(), "part_T2" = numeric(), "GD_ratio_T1" = numeric(), "GD_ratio_T2" = numeric(), "EC_ratio_T1" = numeric(), "EC_ratio_T2" = numeric(), "R2_adj" = numeric())
+results <- data.frame(year = integer(), "part_T1" = numeric(), "part_T2" = numeric(), "GD_ratio_T1" = numeric(), "GD_ratio_T2" = numeric(), "EC_ratio_T1" = numeric(), "EC_ratio_T2" = numeric(), "R2_adj" = numeric(), "CI_low" = numeric(), "CI_up" = numeric())
 
 for (outcome in relative_outcomes) {
   for (yr in unique(panel_data$year)) {
@@ -645,7 +649,7 @@ for (outcome in relative_outcomes) {
     regression_formula <- as.formula(paste(outcome, "~", paste(panel_regressors, collapse = "+")))
     tryCatch({
       model <- lm(regression_formula, data = subset_data)
-      results <- rbind(results, data.frame(outcome = outcome, year = yr, coef_ppropri = coef(model)["ppropri"], r2_adj = summary(model)$adj.r.squared))
+      results <- rbind(results, data.frame(outcome = outcome, year = yr, coef_ppropri = coef(model)["ppropri"], CI_low = (confint(model)["ppropri", 1]), CI_up = (confint(model)["ppropri", 2]), r2_adj = summary(model)$adj.r.squared))
       }, error = function(e) {
         results <- rbind(results, data.frame(outcome = outcome, year = yr, coef_ppropri = NA, r2_adj = NA))
     })
@@ -654,25 +658,43 @@ for (outcome in relative_outcomes) {
 
 ggplot(results, aes(x = year, y = r2_adj, color = outcome, group = outcome)) +
   geom_line() +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
   scale_x_continuous(breaks = unique(results$year)) +
+  scale_color_manual(
+    values = c("part_T1" = "blue", "GD_ratio_T1" = "darkorange", "EC_ratio_T1" = "limegreen"),
+    labels = c("part_T1" = "Participation", "GD_ratio_T1" = "GD Ratio", "EC_ratio_T1" = "EC Ratio")) +
   labs(title = "R2 ajusté des régressions annuelles",
        x = "Année",
        y = "R2 ajusté",
        color = "Outcome") +
   theme_grey() +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    panel.grid.minor = element_blank())
 
-ggplot(results, aes(x = year, y = coef_ppropri, color = outcome, group = outcome)) +
-  geom_line() +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
+plot <- ggplot(results) +
+  geom_line(aes(x = year, y = coef_ppropri, group = outcome, color = outcome)) +
+  geom_line(aes(x = year, y = CI_low, group = outcome, color = outcome, ), linetype = "dashed", alpha = 0.5) +
+  geom_line(aes(x = year, y = CI_up, group = outcome, color = outcome, ), linetype = "dashed", alpha = 0.5) + 
+  geom_ribbon(aes(x = year, ymin = CI_low, ymax = CI_up, group = outcome, fill = outcome), alpha = 0.3) +
+  geom_hline(yintercept = 0, linetype = "twodash", color = "gray40") + 
   scale_x_continuous(breaks = unique(results$year)) +
-  labs(title = "Coefficients de pprori dans les régressions annuelles",
+  scale_color_manual(
+    values = c("part_T1" = "blue", "GD_ratio_T1" = "darkorange", "EC_ratio_T1" = "limegreen"),
+    labels = c("part_T1" = "Participation", "GD_ratio_T1" = "GD Ratio", "EC_ratio_T1" = "EC Ratio")) +
+  scale_fill_manual(
+    values = c("part_T1" = "skyblue", "GD_ratio_T1" = "orange", "EC_ratio_T1" = "lightgreen"),
+    labels = c("part_T1" = "Participation", "GD_ratio_T1" = "GD Ratio", "EC_ratio_T1" = "EC Ratio")) +
+  labs(title = "Coefficients de ppropri dans les régressions annuelles",
        x = "Année",
-       y = "Coefficient",
-       color = "Outcome") +
+       y = "",
+       color = "Coefficient",
+       fill = "95 % IC") +
   theme_grey() +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    panel.grid.minor = element_blank())
+print(plot)
+ggsave("output_panel/ppropri_panel_coeffs_abs.png", plot, width = 8, height = 6, dpi = 300)
 
 rm(results, outcome, yr, subset_data, regression_formula, model)
 ```
@@ -701,24 +723,32 @@ pseudo_quant_reg <- function(outcome) {
   
   plot_r2 <- ggplot(R2_df, aes(x = year, y = R2, color = quantile, group = quantile)) +
     geom_line() +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") +
+    geom_hline(yintercept = 0, linetype = "twodash", color = "gray40") + 
     scale_x_continuous(breaks = unique(R2_df$year)) + 
-    labs(title = paste("R2 des régressions pseudo-quantiles de", outcome), subtitle ="(quantiles variables)",
+    labs(title = paste("R2 des régressions pseudo-quantiles de", outcome), subtitle ="(quartiles mobiles)",
          x = "Année",
-         y = "R2") +
+         y = "R2",
+         color = "Quartiles") +
     theme_grey() +
-    theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      panel.grid.minor = element_blank())
   print(plot_r2)
   
   plot_coef <- ggplot(coefs_df, aes(x = year, y = coefficient, color = quantile, group = quantile)) +
     geom_line() +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") +
+    geom_hline(yintercept = 0, linetype = "twodash", color = "gray40") + 
     scale_x_continuous(breaks = unique(coefs_df$year)) +
-    labs(title = paste("Coefficients de ppropri dans les régressions pseudo-quantiles de", outcome), subtitle ="(quantiles variables)",
+    labs(title = paste("Coefficients de ppropri dans les régressions pseudo-quantiles de", outcome), subtitle ="(quartiles mobiles)",
          x = "Année",
-         y = "Coefficient") +
+         y = "Coefficient",
+         color = "Quartiles") +
     theme_grey() +
-    theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      panel.grid.minor = element_blank())
   print(plot_coef)
 }
 
@@ -755,24 +785,32 @@ pseudo_quant_reg <- function(outcome) {
   
   plot_r2 <- ggplot(R2_df, aes(x = year, y = R2, color = quantile, group = quantile)) +
     geom_line() +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") +
+    geom_hline(yintercept = 0, linetype = "twodash", color = "gray40") + 
     scale_x_continuous(breaks = unique(R2_df$year)) +  
     labs(title = paste("R2 des régressions pseudo-quantiles de", outcome), subtitle ="(quantiles absolus)",
          x = "Année",
-         y = "R2") +
+         y = "R2",
+         color = "Quantiles") +
     theme_grey() +
-    theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      panel.grid.minor = element_blank())
   print(plot_r2)
   
   plot_coef <- ggplot(coefs_df, aes(x = year, y = coefficient, color = quantile, group = quantile)) +
     geom_line() +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
+    geom_hline(yintercept = 0, linetype = "twodash", color = "gray40") + 
     scale_x_continuous(breaks = unique(coefs_df$year)) + 
     labs(title = paste("Coefficients de ppropri dans les régressions pseudo-quantiles de", outcome), subtitle ="(quantiles absolus)",
          x = "Année",
-         y = "Coefficient") +
+         y = "Coefficient",
+         color = "Quantiles") +
     theme_grey() +
-    theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      panel.grid.minor = element_blank())
   print(plot_coef)
 }
 
@@ -782,7 +820,6 @@ rm(pseudo_quant_reg, outcome)
 ```
 
 ```{r}
-# Tentative pour tracer le nombre de communes avec ppropri >= 95%
 ppropri_df <- data.frame(year = integer(), sum_comm = numeric(), sum_pop = numeric())
 
 for (yr in unique(panel_data$year)) {
@@ -796,11 +833,14 @@ for (yr in unique(panel_data$year)) {
 plot_counts <- ggplot(ppropri_df, aes(x = year, y = sum_comm)) +
   geom_line(color = "skyblue") +
   scale_x_continuous(breaks = unique(ppropri_df$year)) +  
-  labs(title = "Nombre de communes où ppropri >95%",
+  labs(title = "Nombre de communes où le taux de propriétaires est >95%",
        x = "Année",
        y = "Effectifs") +
   theme_grey() +
-  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+  theme(
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      panel.grid.minor = element_blank())
 print(plot_counts)
 
 rm(ppropri_df, plot_counts)
@@ -826,14 +866,16 @@ quant_reg <- function(outcome) {
   
   plot_coef <- ggplot(coefs_df, aes(x = year, y = coefficient, color = factor(quantile))) +
     geom_line() +
-    geom_point() +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "darkgrey") + 
+    geom_hline(yintercept = 0, linetype = "twodash", color = "gray40") + 
     scale_x_continuous(breaks = unique(coefs_df$year)) +   
     labs(title = paste("Coefficients de ppropri dans les régressions quantiles de", outcome),
          x = "Année", y = "Coefficient") +
     scale_color_discrete(name = "Quantile") +
     theme_grey() +
-    theme(plot.title = element_text(hjust = 0.5))
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      panel.grid.minor = element_blank())
   print(plot_coef)
 }
 
