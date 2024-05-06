@@ -241,7 +241,7 @@ result <- PCA(mca_data_subset, scale.unit = TRUE, quanti.sup=quant_regressors, n
 
 # Résultats
 ## Histogramme de la contribution des axes à la variance totale
-screeplot <- fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 30), title = "Histogramme de l'inertie totale")
+screeplot <- fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 30), title = "Histogramme de l'inertie totale") + theme_gray()
 screeplot$layers[[1]]$aes_params$fill <- "lightskyblue"
 screeplot$layers[[1]]$aes_params$colour <- "cornflowerblue"
 screeplot$layers[[2]]$aes_params$colour <- "darkblue"
@@ -320,7 +320,7 @@ result <- PCA(mca_data_subset, scale.unit = TRUE, ncp = 10, graph = FALSE)
 
 # Résultats
 ## Histogramme de la contribution des axes à la variance totale
-screeplot <- fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 30), title = "Histogramme de l'inertie totale")
+screeplot <- fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 30), title = "Histogramme de l'inertie totale") + theme_gray()
 screeplot$layers[[1]]$aes_params$fill <- "lightskyblue"
 screeplot$layers[[1]]$aes_params$colour <- "cornflowerblue"
 screeplot$layers[[2]]$aes_params$colour <- "darkblue"
