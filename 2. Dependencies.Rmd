@@ -45,6 +45,8 @@ rm(installed_packages, packages)
 if (!dir.exists("data_main")) {dir.create("data_main")}
 if (!dir.exists("output_panel")) {dir.create("output_panel")}
 if (!dir.exists("output_transversal")) {dir.create("output_transversal")}
+if (!dir.exists("output_transversal/map_ppropri")) {dir.create("output_transversal/map_ppropri")}
+if (!dir.exists("output_transversal/map_clusters")) {dir.create("output_transversal/map_clusters")}
 ```
 
 # Fonctions

@@ -127,7 +127,7 @@ draw_map <- function(region, mapped_var, mapped_var_name, base_width) {
 
   # Création des chemins
   title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n", reg_name, ", 2017")
-  output_file <- paste0("output_transversal/", mapped_var, "_2017_", reg_abrv, ".png")
+  output_file <- paste0("output_transversal/map_ppropri/", mapped_var, "_2017_", reg_abrv, ".png")
   
   # Exportation d'une carte en haute résolution
   ## Calcul des dimensions
@@ -138,7 +138,7 @@ draw_map <- function(region, mapped_var, mapped_var_name, base_width) {
   ## Création et enregistrement
   plot_png <- ggplot() +
     geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
-    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 1)) +
+    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 1), limits = c(0, 100)) +
     ggtitle(paste(title)) +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5, size = font_size),
@@ -152,7 +152,7 @@ draw_map <- function(region, mapped_var, mapped_var_name, base_width) {
   # Affichage d'une carte en résolution normale
   display_plot <- ggplot() +
     geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
-    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 1)) +
+    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 1), limits = c(0, 100)) +
     ggtitle(paste(title)) +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5),
@@ -188,11 +188,10 @@ dev.off()
 rm(corr_variables, correlation_matrix, mca_corr_data, p_values)
 ```
 
-# Régression linéaire simple
+# Régressions linéaires simples
 
 ```{r}
 mca_data$type_comm <- factor(mca_data$type_comm)
-
 relative_results <- list()
 for (outcome in mca_relative_outcomes_2T) {
   regression_formula <- as.formula(paste(outcome, "~", paste(mca_regressors, collapse = "+")))
@@ -200,7 +199,10 @@ for (outcome in mca_relative_outcomes_2T) {
   relative_results[[model_name]] <- lm(regression_formula, data = mca_data)
 }
 suppressWarnings(stargazer(relative_results, type = "text"))
+```
 
+```{r}
+mca_data$type_comm <- factor(mca_data$type_comm)
 absolute_results <- list()
 for (outcome in mca_absolute_outcomes_2T) {
   regression_formula <- as.formula(paste(outcome, "~", paste(mca_regressors, collapse = "+")))
@@ -208,14 +210,12 @@ for (outcome in mca_absolute_outcomes_2T) {
   absolute_results[[model_name]] <- lm(regression_formula, data = mca_data)
 }
 suppressWarnings(stargazer(absolute_results, type = "text"))
-
-rm(model_name, outcome, regression_formula)
 ```
 
 ```{r include=FALSE}
 suppressWarnings(stargazer(relative_results, type = "latex", out = "output_transversal/2017_relative_results.tex"))
 suppressWarnings(stargazer(relative_results, type = "latex", out = "output_transversal/2017_absolute_results.tex"))
-rm(relative_results,absolute_results)
+rm(model_name, outcome, regression_formula, relative_results,absolute_results)
 ```
 
 # ACP
@@ -412,8 +412,6 @@ rm(regressors, mca_data_subset, kmeans_model, wcss, silhouette_avg, sil)
 ```
 
 ## Classification avec k=6
-
-Les résultats invitent à choisir k = 6 ou 7. On commence par 6.
 
 ```{r}
 set.seed(789)
@@ -622,9 +620,9 @@ rm(cluster_counts, columns, dummies, first_rows, global_means, kmeans_result, la
 
 Les résultats sont plus intéressants, avec des clusters qui se différencient nettement.
 
-NB : les données sur le RSA sont manquantes pour la Corse. Celle-ci est donc exclue de la classification !
+NB : les données sur le RSA sont manquantes pour la Corse, ainsi que les villes de Lyon et Marseille. Celles-ci sont donc exclues de la classification !
 
-### Cartes
+## Cartes
 
 ```{r}
 draw_map_cluster <- function(region, base_width) {
@@ -639,7 +637,7 @@ draw_map_cluster <- function(region, base_width) {
     reg_abrv <- "FR"
   }
 
-  output_file <- paste0("output_transversal/clusters_2017_k6_", reg_abrv, ".png")
+  output_file <- paste0("output_transversal/map_ppropri/clusters_", reg_abrv, ".png")
   title <- paste0("Clusters en ", reg_name)
   legend_labels <- c("1" = "Centre des grandes villes",
                      "2" = "Banlieues et villes pauvres",
@@ -653,203 +651,6 @@ draw_map_cluster <- function(region, base_width) {
                      "6" = "darkgreen",
                      "3" = "limegreen",
                      "4" = "lightgreen")
-
-  # Exportation d'une carte en haute résolution
-  ## Calcul des dimensions
-  bbox <- st_bbox(carto)
-  aspect_ratio <- diff(c(bbox$xmin, bbox$xmax)) / diff(c(bbox$ymin, bbox$ymax))
-  base_height <- base_width / aspect_ratio
-  font_size <- base_width * 2.2
-  ## Création et enregistrement
-  plot_png <- ggplot() +
-    geom_sf(data = carto, aes(fill = .data[["cluster"]])) +
-    ggtitle(paste(title)) +
-    theme_minimal() +
-    theme(plot.title = element_text(hjust = 0.5, size = font_size),
-          axis.text = element_blank(),
-          panel.grid = element_blank(),
-          plot.title.position = "plot",
-          legend.title = element_text(size = font_size * 0.8),
-          legend.text = element_text(size = font_size * 0.5)) +
-    scale_fill_manual(values = legend_colors,
-                      breaks = names(legend_labels),
-                      labels = legend_labels,
-                      name = NULL)
-  ggsave(output_file, plot = plot_png, width = base_width, height = base_height, units = "in")
-  
-  display_plot <- ggplot() +
-    geom_sf(data = carto, aes(fill = .data[["cluster"]])) +
-    ggtitle(paste(title)) +
-    theme_minimal() +
-    theme(plot.title = element_text(hjust = 0.5),
-          axis.text = element_blank(),
-          panel.grid = element_blank(),
-          plot.title.position = "plot",
-          legend.title = element_text(),
-          legend.text = element_text()) +
-    scale_fill_manual(values = legend_colors,
-                      breaks = names(legend_labels),
-                      labels = legend_labels,
-                      name = NULL)
-    print(display_plot)
-}
-
-for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {
-  draw_map_cluster(i, 12)
-}
-
-rm(cluster_data, i)
-```
-
-## Classification avec k=7
-
-On essaye maintenant avec 7 clusters.
-
-```{r}
-set.seed(123)
-
-# Préparation des données
-## Sélection des variables
-regressors <- c("codecommune", full_mca_regressors)
-regressors <- setdiff(regressors, "popagglo")
-mca_data_subset <- detailed_mca_data[, ..regressors]
-mca_data_subset <- na.omit(mca_data_subset)
-## Création d'indicatrices pour les types de communes
-mca_data_subset$type_comm <- as.factor(mca_data_subset$type_comm)
-dummies <- model.matrix(~ type_comm - 1, data = mca_data_subset)
-colnames(dummies) <- paste0("type_comm_", 1:ncol(dummies))
-mca_data_subset <- cbind(mca_data_subset, dummies)
-mca_data_subset$type_comm <- NULL
-## Normalisation
-scaling_regressors <- setdiff(full_mca_regressors, c("popagglo", "type_comm"))
-regressors <- c(scaling_regressors, paste0("type_comm_", 1:4))
-mca_data_subset_scaled <- mca_data_subset[, ..regressors]
-mca_data_subset_scaled[, (scaling_regressors) := lapply(.SD, scale), .SDcols = scaling_regressors]
-
-# Détermination des clusters et ajout des variables électorales
-kmeans_result <- kmeans(mca_data_subset_scaled, centers = 7)
-mca_data_subset$cluster <- kmeans_result$cluster
-columns <- c("codecommune", "cluster", paste0("type_comm_", 1:4))
-cluster_data <- mca_data_subset[, ..columns, drop = FALSE]
-cluster_data <- merge(cluster_data, detailed_mca_data, by = "codecommune")
-
-# Analyse des résultats
-## Calcul des moyennes par cluster
-variables_of_interest <- c(mca_detailed_outcomes, full_mca_regressors, paste0("type_comm_", 1:4))
-variables_of_interest <- setdiff(variables_of_interest, "type_comm")
-means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), by = cluster, .SDcols = variables_of_interest]
-## Calcul des effectifs des clusters
-sum <- cluster_data[, .(Population = sum(popcomm, na.rm = TRUE)), by = cluster]
-means <- merge(means, sum, by = "cluster")
-means$cluster <- as.factor(means$cluster)
-cluster_counts <- as.data.frame(table(cluster_data$cluster))
-means <- merge(means, cluster_counts, by.x = "cluster", by.y = "Var1")
-## Calcul des moyennes pour la population
-global_means <- cluster_data[, lapply(.SD, mean, na.rm = TRUE), .SDcols = variables_of_interest]
-global_means$cluster <- "mean"
-means <- rbind(means, global_means, fill = TRUE)
-## Expression des types de commune en %
-means[, paste0("type_comm_", 1:4)] <- lapply(means[, paste0("type_comm_", 1:4)], as.numeric)
-means[, paste0("type_comm_", 1:4)] <- means[, paste0("type_comm_", 1:4)] * 100
-means$cluster <- as.character(means$cluster)
-## Transposition pour afficher les clusters en colonne
-t_means <- t(means)
-t_means <- data.frame(matrix = rownames(t_means), t_means, row.names = NULL)
-colnames(t_means) <- t_means[1, ]
-t_means <- t_means[-1, ]
-t_means[setdiff(names(t_means), "cluster")] <- lapply(t_means[setdiff(names(t_means), "cluster")], as.numeric)
-## Réarrangement des lignes
-first_rows <- t_means[-((nrow(t_means) - 1):nrow(t_means)), ]
-last_rows <- t_means[(nrow(t_means) - 1):nrow(t_means), ]
-t_means <- rbind(last_rows, first_rows)
-t_means$cluster[2] <- "Communes"
-## Intervalle sur lequel appliquer la coloration (afin qu'elle soit centrée sur la moyenne de la population plutôt que des clusters)
-t_means <- as.data.frame(t_means)
-t_means$min <- apply(t_means[, 2:8], 1, min)
-t_means$max <- apply(t_means[, 2:8], 1, max)
-t_means$diff_min <- t_means$mean - t_means$min
-t_means$diff_max <- t_means$max - t_means$mean
-t_means$spread <- pmax(t_means$diff_min, t_means$diff_max)
-t_means$range_inf <- t_means$mean - t_means$spread
-t_means$range_sup <- t_means$mean + t_means$spread
-t_means <- subset(t_means, select = -c(min, max, diff_min, diff_max, spread))
-## Création du tableau avec gt
-means_tbl <- t_means %>%
-  gt() %>%
-  fmt_number(rows = 3:46, decimals = 2, drop_trailing_zeros = TRUE) %>%
-  fmt_number(rows = (c(1,19,20)), decimals = 0, scale_by = 1000) %>%
-  fmt_number(rows = (c(2,40,42)), decimals = 0) %>%
-  cols_hide(c("range_inf", "range_sup")) %>%
-  tab_header(title = "Moyenne des variables par cluster") %>%
-  data_color(
-    method = "numeric",
-    columns = !matches("cluster|mean"),
-    rows = 3:46,
-    direction = "row",
-    palette = "RColorBrewer::RdBu",
-    alpha = 0.6) %>%
-  tab_spanner(label = "Clusters", columns = c("1", "2", "3", "4", "5", "6", "7"), id = "clust") %>%
-  tab_spanner(label = "Total", columns = "mean", id = "moy") %>%
-  cols_label(cluster = "", mean = "") %>%
-  tab_row_group(label = "Effectifs", rows = 1:2, id = "pop") %>%
-  tab_row_group(label = "Outcomes", rows = 3:17, id = "out") %>%
-  tab_row_group(label = "Régresseurs", rows = 18:46, id = "reg") %>%
-  row_group_order(groups = c("pop", "out", "reg")) %>%
-  sub_missing(missing_text = "-") %>%
-  tab_style(
-    style = list(
-      cell_fill(color = "lightgrey"),
-      cell_text(style = "italic", align = "center")),
-    locations = cells_row_groups(groups = c("pop", "out", "reg"))) %>%
-  tab_style(
-    style = list(
-      cell_text(style = "italic", align = "center")),
-    locations = list(
-      cells_body(columns = "mean"))) %>%
- tab_style(
-    style = list(
-      cell_text(align = "center")),
-    locations = list(
-      cells_column_labels(columns = c("1", "2", "3", "4", "5", "6", "7", "mean")),
-      locations = cells_body(columns = !matches("cluster"))))
-means_tbl
-gtsave(means_tbl, filename = "k7_means.tex", path = "output_transversal")
-
-# Nettoyage
-rm(cluster_counts, columns, dummies, first_rows, global_means, kmeans_result, last_rows, mca_data_subset, mca_data_subset_scaled, means, means_tbl, regressors, scaling_regressors, sum, t_means, variables_of_interest)
-```
-
-### Cartes
-
-```{r}
-draw_map_cluster <- function(region, base_width) {
-  carto <- merge(map_data, cluster_data, by.x = "INSEE_COM", by.y = "codecommune", all.x = TRUE)
-  carto[["cluster"]] <- factor(carto[["cluster"]])
-  if (region != 0) {
-    carto <- subset(carto, INSEE_REG == region)
-    reg_name <- codes_regions$LIBELLE[codes_regions$REG == region]
-    reg_abrv <- codes_regions$ABRV[codes_regions$REG == region]
-  } else {
-    reg_name <- "France"
-    reg_abrv <- "FR"
-  }
-
-  output_file <- paste0("output_transversal/clusters_2017_k7_", reg_abrv, ".png")
-  title <- paste0("Clusters en ", reg_name)
-  legend_labels <- c("2" = "Centre des grandes villes, vote contrasté",
-                     "7" = "Banlieues et périurbain aisés, vote C",
-                     "3" = "Périurbain à dominante inter., vote moyen",
-                     "1" = "Banlieues et villages populaires, vote G",
-                     "5" = "Rural à dominante agricole, vote D",
-                     "4" = "Rural à dominante ouvrière, vote E",
-                     "6" = "Rural à dominante indép. & empl., vote moyen")
-  legend_colors <- c("2" = "darkblue",
-                     "7" = "cornflowerblue",
-                     "3" = "skyblue",
-                     "1" = "aquamarine",
-                     "5" = "darkgreen",
-                     "4" = "limegreen",
-                     "6" = "lightgreen")
 
   # Exportation d'une carte en haute résolution
   ## Calcul des dimensions
