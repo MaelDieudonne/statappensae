@@ -105,7 +105,8 @@ plot <- ggplot(graph_data, aes(x = year)) +
   geom_line(aes(y = GD_ratio_T2, color = "GD_ratio_T2"), na.rm = TRUE) +
   geom_line(aes(y = EC_ratio_T1, color = "EC_ratio_T1"), na.rm = TRUE) +
   geom_line(aes(y = EC_ratio_T2, color = "EC_ratio_T2"), na.rm = TRUE) +
-  labs(title = "Outcomes relatifs, 1965-2022",
+  labs(title = "Evolution des paramètres d'intérêt",
+       subtitle = "1965-2022",
        x = "Année",
        y = "Pourcentage",
        color = "Outcomes") +
@@ -125,6 +126,8 @@ plot <- ggplot(graph_data, aes(x = year)) +
   theme_grey() +
   theme(
     plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    legend.title = element_blank(),
     panel.grid.minor = element_blank()
   )
 
@@ -156,14 +159,17 @@ for (year in 1960:2022) {
 plot <- ggplot(propri_df, aes(x = year)) +
   geom_line(aes(y = prop_ratio, color = "prop_ratio")) +
   geom_line(aes(y = ppropri, color = "ppropri")) +
-  labs(title = "Taux de propriétaires de leur résidence principale, 1960-2022",
+  labs(title = "Taux de propriétaires de leur résidence principale",
+       subtitle = "1960-2022",
        x = "Année",
        y = "",
        color = "") +
   scale_color_manual(values = c("prop_ratio" = "skyblue", "ppropri" = "orange"),
                      labels = c("prop_ratio" = "Taux national", "ppropri" = "Taux communal moyen")) +
   theme_grey() +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5))
 print(plot)
 ggsave("output_panel/taux_proprietaires_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
 
@@ -211,13 +217,14 @@ plot <- ggplot(panel_data, aes(x = ppropri, y = as.factor(year), fill = ..x..)) 
   geom_density_ridges_gradient(scale = 4, rel_min_height = 0.01) +
   scale_fill_viridis(option = "C") +
   labs(
-    title = "Distribution du taux de propriétaires, 1965 - 2022",
+    title = "Distribution du taux de propriétaires",
+    subtitle = "1965 - 2022",
     x = "",
     y = "") +
   theme_grey() +
-  theme(
-      legend.position = "none",
-      plot.title = element_text(hjust = 0.5))
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5))
 
 print(plot)
 ggsave("output_panel/ridge_ppropri_1965_2022.png", plot, width = 8, height = 6, dpi = 300)
@@ -636,7 +643,7 @@ rm(relative_results)
 
 # Régressions annuelles
 
-## Standard
+## Simples
 
 On peut confirmer le constat d'une variabilité des effets de ppropri en réalisant des régressions années par années, et en traçant l'évolution de son coefficient. La différence avec les panels précédents est que les coefficients des autres variables sont désormais libres au cours du temps ?
 

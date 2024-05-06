@@ -247,7 +247,6 @@ draw_corrplot <- function(data, title, subtitle, filename, range) {
 }
 ```
 
-
 ## Sur les comportements électoraux
 
 On la réalise sur les variables électorales, pour obtenir un espace des comportements politiques sur lequel on projette ensuite les variables socio-démographiques.
