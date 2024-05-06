@@ -215,6 +215,39 @@ rm(model_name, outcome, regression_formula, relative_results,absolute_results)
 
 # ACP
 
+```{r}
+# Fonction pour tracer les corrplots
+draw_corrplot <- function(data, title, subtitle, filename, range) {
+  corrplot <- ggcorrplot(
+    data,
+    method = "square",
+    ggtheme = theme_grey,
+    show.legend = TRUE,
+    outline.color = "darkgrey",
+    tl.cex = 8) +
+    
+    if (identical(range, c(-1,1))) {
+      scale_fill_gradient2(limit = c(-1,1), low = "#6D9EC1", mid = "white", high =  "#E46726", midpoint = 0)}
+    else if (identical(range, c(0,1))) {
+      scale_fill_gradient2(limit = c(0, 1), low = "white", high =  "#E46726")}
+
+  corrplot$labels$title <- title
+  corrplot$labels$subtitle <- subtitle
+  
+  corrplot$theme$plot.title$hjust <- 0.5
+  corrplot$theme$plot.title$size <- 12
+  corrplot$theme$plot.subtitle$hjust <- 0.5
+  corrplot$theme$plot.subtitle$size <- 12
+  corrplot$theme$legend.key.width <- unit(0.3, "cm")
+  corrplot$theme$legend.key.height <- unit(1, "null")
+  corrplot$theme$legend.title <- element_blank()
+
+  print(corrplot)
+  ggsave(filename, plot = corrplot)
+}
+```
+
+
 ## Sur les comportements électoraux
 
 On la réalise sur les variables électorales, pour obtenir un espace des comportements politiques sur lequel on projette ensuite les variables socio-démographiques.
@@ -276,23 +309,22 @@ axis_tbl <- axis_df %>%
     locations = cells_column_labels(columns = c("1", "3", "5", "7", "9"))) 
 axis_tbl
 gtsave(axis_tbl, filename = "contrib_axes_acp1.tex", path = "output_transversal")
-
 ## ... ou d'un corrplot
-corrplot(result$var$contrib, title = "Contribution des variables à l'inertie des axes", is.corr = FALSE, col.lim = c(0, 100), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+draw_corrplot(t(result$var$contrib[, 1:10]/100), "Contribution des variables à l'inertie des axes", "", "output_transversal/contrib_axes_ACP1.png", range = c(0,1))
 
 ## Corrélation des variables aux axes
 ## Avec à nouveau deux représentations possibles...
 ## Des corrplots
-corrplot(result$var$coord[, 1:3], title = "Corrélation des outcomes aux axes", is.corr = TRUE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
-corrplot(result$quanti.sup$coord[, 1:3], title = "Corrélation des régresseurs aux axes", is.corr = TRUE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+draw_corrplot(t(result$var$coord[, 1:3]), title = "Corrélation des outcomes aux axes", "", "output_transversal/corr_outc_axes_ACP1.png", range = c(-1,1))
+draw_corrplot(t(result$quanti.sup$coord[, 1:3]), "Corrélation des régresseurs", "aux axes", "output_transversal/corr_rég_axes_ACP1.png", range = c(-1,1))
 ## Des projections sur les plans factoriels
 plot.PCA(result, axes = c(1,2), choix = "var", select = "cos2 7", title = "Projection sur les axes 1 et 2")
 plot.PCA(result, axes=c(1,3), choix="var", select = "cos2 7", title = "Projection sur les axes 1 et 3")
 plot.PCA(result, axes=c(2,3), choix="var", select = "cos2 7", title = "Projection sur les axes 2 et 3")
 
 ## Qualité de représentation des variables
-corrplot(result$var$cos2[, 1:3], title = "Qualité de représentation des variables électorales", is.corr = FALSE, col.lim = c(0, 1), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
-corrplot(result$quanti.sup$cos2[, 1:3], title = "Qualité de représentation des régresseurs", is.corr = FALSE, col.lim = c(0, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+draw_corrplot(t(result$var$cos2[, 1:3]), "Qualité de représentation", "des variables électorales", "output_transversal/qual_rep_outc_ACP1.png", range = c(0,1))
+draw_corrplot(t(result$quanti.sup$cos2[, 1:3]), "Qualité de représentation", "des régresseurs", "output_transversal/qual_rep_régr_ACP1.png", range = c(0,1))
 
 # Nettoyage
 rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, quant_regressors, result, variables_of_interest, screeplot)
@@ -363,23 +395,22 @@ axis_tbl <- axis_df %>%
     locations = cells_column_labels(columns = c("1", "3", "5", "7", "9"))) 
 axis_tbl
 gtsave(axis_tbl, filename = "contrib_axes_acp2.tex", path = "output_transversal")
-
 ## ... ou d'un corrplot
-corrplot(result$var$contrib, title = "Contribution des variables à l'inertie des axes", is.corr = FALSE, col.lim = c(0, 100), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+draw_corrplot(t(result$var$contrib[, 1:10]/100), "Contribution des variables à l'inertie des axes", "", "output_transversal/contrib_axes_ACP2.png", range = c(0,1))
 
 ## Corrélation des variables aux axes
 ## Avec à nouveau deux représentations possibles...
 ## Des corrplots
-corrplot(result$var$coord[1:15, 1:3], title = "Corrélation des outcomes aux axes", is.corr = TRUE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
-corrplot(result$var$coord[16:44, 1:3], title = "Corrélation des régresseurs aux axes", is.corr = TRUE, mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+draw_corrplot(t(result$var$coord[1:15, 1:3]), title = "Corrélation des outcomes aux axes", "", "output_transversal/corr_outc_axes_ACP2.png", range = c(-1,1))
+draw_corrplot(t(result$var$coord[16:44, 1:3]), "Corrélation des régresseurs", "aux axes", "output_transversal/corr_rég_axes_ACP2.png", range = c(-1,1))
 ## Des projections sur les plans factoriels
 plot.PCA(result, axes = c(1,2), choix = "var", select = "cos2 13", title = "Projection sur les axes 1 et 2")
 plot.PCA(result, axes=c(1,3), choix="var", select = "cos2 13", title = "Projection sur les axes 1 et 3")
 plot.PCA(result, axes=c(2,3), choix="var", select = "cos2 13", title = "Projection sur les axes 2 et 3")
 
 ## Qualité de représentation des variables
-corrplot(result$var$cos2[1:15, 1:3], title = "Qualité de représentation des outcomes", is.corr = FALSE, col.lim = c(0, 1), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
-corrplot(result$var$cos2[16:44, 1:3], title = "Qualité de représentation des régresseurs", is.corr = FALSE, col.lim = c(0, 1), mar = c(1, 1, 1.5, 1), tl.col = "darkgrey", tl.srt = 45, cl.align.text = "l", cl.cex = 0.7, cl.ratio = 0.3)
+draw_corrplot(t(result$var$cos2[1:15, 1:3]), "Qualité de représentation", "des variables électorales", "output_transversal/qual_rep_outc.png", range = c(0,1))
+draw_corrplot(t(result$var$cos2[16:44, 1:3]), "Qualité de représentation", "des régresseurs", "output_transversal/qual_rep_régr.png", range = c(0,1))
 
 # Nettoyage
 rm(axis_df, axis_tbl, coeffs, dummies, labels, mca_data_subset, result, variables_of_interest, screeplot)
@@ -407,7 +438,7 @@ for (i in 1:20) {
   kmeans_model <- kmeans(mca_data_subset, centers = i)
   wcss[i] <- kmeans_model$tot.withinss
 }
-plot(1:20, wcss, type = "b", xlab = "Number of Clusters", ylab = "Within-Cluster Sum of Squares")
+plot(1:20, wcss, type = "b", xlab = "Nombre de clusters", ylab = "Somme des distances intra-clusters au carré")
 
 ## Méthode silhouette
 silhouette_avg <- numeric(length = 20)
@@ -416,14 +447,14 @@ for (i in 2:20) {
   sil <- silhouette(kmeans_model$cluster, dist(mca_data_subset))
   silhouette_avg[i - 1] <- mean(sil[, 3])
 }
-plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters", ylab = "Average Silhouette Width")
+plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Nombre de clusters", ylab = "Coefficient silhouette")
 
 ## Enregistrement des graphs
 png("output_transversal/WCSS.png", width = 1000, height = 500)
-plot(1:20, wcss, type = "b", xlab = "Number of Clusters", ylab = "Within-Cluster Sum of Squares")
+plot(1:20, wcss, type = "b", xlab = "Nombre de clusters", ylab = "Somme des distances intra-clusters au carré")
 dev.off()
 png("output_transversal/Silhouette.png", width = 1000, height = 500)
-plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Number of Clusters", ylab = "Average Silhouette Width")
+plot(2:20, silhouette_avg[2:20], type = "b", xlab = "Nombre de clusters", ylab = "Coefficient silhouette")
 dev.off()
 
 rm(regressors, mca_data_subset, kmeans_model, wcss, silhouette_avg, sil)
