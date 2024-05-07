@@ -92,7 +92,7 @@ mean_ppropri <- mean(mca_data$ppropri, na.rm = TRUE)
 
 plot <- ggplot(mca_data[is.finite(mca_data$ppropri), ], aes(x = ppropri)) +
   geom_histogram(fill = "lightblue", color = "skyblue", bins = 125) +
-  geom_vline(xintercept = mean_ppropri, color = "darkgrey", linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = mean_ppropri, color = "darkgrey", linetype = "dashed", linewidth = 0.7) +
   labs(title = "Distribution du taux de propriétaires en 2017",
        x = "Taux de propriétaires",
        y = "Nombre de communes") +
@@ -119,9 +119,13 @@ draw_map <- function(region, mapped_var, mapped_var_name, base_width) {
     reg_name <- "France"
     reg_abrv <- "FR"
   }
+  
+  # Borne inférieure pour éviter que la coloration ne soit déformée par les outliers
+  lbound <- 25
+  carto[[mapped_var]] <- pmax(carto[[mapped_var]], lbound)
 
   # Création des chemins
-  title <- paste0(mapped_var_name, "\nPremier tour des élections présidentielles\n", reg_name, ", 2017")
+  title <- paste0(mapped_var_name, "\n", reg_name, ", 2017")
   output_file <- paste0("output_transversal/map_ppropri/", mapped_var, "_2017_", reg_abrv, ".png")
   
   # Exportation d'une carte en haute résolution
@@ -133,7 +137,7 @@ draw_map <- function(region, mapped_var, mapped_var_name, base_width) {
   ## Création et enregistrement
   plot_png <- ggplot() +
     geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
-    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 1), limits = c(0, 100)) +
+    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 1), limits = c(lbound, 100)) +
     ggtitle(paste(title)) +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5, size = font_size),
@@ -147,7 +151,10 @@ draw_map <- function(region, mapped_var, mapped_var_name, base_width) {
   # Affichage d'une carte en résolution normale
   display_plot <- ggplot() +
     geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
-    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 1), limits = c(0, 100)) +
+    scale_fill_viridis_c(
+      name = mapped_var_name,
+      labels = scales::percent_format(scale = 1),
+      limits = c(lbound,100)) +
     ggtitle(paste(title)) +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5),
@@ -159,9 +166,9 @@ draw_map <- function(region, mapped_var, mapped_var_name, base_width) {
     print(display_plot)
 }
 
-for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {
-  draw_map(i, "ppropri", "Taux de propriétaires", 8)
-}
+for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {draw_map(i, "ppropri", "Taux de propriétaires", 8)}
+
+rm(i, draw_map)
 ```
 
 ## Corrélogramme
@@ -181,6 +188,40 @@ corrplot(correlation_matrix, type = "upper", method = "color", order = "FPC", tl
 dev.off()
 
 rm(corr_variables, correlation_matrix, mca_corr_data, p_values)
+```
+
+## Corrélations de ppropri
+
+```{r}
+mca_data_complete <- na.omit(mca_data[, c("ppropri", full_mca_regressors), with = FALSE])
+mca_data_complete$type_comm <- as.factor(mca_data_complete$type_comm)
+dummies <- model.matrix(~ type_comm - 1, data = mca_data_complete)
+colnames(dummies) <- paste0("type_comm_", c("village", "bourgs", "banlieues", "centre_metrop"))
+mca_data_complete <- cbind(mca_data_complete, dummies)
+mca_data_complete$type_comm <- NULL
+
+correlation_results <- sapply(mca_data_complete[, -1, drop = FALSE], function(x) cor(mca_data_complete$ppropri, x))
+correlation_results <- correlation_results * 100
+correlation_df <- data.frame(Variables = names(correlation_results), Corrélation = correlation_results)
+correlation_df <- subset(correlation_df, Variables != "ppropri")
+correlation_df <- correlation_df[order(correlation_df$Corrélation, decreasing = TRUE), ]
+rownames(correlation_df) <- NULL
+
+correlation_df <- correlation_df %>%
+  gt() %>%
+  fmt_number(decimals = 2, drop_trailing_zeros = TRUE) %>%
+  tab_header("Corrélation des régresseurs avec le taux de propriétaires", subtitle = NULL, preheader = NULL) %>%
+  data_color(method = "numeric", columns = !matches("Variables"), palette ="Spectral", alpha = 0.6) %>%
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = list(
+      cells_body(column = c("Corrélation")),
+      cells_column_labels()))
+
+correlation_df
+gtsave(correlation_df, filename = "correl_ppropri_2017.tex", path = "output_transversal")
+
+rm(mca_data_complete, correlation_results, correlation_df, dummies)
 ```
 
 # Régressions linéaires simples
@@ -740,9 +781,7 @@ draw_map_cluster <- function(region, base_width) {
     print(display_plot)
 }
 
-for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {
-  draw_map_cluster(i, 12)
-}
+for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {draw_map_cluster(i, 12)}
 
 rm(cluster_data, i)
 ```
