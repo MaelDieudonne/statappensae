@@ -93,14 +93,16 @@ mean_ppropri <- mean(mca_data$ppropri, na.rm = TRUE)
 plot <- ggplot(mca_data[is.finite(mca_data$ppropri), ], aes(x = ppropri)) +
   geom_histogram(fill = "lightblue", color = "skyblue", bins = 125) +
   geom_vline(xintercept = mean_ppropri, color = "darkgrey", linetype = "dashed", linewidth = 0.7) +
-  labs(title = "Distribution du taux de propriétaires en 2017",
-       x = "Taux de propriétaires",
-       y = "Nombre de communes") +
+  labs(
+    x = "Taux de propriétaires",
+    y = "Nombre de communes") +
   theme_grey() +
   theme(plot.title = element_text(hjust = 0.5))
 
-print(plot)
 ggsave("output_transversal/distribution_ppropri_2017.png", plot, width = 8, height = 6, dpi = 300)
+
+plot <- plot + labs(title = "Distribution du taux de propriétaires en 2017")
+print(plot)
 
 rm(mean_ppropri, plot)
 ```
@@ -321,17 +323,19 @@ result <- PCA(mca_data_subset, scale.unit = TRUE, quanti.sup=quant_regressors, n
 
 # Résultats
 ## Histogramme de la contribution des axes à la variance totale
-screeplot <- fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 30), title = "Histogramme de l'inertie totale") + theme_gray()
+screeplot <- fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 30), title = "") + theme_gray()
 screeplot$layers[[1]]$aes_params$fill <- "lightskyblue"
 screeplot$layers[[1]]$aes_params$colour <- "cornflowerblue"
 screeplot$layers[[2]]$aes_params$colour <- "darkblue"
 screeplot$layers[[3]]$aes_params$colour <- "darkblue"
 screeplot$layers[[4]]$aes_params$colour <- "darkblue"
-screeplot$theme$plot.title$hjust <- 0.5
 screeplot$labels$x <- "Dimensions"
 screeplot$labels$y <- "% de variance expliquée"
-screeplot
 ggsave("output_transversal/screeplot_ACP1.png", plot = screeplot, width = 10, height = 6, units = "in", dpi = 300)
+
+screeplot$labels$title = "Histogramme de l'inertie totale"
+screeplot$theme$plot.title$hjust <- 0.5
+screeplot
 
 ## Contribution des variables aux axes (comportements électoraux seulement)
 ## Correspond à la qualité de représentation des variables (= cos2) normalisée entre 1 et 100
@@ -399,7 +403,7 @@ result <- PCA(mca_data_subset, scale.unit = TRUE, ncp = 10, graph = FALSE)
 
 # Résultats
 ## Histogramme de la contribution des axes à la variance totale
-screeplot <- fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 30), title = "Histogramme de l'inertie totale") + theme_gray()
+screeplot <- fviz_screeplot(result, addlabels = TRUE, ylim = c(0, 30), title = "") + theme_gray()
 screeplot$layers[[1]]$aes_params$fill <- "lightskyblue"
 screeplot$layers[[1]]$aes_params$colour <- "cornflowerblue"
 screeplot$layers[[2]]$aes_params$colour <- "darkblue"
@@ -408,8 +412,11 @@ screeplot$layers[[4]]$aes_params$colour <- "darkblue"
 screeplot$theme$plot.title$hjust <- 0.5
 screeplot$labels$x <- "Dimensions"
 screeplot$labels$y <- "% de variance expliquée"
-screeplot
 ggsave("output_transversal/screeplot_ACP2.png", plot = screeplot, width = 10, height = 6, units = "in", dpi = 300)
+
+screeplot$labels$title = "Histogramme de l'inertie totale"
+screeplot$theme$plot.title$hjust <- 0.5
+screeplot
 
 ## Contribution des variables aux axes (comportements électoraux seulement)
 ## Correspond à la qualité de représentation des variables (= cos2) normalisée entre 1 et 100
