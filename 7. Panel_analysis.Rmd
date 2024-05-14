@@ -467,7 +467,7 @@ plot <- ggplot(coefficients) +
     x = "Années",
     y = "",
     color = "Coefficients",
-    fill = "95 % IC") +
+    fill = "IC 95 %") +
   theme_grey() +
   theme(
     plot.title = element_text(hjust = 0.5),
@@ -631,7 +631,7 @@ plot <- ggplot(coefficients) +
     x = "Années",
     y = "",
     color = "Coefficients",
-    fill = "95 % IC") +
+    fill = "IC 95 %") +
   theme_grey() +
   theme(
     plot.title = element_text(hjust = 0.5),
@@ -700,17 +700,18 @@ plot <- ggplot(results) +
     values = c("part_T1" = "skyblue", "GD_ratio_T1" = "orange", "EC_ratio_T1" = "lightgreen"),
     labels = c("part_T1" = "Participation", "GD_ratio_T1" = "GD Ratio", "EC_ratio_T1" = "EC Ratio")) +
   labs(
-    title = "Coefficients de ppropri dans les régressions annuelles",
     x = "Années",
     y = "",
    color = "Coefficient",
-   fill = "95 % IC") +
+   fill = "IC 95 %") +
   theme_grey() +
   theme(
     plot.title = element_text(hjust = 0.5),
     panel.grid.minor = element_blank())
+ggsave("output_panel/ppropri_reg_coeffs.png", plot, width = 8, height = 6, dpi = 300)
+
+plot <- plot + labs(title = "Coefficients de ppropri dans les régressions annuelles")
 print(plot)
-ggsave("output_panel/ppropri_panel_coeffs_abs.png", plot, width = 8, height = 6, dpi = 300)
 
 rm(results, outcome, yr, subset_data, regression_formula, model, plot)
 ```
@@ -743,7 +744,7 @@ pseudo_quant_reg <- function(outcome) {
     scale_x_continuous(breaks = unique(R2_df$year)) + 
     labs(
       title = paste("R2 des régressions pseudo-quantiles de", outcome),
-      subtitle ="(quartiles mobiles)",
+      subtitle ="(quantiles mobiles)",
       x = "Années",
       y = "R2",
       color = "Quartiles") +
@@ -751,17 +752,16 @@ pseudo_quant_reg <- function(outcome) {
     theme(
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5),
+      legend.title = element_text(hjust = 0.5),
       panel.grid.minor = element_blank())
   print(plot_r2)
   
-  output_file <- paste0("output_panel/pseudo_quant_abs_", outcome, ".png")
+  output_file <- paste0("output_panel/pseudo_quant_mob_", outcome, ".png")
   plot_coef <- ggplot(coefs_df, aes(x = year, y = coefficient, color = quantile, group = quantile)) +
     geom_line() +
     geom_hline(yintercept = 0, linetype = "twodash", color = "gray40") + 
     scale_x_continuous(breaks = unique(coefs_df$year)) +
     labs(
-      title = paste("Coefficients de ppropri dans les régressions pseudo-quantiles de", outcome),
-      subtitle ="(quartiles mobiles)",
       x = "Années",
       y = "Coefficients",
       color = "Quartiles") +
@@ -769,9 +769,15 @@ pseudo_quant_reg <- function(outcome) {
     theme(
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5),
+      legend.title = element_text(hjust = 0.5),
       panel.grid.minor = element_blank())
-  print(plot_coef)
   ggsave(output_file, plot_coef, width = 8, height = 6, dpi = 300)
+  
+  plot_coef <- plot_coef +
+    labs(
+      title = paste("Coefficients de ppropri dans les régressions pseudo-quantiles de", outcome),
+      subtitle = "(quantiles mobiles)")
+  print(plot_coef)
 }
 
 for (outcome in relative_outcomes) {pseudo_quant_reg(outcome)}
@@ -810,7 +816,8 @@ pseudo_quant_reg <- function(outcome) {
     geom_hline(yintercept = 0, linetype = "twodash", color = "gray40") + 
     scale_x_continuous(breaks = unique(R2_df$year)) +  
     labs(
-      title = paste("R2 des régressions pseudo-quantiles de", outcome), subtitle ="(quantiles absolus)",
+      title = paste("R2 des régressions pseudo-quantiles de", outcome),
+      subtitle = "(quantiles fixes)",
       x = "Années",
       y = "R2",
       color = "Quantiles") +
@@ -818,16 +825,16 @@ pseudo_quant_reg <- function(outcome) {
     theme(
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5),
+      legend.title = element_text(hjust = 0.5),
       panel.grid.minor = element_blank())
   print(plot_r2)
   
-  output_file <- paste0("output_panel/pseudo_quant_rel_", outcome, ".png")
+  output_file <- paste0("output_panel/pseudo_quant_fixed_", outcome, ".png")
   plot_coef <- ggplot(coefs_df, aes(x = year, y = coefficient, color = quantile, group = quantile)) +
     geom_line() +
     geom_hline(yintercept = 0, linetype = "twodash", color = "gray40") + 
     scale_x_continuous(breaks = unique(coefs_df$year)) + 
     labs(
-      title = paste("Coefficients de ppropri dans les régressions pseudo-quantiles de", outcome), subtitle ="(quantiles absolus)",
       x = "Années",
       y = "Coefficients",
       color = "Quantiles") +
@@ -835,9 +842,15 @@ pseudo_quant_reg <- function(outcome) {
     theme(
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5),
+      legend.title = element_text(hjust = 0.5),
       panel.grid.minor = element_blank())
-  print(plot_coef)
   ggsave(output_file, plot_coef, width = 8, height = 6, dpi = 300)
+  
+  plot_coef <- plot_coef +
+    labs(
+      title = paste("Coefficients de ppropri dans les régressions pseudo-quantiles de", outcome),
+      subtitle = "(quantiles fixes)")
+  print(plot_coef)
 }
 
 for (outcome in relative_outcomes) {pseudo_quant_reg(outcome)}
@@ -860,7 +873,6 @@ plot_counts <- ggplot(ppropri_df, aes(x = year, y = sum_comm)) +
   geom_line(color = "skyblue") +
   scale_x_continuous(breaks = unique(ppropri_df$year)) +  
   labs(
-    title = "Nombre de communes où le taux de propriétaires est >95%",
     x = "Années",
     y = "Effectifs") +
   theme_grey() +
@@ -868,8 +880,10 @@ plot_counts <- ggplot(ppropri_df, aes(x = year, y = sum_comm)) +
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5),
       panel.grid.minor = element_blank())
-print(plot_counts)
 ggsave("output_panel/ppropri_max.png", plot_counts, width = 8, height = 6, dpi = 300)
+
+plot_counts <- plot_counts + labs(title = "Nombre de communes où le taux de propriétaires est >95%")
+print(plot_counts)
 
 rm(ppropri_df, plot_counts, yr, sum_comm, sum_pop)
 ```
@@ -893,13 +907,12 @@ quant_reg <- function(outcome) {
     }
   }
   
-  output_file <- paste0("output_panel/quant_abs_", outcome, ".png")
+  output_file <- paste0("output_panel/quant_mob_", outcome, ".png")
   plot_coef <- ggplot(coefs_df, aes(x = year, y = coefficient, color = factor(quantile))) +
     geom_line() +
     geom_hline(yintercept = 0, linetype = "twodash", color = "gray40") + 
     scale_x_continuous(breaks = unique(coefs_df$year)) +   
     labs(
-      title = paste("Coefficients de ppropri dans les régressions quantiles de", outcome),
       x = "Années",
       y = "Coefficients") +
     scale_color_discrete(name = "Quantile") +
@@ -907,9 +920,15 @@ quant_reg <- function(outcome) {
     theme(
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5),
+      legend.title = element_text(hjust = 0.5),
       panel.grid.minor = element_blank())
-  print(plot_coef)
   ggsave(output_file, plot_coef, width = 8, height = 6, dpi = 300)
+  
+  plot_coef <- plot_coef +
+    labs(
+      title = paste("Coefficients de ppropri dans les régressions quantiles de", outcome),
+      subtitle = "(quantiles mobiles)")
+  print(plot_coef)
 }
 
 for (outcome in relative_outcomes) {quant_reg(outcome)}
@@ -956,7 +975,8 @@ quant_reg <- function(outcome) {
     geom_hline(yintercept = 0, linetype = "twodash", color = "gray40") + 
     scale_x_continuous(breaks = unique(R2_df$year)) +  
     labs(
-      title = paste("R2 des régressions pseudo-quantiles de", outcome), subtitle ="(quantiles absolus)",
+      title = paste("R2 des régressions pseudo-quantiles de", outcome),
+      subtitle ="(quantiles fixes)",
       x = "Années",
       y = "R2",
       color = "Quantiles") +
@@ -964,16 +984,16 @@ quant_reg <- function(outcome) {
     theme(
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5),
+      legend.title = element_text(hjust = 0.5),
       panel.grid.minor = element_blank())
   print(plot_r2)
   
-  output_file <- paste0("output_panel/quant_rel_", outcome, ".png")
+  output_file <- paste0("output_panel/quant_fixed_", outcome, ".png")
   plot_coef <- ggplot(coefs_df, aes(x = year, y = coefficient, color = quantile, group = quantile)) +
     geom_line() +
     geom_hline(yintercept = 0, linetype = "twodash", color = "gray40") + 
     scale_x_continuous(breaks = unique(coefs_df$year)) + 
     labs(
-      title = paste("Coefficients de ppropri dans les régressions pseudo-quantiles de", outcome), subtitle ="(quantiles absolus)",
       x = "Années",
       y = "Coefficients",
       color = "Quantiles") +
@@ -981,9 +1001,15 @@ quant_reg <- function(outcome) {
     theme(
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5),
+      legend.title = element_text(hjust = 0.5),
       panel.grid.minor = element_blank())
-  print(plot_coef)
   ggsave(output_file, plot_coef, width = 8, height = 6, dpi = 300)
+  
+  plot_coef <- plot_coef +
+    labs(
+      title = paste("Coefficients de ppropri dans les régressions pseudo-quantiles de", outcome),
+      subtitle ="(quantiles fixes)")
+  print(plot_coef)
 }
 
 for (outcome in relative_outcomes) {quant_reg(outcome)}

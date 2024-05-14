@@ -137,15 +137,20 @@ draw_map <- function(region, mapped_var, mapped_var_name, base_width) {
   ## Création et enregistrement
   plot_png <- ggplot() +
     geom_sf(data = carto, aes(fill = .data[[mapped_var]])) +
-    scale_fill_viridis_c(name = mapped_var_name, labels = scales::percent_format(scale = 1), limits = c(lbound, 100)) +
-    ggtitle(paste(title)) +
+    scale_fill_viridis_c(
+      name = mapped_var_name, 
+      labels = scales::percent_format(scale = 1), 
+      limits = c(lbound, 100)) +
+    # ggtitle(paste(title)) +
     theme_minimal() +
-    theme(plot.title = element_text(hjust = 0.5, size = font_size),
-          axis.text = element_blank(),
-          panel.grid = element_blank(),
-          plot.title.position = "plot",
-          legend.title = element_text(size = font_size * 0.8),
-          legend.text = element_text(size = font_size * 0.7))
+    theme(
+      # plot.title = element_text(hjust = 0.5, size = font_size),
+      axis.text = element_blank(),
+      panel.grid = element_blank(),
+      plot.title.position = "plot",
+      legend.title = element_blank(),
+      # legend.title = element_text(hjust = 0.5, size = font_size * 0.8),
+      legend.text = element_text(size = font_size * 0.7))
   ggsave(output_file, plot = plot_png, width = base_width, height = base_height, units = "in")
   
   # Affichage d'une carte en résolution normale
@@ -157,16 +162,17 @@ draw_map <- function(region, mapped_var, mapped_var_name, base_width) {
       limits = c(lbound,100)) +
     ggtitle(paste(title)) +
     theme_minimal() +
-    theme(plot.title = element_text(hjust = 0.5),
-          axis.text = element_blank(),
-          panel.grid = element_blank(),
-          plot.title.position = "plot",
-          legend.title = element_text(),
-          legend.text = element_text())   
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      axis.text = element_blank(),
+      panel.grid = element_blank(),
+      plot.title.position = "plot",
+      legend.title = element_blank(),
+      legend.text = element_text())   
     print(display_plot)
 }
 
-for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {draw_map(i, "ppropri", "Taux de propriétaires", 8)}
+for (i in c(11, 24, 27, 28, 32, 44, 52, 53, 75, 76, 84, 93)) {draw_map(i, "ppropri", "Taux de propriétaires", 12)}
 
 rm(i, draw_map)
 ```
@@ -272,9 +278,6 @@ draw_corrplot <- function(data, title, subtitle, filename, range) {
     else if (identical(range, c(0,1))) {
       scale_fill_gradient2(limit = c(0, 1), low = "white", high =  "#E46726")}
 
-  corrplot$labels$title <- title
-  corrplot$labels$subtitle <- subtitle
-  
   corrplot$theme$plot.title$hjust <- 0.5
   corrplot$theme$plot.title$size <- 12
   corrplot$theme$plot.subtitle$hjust <- 0.5
@@ -283,8 +286,12 @@ draw_corrplot <- function(data, title, subtitle, filename, range) {
   corrplot$theme$legend.key.height <- unit(1, "null")
   corrplot$theme$legend.title <- element_blank()
 
-  print(corrplot)
   ggsave(filename, plot = corrplot)
+  
+  corrplot$labels$title <- title
+  corrplot$labels$subtitle <- subtitle
+  
+  print(corrplot)
 }
 ```
 
@@ -749,35 +756,40 @@ draw_map_cluster <- function(region, base_width) {
   font_size <- base_width * 2.2
   ## Création et enregistrement
   plot_png <- ggplot() +
+    # geom_sf(data = carto, aes(fill = .data[["cluster"]]), show.legend = FALSE) +
     geom_sf(data = carto, aes(fill = .data[["cluster"]])) +
-    ggtitle(paste(title)) +
+    # ggtitle(paste(title)) +
     theme_minimal() +
-    theme(plot.title = element_text(hjust = 0.5, size = font_size),
-          axis.text = element_blank(),
-          panel.grid = element_blank(),
-          plot.title.position = "plot",
-          legend.title = element_text(size = font_size * 0.8),
-          legend.text = element_text(size = font_size * 0.5)) +
-    scale_fill_manual(values = legend_colors,
-                      breaks = names(legend_labels),
-                      labels = legend_labels,
-                      name = NULL)
+    theme(
+      # plot.title = element_text(hjust = 0.5, size = font_size),
+      axis.text = element_blank(),
+      panel.grid = element_blank(),
+      plot.title.position = "plot",
+      # legend.title = element_text(hjust = 0.5, size = font_size * 0.8),
+      legend.text = element_text(size = font_size * 0.5)) +
+    scale_fill_manual(
+      values = legend_colors,
+      breaks = names(legend_labels),
+      labels = legend_labels,
+      name = NULL)
   ggsave(output_file, plot = plot_png, width = base_width, height = base_height, units = "in")
   
   display_plot <- ggplot() +
     geom_sf(data = carto, aes(fill = .data[["cluster"]])) +
     ggtitle(paste(title)) +
     theme_minimal() +
-    theme(plot.title = element_text(hjust = 0.5),
-          axis.text = element_blank(),
-          panel.grid = element_blank(),
-          plot.title.position = "plot",
-          legend.title = element_text(),
-          legend.text = element_text()) +
-    scale_fill_manual(values = legend_colors,
-                      breaks = names(legend_labels),
-                      labels = legend_labels,
-                      name = NULL)
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      axis.text = element_blank(),
+      panel.grid = element_blank(),
+      plot.title.position = "plot",
+      legend.title = element_text(hjust = 0.5),
+      legend.text = element_text()) +
+    scale_fill_manual(
+      values = legend_colors,
+      breaks = names(legend_labels),
+      labels = legend_labels,
+      name = NULL)
     print(display_plot)
 }
 
