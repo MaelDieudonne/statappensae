@@ -107,8 +107,6 @@ plot <- ggplot(graph_data, aes(x = year)) +
   geom_line(aes(y = EC_ratio_T2, color = "EC_ratio_T2"), na.rm = TRUE) +
   scale_x_continuous(breaks = unique(graph_data$year)) +
   labs(
-    title = "Evolution des paramètres d'intérêt",
-    subtitle = "1965-2022",
     x = "Années",
     y = "Pourcentage",
     color = "Outcomes") +
@@ -126,14 +124,20 @@ plot <- ggplot(graph_data, aes(x = year)) +
                                 "EC_ratio_T2" = "Ratio EC T2")) +
   theme_grey() +
   theme(
-    plot.title = element_text(hjust = 0.5),
-    plot.subtitle = element_text(hjust = 0.5),
     legend.title = element_blank(),
     panel.grid.minor = element_blank()
   )
-
-print(plot)
 ggsave("output_panel/outcomes_relatifs_1965_2022.png", plot, width = 8, height = 6, dpi = 300)
+
+plot <- plot +
+  labs(
+    title = "Evolution des paramètres d'intérêt",
+    subtitle = "1965-2022") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5))
+print(plot)
+
 
 rm(data, graph_data, outcome)
 ```
@@ -160,20 +164,21 @@ for (year in 1960:2022) {
 plot <- ggplot(propri_df, aes(x = year)) +
   geom_line(aes(y = prop_ratio, color = "prop_ratio")) +
   geom_line(aes(y = ppropri, color = "ppropri")) +
+  labs(x = "Années", y = "", color = "") +
+  scale_color_manual(
+    values = c("prop_ratio" = "skyblue", "ppropri" = "orange"),
+    labels = c("prop_ratio" = "Taux national", "ppropri" = "Taux communal moyen")) +
+  theme_grey()
+ggsave("output_panel/taux_proprietaires_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
+
+plot <- plot +
   labs(
     title = "Taux de propriétaires de leur résidence principale",
-    subtitle = "1960-2022",
-    x = "Années",
-    y = "",
-    color = "") +
-  scale_color_manual(values = c("prop_ratio" = "skyblue", "ppropri" = "orange"),
-                     labels = c("prop_ratio" = "Taux national", "ppropri" = "Taux communal moyen")) +
-  theme_grey() +
+    subtitle = "1960-2022") +
   theme(
     plot.title = element_text(hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5))
 print(plot)
-ggsave("output_panel/taux_proprietaires_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
 
 rm(propri, propri_df, year, col_npropri, col_nlogement, col_ppropri, sum_npropri, sum_nlogement, average_ppropri, prop_ratio)
 ```
@@ -199,16 +204,16 @@ quantiles_df <- quantiles_df[quantiles_df$quintile != "D0" & quantiles_df$quinti
 
 plot <- ggplot(quantiles_df, aes(x = year, y = ppropri, color = as.factor(quintile), group = quintile)) +
   geom_line() +
-  labs(
-    title = "Déciles du taux communal moyen de propriétaires",
-    x = "Années", 
-    y = "", 
-    color = "Déciles") +
-  theme_grey() +
-  theme(plot.title = element_text(hjust = 0.5))
+  labs(x = "Années",y = "", color = "Déciles") +
+  theme_grey()
 
-print(plot)
 ggsave("output_panel/deciles_taux_proprietaires_1960_2022.png", plot, width = 8, height = 6, dpi = 300)
+
+plot <- plot +
+  labs(title = "Déciles du taux communal moyen de propriétaires") +
+  theme(plot.title = element_text(hjust = 0.5))
+print(plot)
+
 
 rm(nb_quantiles, quantiles_list, yr, panel_subset, quantiles, quantiles_df)
 ```
@@ -219,18 +224,19 @@ Pour terminer, un ridgeline représentant plus finement l'évolution de la distr
 plot <- ggplot(panel_data, aes(x = ppropri, y = as.factor(year), fill = after_stat(x))) +
   geom_density_ridges_gradient(scale = 4, rel_min_height = 0.01) +
   scale_fill_viridis(option = "C") +
+  labs(x = "", y = "") +
+  theme_grey() +
+  theme(legend.position = "none")
+ggsave("output_panel/ridge_ppropri_1965_2022.png", plot, width = 8, height = 6, dpi = 300)
+
+plot <- plot +
   labs(
     title = "Distribution du taux de propriétaires",
-    subtitle = "1965 - 2022",
-    x = "",
-    y = "") +
-  theme_grey() +
+    subtitle = "1965 - 2022") +
   theme(
-    legend.position = "none",
     plot.title = element_text(hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5))
 print(plot)
-ggsave("output_panel/ridge_ppropri_1965_2022.png", plot, width = 8, height = 6, dpi = 300)
 
 rm(plot)
 ```
@@ -462,19 +468,22 @@ plot <- ggplot(coefficients) +
     labels = c("part_T1" = "Participation", "GD_ratio_T1" = "GD Ratio", "EC_ratio_T1" = "EC Ratio")) +
   scale_x_continuous(breaks = unique(coefficients$year)) +
   labs(
-    title = "Coefficients de ppropri dans les panels",
-    subtitle = "(avec interactions temporelles)",
     x = "Années",
     y = "",
     color = "Coefficients",
     fill = "IC 95 %") +
   theme_grey() +
+  theme(panel.grid.minor = element_blank())
+ggsave("output_panel/ppropri_panel_coeffs.png", plot, width = 8, height = 6, dpi = 300)
+
+plot <- plot +
+  labs(
+    title = "Coefficients de ppropri dans les panels",
+    subtitle = "(avec interactions temporelles)") +
   theme(
     plot.title = element_text(hjust = 0.5),
-    plot.subtitle = element_text(hjust = 0.5),
-    panel.grid.minor = element_blank())
+    plot.subtitle = element_text(hjust = 0.5))  
 print(plot)
-ggsave("output_panel/ppropri_panel_coeffs.png", plot, width = 8, height = 6, dpi = 300)
 
 rm(part_T1, GD_ratio_T1, EC_ratio_T1, coefficients, plot)
 ```
@@ -626,19 +635,23 @@ plot <- ggplot(coefficients) +
     labels = c("part" = "Participation", "GD_ratio" = "GD Ratio", "EC_ratio" = "EC Ratio")) +
   scale_x_continuous(breaks = unique(coefficients$year)) +
   labs(
-    title = "Coefficients de ppropri dans les panels",
-    subtitle = "(avec interactions temporelles et tours confondus)",
     x = "Années",
     y = "",
     color = "Coefficients",
     fill = "IC 95 %") +
   theme_grey() +
+  theme(panel.grid.minor = element_blank())
+print(plot)
+ggsave("output_panel/ppropri_panels_coeffs_rounds.png", plot, width = 8, height = 6, dpi = 300)
+
+plot <- plot +
+  labs(
+    title = "Coefficients de ppropri dans les panels",
+    subtitle = "(avec interactions temporelles et tours confondus)") +
   theme(
     plot.title = element_text(hjust = 0.5),
-    plot.subtitle = element_text(hjust = 0.5),
-    panel.grid.minor = element_blank())
+    plot.subtitle = element_text(hjust = 0.5))  
 print(plot)
-ggsave("output_panel/ppropri_reg_coeffs.png", plot, width = 8, height = 6, dpi = 300)
 
 rm(part, GD_ratio, EC_ratio, coefficients, plot)
 ```
@@ -700,8 +713,8 @@ plot <- ggplot(results) +
     values = c("part_T1" = "skyblue", "GD_ratio_T1" = "orange", "EC_ratio_T1" = "lightgreen"),
     labels = c("part_T1" = "Participation", "GD_ratio_T1" = "GD Ratio", "EC_ratio_T1" = "EC Ratio")) +
   labs(
-    x = "Années",
-    y = "",
+   x = "Années",
+   y = "",
    color = "Coefficient",
    fill = "IC 95 %") +
   theme_grey() +
